@@ -9,10 +9,17 @@ loop, built entirely from vanilla blocks, items and effects.
 
 ## How to play
 
-> **New here?** Run `/quest join`, pick a class with `/quest roles` and `/quest class <name>`, then
-> ask an op for `/quest town` and right-click the **loom quest board** to accept your first quest.
+> **New here?** Your first join raises a **starter town** at your spawn point, and you wake up in its
+> plaza. Right-click **Questmaster Boralus** to accept your first quest, then `/quest join` and pick
+> a class with `/quest roles` and `/quest class <name>`.
 
-1. **Create your hero** — `/quest join`, then choose a class (WoW-style roles):
+1. **Arrive in town** — the first hero to join a realm gets a starter town built at their spawn:
+   a plaza with a **loom quest board**, vendor barrel, hearth and lantern-lit fences, plus permanent
+   **town NPCs**: Questmaster Boralus (opens the quest board), Merchant Tilli (opens the shop), and
+   guards who hand out hints. Every new hero is teleported into the plaza and respawns there. Ops can
+   raise more hubs anywhere with `/quest town`; towns and boards persist across restarts.
+
+2. **Create your hero** — `/quest join`, then choose a class (WoW-style roles):
 
    | Class | Playstyle |
    |---|---|
@@ -23,45 +30,46 @@ loop, built entirely from vanilla blocks, items and effects.
    | `rogue` | Shadow striker — swift and deadly |
    | `priest` | Holy healer — permanent regeneration |
 
-2. **Level up by playing** — every monster kill grants XP (bigger mobs, bigger XP). Leveling grants
+3. **Level up by playing** — every monster kill grants XP (bigger mobs, bigger XP). Leveling grants
    +2 health per level, more damage every few levels, a server-wide announcement and a title screen.
    Levels persist across restarts.
 
-3. **Run quests** — right-click the **loom quest board** (or `/quest board`) for a clickable list of
-   quests filtered by your level: kill quests, collection deliveries and boss hunts ("The Warden Below").
-   Accept with a click, track progress in your action bar, turn in **at the board** for XP, gold and
-   occasionally gear.
+4. **Run quests** — right-click the **loom quest board** or the questmaster (or `/quest board`) for a
+   clickable list of quests filtered by your level: kill quests, collection deliveries and boss hunts
+   ("The Warden Below"). Accept with a click, track progress in your action bar, turn in **at the
+   board** for XP, gold and occasionally gear.
 
-4. **Loot that scales** — drop rate and rarity **scale with the mob's tier** (from its kill-XP value):
+5. **Loot that scales** — drop rate and rarity **scale with the mob's tier** (from its kill-XP value):
    zombies drop trash, elders and wardens drop epics. WoW-colored gear: white common, green
    uncommon, aqua rare, purple epic — real enchanted items like *Duskcleaver* or *Helm of the Black
    Roar*. Gold coins fund the vendor. Rare elites always drop top-tier loot.
 
-5. **Party up** — `/quest party <name>` groups up to 5 heroes (WoW party size). Party members within
+6. **Party up** — `/quest party <name>` groups up to 5 heroes (WoW party size). Party members within
    40 blocks share 50% of kill XP **and quest progress**: any member's kill counts toward the same
    kill-quest for everyone holding it. Your party shows in the action bar.
 
-6. **Group quests** — quests marked **[GROUP]** on the board (Ravager Rampage, The Deep Duke,
+7. **Group quests** — quests marked **[GROUP]** on the board (Ravager Rampage, The Deep Duke,
    The Warden Below) are boss hunts: every ready party member at the quest board turns in together
    with one command, each getting the full reward plus a **+50% group XP bonus**.
 
-7. **Need/Greed loot lock** — when your party rolls a gear drop, it's locked to the party for 60
+8. **Need/Greed loot lock** — when your party rolls a gear drop, it's locked to the party for 60
    seconds: a chat line with clickable **[NEED]** / **[GREED]** buttons; everyone rolls 1-100,
    highest need wins (else highest greed), no rolls = free-for-all.
 
-8. **Signature loot** — every mob family has an iconic drop that *only it* ever carries: the warden
+9. **Signature loot** — every mob family has an iconic drop that *only it* ever carries: the warden
    alone drops *Deepbrand, Bane of the Dark*, the elder guardian its trident *Heart of the Deep
    Duke*, witches their grimoire, phantoms their shroud. Named rare elites triple the odds.
 
-9. **Quest tracker with compass** — `/quest track <id>` pins up to 4 quests to your action bar with a
+10. **Quest tracker with compass** — `/quest track <id>` pins up to 4 quests to your action bar with a
    live 8-way compass: it points at the nearest objective mob (or dropped delivery item) while you
    hunt, and flips to pointing back at the quest board once the objective is done. New quests
    auto-track while there's room; `/quest untrack <id>` clears one.
 
-10. **Spend your gold** — right-click the **vendor barrel** in town (or `/quest shop`) for a clickable
-    catalog from common tools to the epic *Helm of the Black Roar* — a gold sink with guaranteed gear.
+11. **Spend your gold** — right-click the **vendor barrel** or Merchant Tilli (or `/quest shop`) for a
+    clickable catalog from common tools to the epic *Helm of the Black Roar* — a gold sink with
+    guaranteed gear.
 
-11. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
+12. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
     *Silithis the Broodmother*) spawns near a random hero with a server announcement: **10x XP and
     guaranteed loot**. Ops can trigger one with `/quest rare`.
 
@@ -130,16 +138,17 @@ console run `op your_username` and in game:
 
 ## Installing on a real server
 
-1. Install the [Fabric server](https://fabricmc.net/use/) for Minecraft 1.21.
-2. Drop `azeroth-chaos-1.0.0.jar` and
+2. Install the [Fabric server](https://fabricmc.net/use/) for Minecraft 1.21.
+3. Drop `azeroth-chaos-1.0.0.jar` and
    [Fabric API](https://modrinth.com/mod/fabric-api) (`0.102.0+1.21`) into the `mods/` folder.
-3. Players connect with an unmodified (vanilla) client — the mod is server-authoritative.
+4. Players connect with an unmodified (vanilla) client — the mod is server-authoritative.
 
 ## Persistence
 
 Hero characters (class, level, XP, quest log, stats) persist to
 `azeroth-chaos-characters.snbt` in the world folder, so levels and quests survive server restarts.
-Delete that file to wipe the realm.
+Built towns and their quest-board registrations persist to `azeroth-chaos-towns.snbt` next to it.
+Delete those files to wipe the realm.
 
 ## Tuning
 
@@ -164,8 +173,9 @@ src/main/scala/dev/azerothchaos/
   PartyLoot.scala        Party loot lock: need/greed rolls with timed resolution
   Shop.scala             Vendor stock (gold sink for gear)
   CharacterStore.scala   SNBT persistence of heroes in the world folder
-  TownBuilder.scala      /quest town: auto-builds a quest hub with the board
-  Interactions.scala     Right-click hook for the quest board (loom)
+  TownBuilder.scala      Starter town on first join, /quest town hubs, town NPCs
+  TownStore.scala        SNBT persistence of towns / quest-board registrations
+  Interactions.scala     Right-click hooks: quest board, vendor barrel, town NPCs
   Combat.scala           Kill credit from damage sources
   QuestCommand.scala     /quest command tree (Brigadier)
   Hud.scala              Action-bar HUD: level, XP bar, quest tracker, party

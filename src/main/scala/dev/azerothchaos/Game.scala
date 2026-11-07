@@ -104,12 +104,14 @@ object Game:
     val hc = heroClassOf(c)
     if hc.isEmpty then
       s"Welcome, ${player.getName.getString}! Choose a class: /quest class warrior|mage|hunter|priest|rogue|paladin. " +
-        "Build a town with /quest town (op) and take quests at the board. Slay monsters to level up."
+        "Take quests from the town questmaster (or the loom board). Slay monsters to level up."
     else
       s"Welcome back to the realm, ${c.displayName} - Lv ${c.level} ${hc.get.name}."
 
   def onJoin(player: ServerPlayer, server: MinecraftServer): Unit =
     CharacterStore.loadFor(server, player.getUUID)
+    // a hero with no entry on disk has never played this realm: give them a town and a home
+    if !CharacterStore.readAll(server).contains(player.getUUID) then TownBuilder.greetNewcomer(player)
     val c = ensure(player.getUUID)
     if c.classId.nonEmpty || c.level > 1 || c.kills > 0 then
       c.joined = true
