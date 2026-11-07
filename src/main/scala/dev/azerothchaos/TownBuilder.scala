@@ -19,10 +19,14 @@ object TownBuilder:
   private val built = mutable.Stack[(Int, Int, Int, Int, Int, Int)]()
   // positions of registered quest boards (BlockPos.asLong)
   private val boards = mutable.Set[Long]()
+  // positions of registered vendor barrels (BlockPos.asLong)
+  private val vendors = mutable.Set[Long]()
 
   def boardCount: Int = boards.size
 
   def isBoard(pos: BlockPos): Boolean = boards.contains(pos.asLong)
+
+  def isVendor(pos: BlockPos): Boolean = vendors.contains(pos.asLong)
 
   /** True if the player stands within ~12 blocks of any registered quest board. */
   def nearBoard(player: ServerPlayer): Boolean =
@@ -67,10 +71,12 @@ object TownBuilder:
     sign(at(8, 1, 1), List("HERO HALL", "/quest join", "/quest class", "watch for RARE ELITES"))
     set(at(8, 0, 3), Blocks.WHITE_BANNER)
 
-    // hearth (rest and craft) + potion corner
+    // hearth (rest and craft) + general vendor
     set(at(5, -3, 1), Blocks.CAMPFIRE)
     set(at(5, 3, 1), Blocks.BREWING_STAND)
     set(at(5, 4, 1), Blocks.BARREL)
+    vendors += at(5, 4, 1).asLong
+    sign(at(4, 4, 1), List("GENERAL VENDOR", "Right-click me", "to spend your gold", "/quest shop"))
 
     // perimeter posts with lanterns
     for f <- List(0, 10); l <- -5 to 5 by 5 do
@@ -103,6 +109,7 @@ object TownBuilder:
         val r = built.toList
         built.clear()
         boards.clear()
+        vendors.clear()
         r
       else List(built.pop())
     var blocks = 0
@@ -111,6 +118,7 @@ object TownBuilder:
         val pos = BlockPos(x, y, z)
         if !level.getBlockState(pos).isAir then
           boards -= pos.asLong
+          vendors -= pos.asLong
           level.setBlock(pos, Blocks.AIR.defaultBlockState, 3)
           blocks += 1
     }

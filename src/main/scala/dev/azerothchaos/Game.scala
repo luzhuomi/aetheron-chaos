@@ -22,6 +22,7 @@ import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 import net.minecraft.world.entity.ai.attributes.AttributeModifier
 import net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation
 import net.minecraft.world.entity.ai.attributes.Attributes
@@ -180,12 +181,13 @@ object Game:
     val rare = victim.hasCustomName
     c.kills += 1
     if rare then c.rareKills += 1
+    val mates = partyMates(player)
     advanceQuests(player, victim)
-    Loot.onKill(victim)
+    Loot.onKill(victim, player, mates)
     val xp = Enemies.xpFor(victim) * (if rare then RareXpMultiplier else 1)
     addXp(player, xp)
     // party rules (WoW-style): XP sharing and shared quest progress for members in range
-    partyMates(player).foreach { mate =>
+    mates.foreach { mate =>
       addXp(mate, math.max(1L, (xp * PartySharePercent).toLong))
       advanceQuests(mate, victim)
     }
@@ -423,6 +425,31 @@ object Game:
         val names = parties.getOrElse(p, mutable.LinkedHashSet[UUID]()).flatMap(u => Option(player.server.getPlayerList.getPlayer(u)).map(_.getName.getString))
         s"Party '$p': ${names.mkString(", ")}"
 
+  // --- vendor / shop ------------------------------------------------------------
+
+  def shopMenu(player: ServerPlayer): Unit =
+    val gold = countItem(player, Items.GOLD_NUGGET)
+    message(player, s"--- General Vendor --- you carry $gold gold", ChatFormatting.GOLD)
+    Shop.stock.foreach { s =>
+      val color = if gold >= s.price then ChatFormatting.AQUA else ChatFormatting.DARK_GRAY
+      val text = Component
+        .literal(s"[${s.gear.name}] ${s.price} gold")
+        .withStyle(st => st.withColor(color).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest buy ${s.id}")))
+      player.displayClientMessage(text, false)
+    }
+    message(player, "Click to buy. Gold comes from coin drops and quest rewards.", ChatFormatting.GRAY)
+
+  def buy(player: ServerPlayer, id: String): String =
+    Shop.byId(id) match
+      case None => s"Unknown item '$id'. Browse with /quest shop."
+      case Some(s) =>
+        val gold = countItem(player, Items.GOLD_NUGGET)
+        if gold < s.price then s"The ${s.gear.name} costs ${s.price} gold - you carry only $gold."
+        else
+          removeItems(player, Items.GOLD_NUGGET, s.price)
+          giveItem(player, Loot.stack(s.gear, player.level.registryAccess()))
+          s"Bought ${s.gear.name} for ${s.price} gold (${gold - s.price} left)."
+
   // --- stats & leaderboard ----------------------------------------------------
 
   def statsReport(player: ServerPlayer): String =
@@ -505,6 +532,7 @@ object Game:
 
   def tick(server: MinecraftServer): Unit =
     elapsedTicks += 1
+    PartyLoot.tick(server)
     if elapsedTicks >= nextRareTick then
       nextRareTick = elapsedTicks + RareIntervalTicks
       val online = server.getPlayerList.getPlayers.asScala.filter(isJoined)

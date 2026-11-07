@@ -32,9 +32,10 @@ loop, built entirely from vanilla blocks, items and effects.
    Accept with a click, track progress in your action bar, turn in **at the board** for XP, gold and
    occasionally gear.
 
-4. **Loot** — every kill can drop **gold coins** and WoW-colored gear: <span>white common, green
-   uncommon, aqua rare, purple epic</span> — real enchanted items like *Duskcleaver* or *Helm of the
-   Black Roar*. Rare elites always drop.
+4. **Loot that scales** — drop rate and rarity **scale with the mob's tier** (from its kill-XP value):
+   zombies drop trash, elders and wardens drop epics. WoW-colored gear: white common, green
+   uncommon, aqua rare, purple epic — real enchanted items like *Duskcleaver* or *Helm of the Black
+   Roar*. Gold coins fund the vendor. Rare elites always drop top-tier loot.
 
 5. **Party up** — `/quest party <name>` groups up to 5 heroes (WoW party size). Party members within
    40 blocks share 50% of kill XP **and quest progress**: any member's kill counts toward the same
@@ -44,7 +45,14 @@ loop, built entirely from vanilla blocks, items and effects.
    The Warden Below) are boss hunts: every ready party member at the quest board turns in together
    with one command, each getting the full reward plus a **+50% group XP bonus**.
 
-7. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
+7. **Need/Greed loot lock** — when your party rolls a gear drop, it's locked to the party for 60
+   seconds: a chat line with clickable **[NEED]** / **[GREED]** buttons; everyone rolls 1-100,
+   highest need wins (else highest greed), no rolls = free-for-all.
+
+8. **Spend your gold** — right-click the **vendor barrel** in town (or `/quest shop`) for a clickable
+   catalog from common tools to the epic *Helm of the Black Roar* — a gold sink with guaranteed gear.
+
+9. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
    *Silithis the Broodmother*) spawns near a random hero with a server announcement: **10x XP and
    guaranteed loot**. Ops can trigger one with `/quest rare`.
 
@@ -69,6 +77,9 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest turnin <id>` | everyone | Turn a completed quest in (at the board) |
 | `/quest party <name>` | everyone | Join/create a party (max 5, shared XP + quest progress) |
 | `/quest party leave` | everyone | Leave your party |
+| `/quest shop` | everyone | Vendor catalog (also right-click the town vendor barrel) |
+| `/quest buy <id>` | everyone | Buy gear with gold coins |
+| `/quest loot need <n>` / `greed <n>` | everyone | Roll on party-locked loot |
 | `/quest stats` | everyone | Your hero's stat sheet |
 | `/quest top` | everyone | Server leaderboard |
 | `/quest town` | op (level 2) | Auto-build a quest hub in front of you |
@@ -122,11 +133,12 @@ Delete that file to wipe the realm.
 ## Tuning
 
 Gameplay knobs live at the top of [`Game.scala`](src/main/scala/dev/azerothchaos/Game.scala)
-(max level, party rules, death penalty, rare-spawn interval). Classes/roles are in
+(max level, party rules, death penalty, group bonus, rare-spawn interval); drop rates and rarity
+tiers in [`Loot.scala`](src/main/scala/dev/azerothchaos/Loot.scala). Classes/roles are in
 [`HeroClasses.scala`](src/main/scala/dev/azerothchaos/HeroClasses.scala), quests in
-[`Quests.scala`](src/main/scala/dev/azerothchaos/Quests.scala), loot tables and rarities in
-[`Loot.scala`](src/main/scala/dev/azerothchaos/Loot.scala), mob XP and rare elites in
-[`Enemies.scala`](src/main/scala/dev/azerothchaos/Enemies.scala).
+[`Quests.scala`](src/main/scala/dev/azerothchaos/Quests.scala), mob XP/tiers and rare elites in
+[`Enemies.scala`](src/main/scala/dev/azerothchaos/Enemies.scala), vendor stock in
+[`Shop.scala`](src/main/scala/dev/azerothchaos/Shop.scala).
 
 ## Project layout
 
@@ -135,9 +147,11 @@ src/main/scala/dev/azerothchaos/
   AzerothChaosMod.scala  Fabric entrypoint, event wiring
   Game.scala             Characters: classes, XP/levels, quests, parties, rare spawns
   HeroClasses.scala      Class/role definitions (attribute bonuses + starting gear)
-  Quests.scala           Quest definitions (kill / collect / boss objectives)
-  Enemies.scala          Kill-XP table + rare-elite spawn table
-  Loot.scala             Rarity-colored gear, gold coins, kill loot rolls
+  Quests.scala           Quest definitions (kill / collect / boss objectives, [GROUP] flag)
+  Enemies.scala          Kill-XP table, loot tiers, rare-elite spawn table
+  Loot.scala             Rarity-colored gear, gold coins, tier-scaled kill loot rolls
+  PartyLoot.scala        Party loot lock: need/greed rolls with timed resolution
+  Shop.scala             Vendor stock (gold sink for gear)
   CharacterStore.scala   SNBT persistence of heroes in the world folder
   TownBuilder.scala      /quest town: auto-builds a quest hub with the board
   Interactions.scala     Right-click hook for the quest board (loom)

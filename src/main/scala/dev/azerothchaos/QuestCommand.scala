@@ -1,5 +1,6 @@
 package dev.azerothchaos
 
+import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.context.CommandContext
 import scala.jdk.CollectionConverters.*
@@ -49,6 +50,20 @@ object QuestCommand:
           )
           .`then`(Commands.literal("stats").executes(ctx => withPlayer(ctx, Game.statsReport)))
           .`then`(Commands.literal("top").executes(ctx => top(ctx)))
+          .`then`(Commands.literal("shop").executes(ctx => withPlayerSilent(ctx, Game.shopMenu)))
+          .`then`(
+            Commands.literal("buy")
+              .`then`(
+                Commands.argument("item", StringArgumentType.word())
+                  .suggests((_, builder) => SharedSuggestionProvider.suggest(Shop.stock.map(_.id).asJava, builder))
+                  .executes(ctx => withPlayer(ctx, p => Game.buy(p, StringArgumentType.getString(ctx, "item"))))
+              )
+          )
+          .`then`(
+            Commands.literal("loot")
+              .`then`(Commands.literal("need").`then`(offerArgument(need = true)))
+              .`then`(Commands.literal("greed").`then`(offerArgument(need = false)))
+          )
           .`then`(
             Commands.literal("town")
               .requires(src => src.hasPermission(2))
@@ -81,6 +96,10 @@ object QuestCommand:
     Commands.argument("quest", StringArgumentType.word())
       .suggests((_, builder) => SharedSuggestionProvider.suggest(Quests.all.map(_.id).asJava, builder))
       .executes(ctx => body(ctx))
+
+  private def offerArgument(need: Boolean) =
+    Commands.argument("offer", IntegerArgumentType.integer())
+      .executes(ctx => withPlayer(ctx, p => PartyLoot.roll(p, IntegerArgumentType.getInteger(ctx, "offer"), need)))
 
   private def withServerReset(ctx: CommandContext[CommandSourceStack]): Int =
     val msg = Game.resetOther(ctx.getSource.getServer, StringArgumentType.getString(ctx, "player"))
@@ -149,8 +168,8 @@ object QuestCommand:
           .literal(
             "Azeroth Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
               "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest turnin <id> (at the board), " +
-              "/quest party <name>, /quest stats, /quest top. Ops: /quest town, /quest clear, /quest rare. " +
-              "Slay monsters for XP and loot - named rare elites spawn on a timer!"
+              "/quest party <name>, /quest shop (spend gold), /quest stats, /quest top. Ops: /quest town, /quest clear, /quest rare. " +
+              "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."
           )
           .withStyle(ChatFormatting.YELLOW),
       false

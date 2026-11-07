@@ -10,6 +10,7 @@ import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.level.ServerLevel
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.entity.item.ItemEntity
@@ -73,25 +74,38 @@ object Loot:
     )
     s
 
-  /** On-kill loot roll: coins most of the time, gear occasionally, guaranteed gear from rare elites. */
-  def onKill(victim: Mob): Unit =
+  /** On-kill loot roll: drop rates and rarity caps scale with the mob's tier (Enemies.tierOf).
+   *  Gear for a party kill goes through the PartyLoot need/greed lock instead of hitting the ground. */
+  def onKill(victim: Mob, killer: ServerPlayer, party: List[ServerPlayer]): Unit =
     val registries = victim.level.registryAccess()
+    val tier = Enemies.tierOf(victim)
     val rare = victim.hasCustomName
     if rare then
       dropNear(victim, coinStack(5 + rng.nextInt(10)))
-      dropNear(victim, stack(rollGear(minRarity = Rarity.Rare), registries))
+      lockedOrDrop(victim, stack(rollGear(maxRarity = Rarity.Epic, tier = 5), registries), killer, party)
     else
-      if rng.nextInt(100) < 25 then dropNear(victim, coinStack(1 + rng.nextInt(3)))
-      if rng.nextInt(100) < 8 then dropNear(victim, stack(rollGear(minRarity = Rarity.Common), registries))
+      if rng.nextInt(100) < 20 + tier * 5 then dropNear(victim, coinStack(1 + rng.nextInt(1 + tier)))
+      if rng.nextInt(100) < 3 + tier * 5 then
+        lockedOrDrop(victim, stack(rollGear(maxRarity = maxRarityFor(tier), tier = tier), registries), killer, party)
 
-  private def rollGear(minRarity: Rarity): Gear =
-    val pool = gearPool.filter(g => g.rarity.ordinal >= minRarity.ordinal)
+  private def maxRarityFor(tier: Int): Rarity = tier match
+    case 1 => Rarity.Common
+    case 2 => Rarity.Uncommon
+    case 3 | 4 => Rarity.Rare
+    case _ => Rarity.Epic
+
+  private def lockedOrDrop(victim: Mob, s: ItemStack, killer: ServerPlayer, party: List[ServerPlayer]): Unit =
+    if party.size >= 2 then PartyLoot.offer(killer.server, victim, s, killer :: party)
+    else dropNear(victim, s)
+
+  private def rollGear(maxRarity: Rarity, tier: Int): Gear =
+    val pool = gearPool.filter(_.rarity.ordinal <= maxRarity.ordinal)
     val base = pool(rng.nextInt(pool.size))
-    if minRarity == Rarity.Common then
-      // de-scale a roll toward common occasionally by swapping the color tag
-      if rng.nextInt(100) < 60 then base.copy(rarity = Rarity.Common, enchantments = base.enchantments.map(e => (e._1, 1)))
-      else base
-    else base
+    // higher tiers push the pick toward the best rarity in the band, and bump enchant levels
+    val best = pool.maxBy(_.rarity.ordinal)
+    val chosen = if rng.nextInt(100) < tier * 8 then best else base
+    if tier >= 4 then chosen.copy(enchantments = chosen.enchantments.map(e => (e._1, math.min(5, e._2 + 1))))
+    else chosen
 
   def dropNear(entity: LivingEntity, s: ItemStack): Unit =
     entity.level match

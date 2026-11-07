@@ -8,7 +8,8 @@ import net.minecraft.world.level.block.Blocks
 /**
  * Hooks block right-clicks:
  *  - the loom at a built quest hub = quest board (menu with clickable take/turn-in offers)
- * Other looms in the world are untouched - only registered boards are intercepted.
+ *  - the barrel at a built quest hub = general vendor (shop with clickable buys)
+ * Other looms/barrels in the world are untouched - only registered blocks are intercepted.
  */
 object Interactions:
   def register(): Unit =
@@ -16,6 +17,9 @@ object Interactions:
       player match
         case p: ServerPlayer if TownBuilder.isBoard(hitResult.getBlockPos) && world.getBlockState(hitResult.getBlockPos).is(Blocks.LOOM) =>
           Game.boardMenu(p)
+          InteractionResult.SUCCESS
+        case p: ServerPlayer if TownBuilder.isVendor(hitResult.getBlockPos) && world.getBlockState(hitResult.getBlockPos).is(Blocks.BARREL) =>
+          Game.shopMenu(p)
           InteractionResult.SUCCESS
         case _ => InteractionResult.PASS
     )

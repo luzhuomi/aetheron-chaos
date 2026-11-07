@@ -42,6 +42,15 @@ object Enemies:
 
   def xpFor(entity: LivingEntity): Int = table.getOrElse(entity.getType, DefaultXp)
 
+  /** Loot quality tier 1-5, derived from the kill-XP value (stronger mobs drop better gear). */
+  def tierOf(entity: LivingEntity): Int =
+    val xp = xpFor(entity)
+    if xp >= 500 then 5
+    else if xp >= 200 then 4
+    else if xp >= 100 then 3
+    else if xp >= 50 then 2
+    else 1
+
   final class Rare(val name: String, val entityType: EntityType[?], val healthMult: Double, val attackMult: Double)
 
   val rares: List[Rare] = List(
