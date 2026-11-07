@@ -147,7 +147,9 @@ console run `op your_username` and in game:
 
 Hero characters (class, level, XP, quest log, stats) persist to
 `azeroth-chaos-characters.snbt` in the world folder, so levels and quests survive server restarts.
-Built towns and their quest-board registrations persist to `azeroth-chaos-towns.snbt` next to it.
+Written on every disconnect, again on a clean server stop, and autosaved every 5 minutes while
+heroes are online so even a hard crash loses at most a few minutes of play. Built towns and their
+quest-board registrations persist to `azeroth-chaos-towns.snbt` next to it.
 Delete those files to wipe the realm.
 
 ## Tuning

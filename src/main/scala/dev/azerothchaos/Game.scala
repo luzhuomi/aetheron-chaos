@@ -52,6 +52,9 @@ object Game:
   val RareXpMultiplier = 10
   val PartyQuestXpBonusPercent = 0.5
 
+  // characters autosave to disk while online (crash safety net; normal saves happen on disconnect)
+  val AutosaveIntervalTicks = 5L * 60L * 20L
+
   // quest tracker / navigation
   val MaxTrackedQuests = 4
   private val NavRefreshTicks = 40L
@@ -78,6 +81,7 @@ object Game:
   private val rng = Random()
   private var elapsedTicks = 0L
   private var nextRareTick = 200L // first rare appears 10 seconds into the server run
+  private var nextAutosaveTick = AutosaveIntervalTicks
   // quest tracker navigation cache: player uuid -> list of (questId, compass text)
   private val navCache = mutable.Map[UUID, List[(String, String)]]()
   private var rareAnnounced = 0
@@ -136,6 +140,11 @@ object Game:
     c.joined = false
     leaveParty(player)
     CharacterStore.save(server)
+
+  /** Server is stopping (clean /stop): persist everyone before the world closes. */
+  def onServerStopping(server: MinecraftServer): Unit =
+    CharacterStore.save(server)
+    TownStore.save(server)
 
   def afterRespawn(player: ServerPlayer): Unit =
     val c = ensure(player.getUUID)
@@ -625,6 +634,9 @@ object Game:
   def tick(server: MinecraftServer): Unit =
     elapsedTicks += 1
     PartyLoot.tick(server)
+    if elapsedTicks >= nextAutosaveTick && server.getPlayerList.getPlayerCount > 0 then
+      nextAutosaveTick = elapsedTicks + AutosaveIntervalTicks
+      CharacterStore.save(server) // crash safety net between disconnect saves
     if elapsedTicks >= nextRareTick then
       nextRareTick = elapsedTicks + RareIntervalTicks
       val online = server.getPlayerList.getPlayers.asScala.filter(isJoined)
