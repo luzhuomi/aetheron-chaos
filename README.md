@@ -36,10 +36,15 @@ loop, built entirely from vanilla blocks, items and effects.
    uncommon, aqua rare, purple epic</span> — real enchanted items like *Duskcleaver* or *Helm of the
    Black Roar*. Rare elites always drop.
 
-5. **Party up** — `/quest party <name>` groups up to 5 heroes (WoW party size) and shares 50% of kill
-   XP within 40 blocks. Your party shows in the action bar.
+5. **Party up** — `/quest party <name>` groups up to 5 heroes (WoW party size). Party members within
+   40 blocks share 50% of kill XP **and quest progress**: any member's kill counts toward the same
+   kill-quest for everyone holding it. Your party shows in the action bar.
 
-6. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
+6. **Group quests** — quests marked **[GROUP]** on the board (Ravager Rampage, The Deep Duke,
+   The Warden Below) are boss hunts: every ready party member at the quest board turns in together
+   with one command, each getting the full reward plus a **+50% group XP bonus**.
+
+7. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
    *Silithis the Broodmother*) spawns near a random hero with a server announcement: **10x XP and
    guaranteed loot**. Ops can trigger one with `/quest rare`.
 
@@ -62,7 +67,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest log` | everyone | Show your quest log and progress |
 | `/quest abandon <id>` | everyone | Drop a quest |
 | `/quest turnin <id>` | everyone | Turn a completed quest in (at the board) |
-| `/quest party <name>` | everyone | Join/create a party (max 5, shared XP) |
+| `/quest party <name>` | everyone | Join/create a party (max 5, shared XP + quest progress) |
 | `/quest party leave` | everyone | Leave your party |
 | `/quest stats` | everyone | Your hero's stat sheet |
 | `/quest top` | everyone | Server leaderboard |

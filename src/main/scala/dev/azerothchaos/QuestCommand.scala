@@ -113,10 +113,11 @@ object QuestCommand:
             val goal = q.objective match
               case Objective.Kill(_, n, _) => n
               case Objective.Collect(_, n) => n
+            val tag = if q.partyOnly then "[GROUP] " else ""
             ctx.getSource.sendSuccess(
               () =>
                 Component
-                  .literal(s"${q.name} ($have/$goal): ${Quests.objectiveText(q)} | reward: ${q.xp} XP + ${q.coins} gold | hint: ${q.hint}")
+                  .literal(s"$tag${q.name} ($have/$goal): ${Quests.objectiveText(q)} | reward: ${q.xp} XP + ${q.coins} gold | hint: ${q.hint}")
                   .withStyle(ChatFormatting.AQUA),
               false
             )

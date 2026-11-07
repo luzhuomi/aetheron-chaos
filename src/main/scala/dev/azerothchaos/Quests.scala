@@ -20,7 +20,8 @@ final case class Quest(
     objective: Objective,
     xp: Int,
     coins: Int,
-    reward: scala.Option[Loot.Gear]
+    reward: scala.Option[Loot.Gear],
+    partyOnly: Boolean = false
 )
 
 object Quests:
@@ -75,7 +76,8 @@ object Quests:
       "ravager-rampage", "Ravager Rampage", 5,
       "One ravager stands between the village and peace.",
       Objective.Kill(EntityType.RAVAGER, 1, "a ravager"), 550, 10,
-      Some(Gear(Items.IRON_CHESTPLATE, "Girdle of Stone", Rarity.Rare, List(Enchantments.PROTECTION -> 2)))
+      Some(Gear(Items.IRON_CHESTPLATE, "Girdle of Stone", Rarity.Rare, List(Enchantments.PROTECTION -> 2))),
+      partyOnly = true
     ),
     Quest(
       "void-walkers", "Void Walkers", 5,
@@ -97,13 +99,15 @@ object Quests:
       "deep-duke", "The Deep Duke", 8,
       "The elder guardian rules an ocean monument, deep below.",
       Objective.Kill(EntityType.ELDER_GUARDIAN, 1, "the elder guardian"), 1200, 20,
-      Some(Gear(Items.IRON_SWORD, "Tidesplitter", Rarity.Epic, List(Enchantments.SHARPNESS -> 3, Enchantments.UNBREAKING -> 3)))
+      Some(Gear(Items.IRON_SWORD, "Tidesplitter", Rarity.Epic, List(Enchantments.SHARPNESS -> 3, Enchantments.UNBREAKING -> 3))),
+      partyOnly = true
     ),
     Quest(
       "warden-below", "The Warden Below", 12,
       "Deep in the deep dark, something ancient stirs. Go quietly.",
       Objective.Kill(EntityType.WARDEN, 1, "the warden"), 3000, 50,
-      Some(Gear(Items.IRON_SWORD, "Deepbrand, Bane of the Dark", Rarity.Epic, List(Enchantments.SHARPNESS -> 4, Enchantments.UNBREAKING -> 3)))
+      Some(Gear(Items.IRON_SWORD, "Deepbrand, Bane of the Dark", Rarity.Epic, List(Enchantments.SHARPNESS -> 4, Enchantments.UNBREAKING -> 3))),
+      partyOnly = true
     )
   )
 

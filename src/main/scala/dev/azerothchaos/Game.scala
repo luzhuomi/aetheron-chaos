@@ -46,6 +46,7 @@ object Game:
   val DeathXpPenalty = 0.10
   val RareIntervalTicks = 12L * 60L * 20L
   val RareXpMultiplier = 10
+  val PartyQuestXpBonusPercent = 0.5
 
   final class Character(val uuid: UUID):
     var displayName: String = "?"
@@ -179,32 +180,42 @@ object Game:
     val rare = victim.hasCustomName
     c.kills += 1
     if rare then c.rareKills += 1
-    c.taken.toList.foreach(qid =>
-      Quests.byId(qid).foreach(q =>
-        q.objective match
-          case Objective.Kill(target, count, _) if victim.getType == target =>
-            val now = c.progress.getOrElse(qid, 0) + 1
-            c.progress(qid) = now
-            if now == count then
-              message(player, s"Objective complete: ${q.name}! Turn it in at the quest board.", ChatFormatting.GREEN)
-            else if now < count then
-              message(player, s"${q.name}: $now/$count", ChatFormatting.GRAY)
-          case _ => ()
-      )
-    )
+    advanceQuests(player, victim)
     Loot.onKill(victim)
     val xp = Enemies.xpFor(victim) * (if rare then RareXpMultiplier else 1)
     addXp(player, xp)
-    c.party.foreach { pname =>
-      parties.get(pname).foreach { members =>
-        members.foreach { muuid =>
-          if muuid != c.uuid then
-            Option(player.server.getPlayerList.getPlayer(muuid)).foreach { mate =>
-              val mc = ensure(muuid)
-              if mc.joined && mate.distanceToSqr(player) <= PartyShareRangeBlocks * PartyShareRangeBlocks then
-                addXp(mate, math.max(1L, (xp * PartySharePercent).toLong))
-            }
-        }
+    // party rules (WoW-style): XP sharing and shared quest progress for members in range
+    partyMates(player).foreach { mate =>
+      addXp(mate, math.max(1L, (xp * PartySharePercent).toLong))
+      advanceQuests(mate, victim)
+    }
+
+  /** Advances the kill objectives of every quest the member holds. */
+  private def advanceQuests(member: ServerPlayer, victim: Mob): Unit =
+    val mc = ensure(member.getUUID)
+    mc.taken.toList.foreach(qid =>
+      Quests.byId(qid).foreach(q =>
+        q.objective match
+          case Objective.Kill(target, count, _) if victim.getType == target =>
+            val now = mc.progress.getOrElse(qid, 0) + 1
+            mc.progress(qid) = now
+            if now == count then
+              message(member, s"Objective complete: ${q.name}! Turn it in at the quest board.", ChatFormatting.GREEN)
+            else if now < count then
+              message(member, s"${q.name}: $now/$count", ChatFormatting.GRAY)
+          case _ => ()
+      )
+    )
+
+  /** Online party members within XP-share range. */
+  private def partyMates(player: ServerPlayer): List[ServerPlayer] =
+    val c = ensure(player.getUUID)
+    c.party.toList.flatMap { pname =>
+      parties.getOrElse(pname, mutable.LinkedHashSet[UUID]()).toList.flatMap { muuid =>
+        if muuid == c.uuid then Nil
+        else
+          Option(player.server.getPlayerList.getPlayer(muuid))
+            .filter(m => ensure(muuid).joined && player.distanceToSqr(m) <= PartyShareRangeBlocks * PartyShareRangeBlocks)
       }
     }
 
@@ -296,22 +307,37 @@ object Game:
             case Objective.Kill(_, count, _) => s"Not yet: $have/$count. Keep going."
             case Objective.Collect(item, count) => s"You need $count ${ItemStack(item).getHoverName.getString} in your inventory (you have $have)."
           return why
-        c.taken -= id
-        c.progress -= id
-        q.objective match
-          case Objective.Collect(item, count) => removeItems(player, item, count)
-          case _ => ()
-        giveItem(player, Loot.coinStack(q.coins))
-        q.reward.foreach(g => giveItem(player, Loot.stack(g, player.level.registryAccess())))
-        addXp(player, q.xp)
+        // shared turn-in: party members holding this quest and ready at the board turn in too
+        val mates = partyMates(player).filter(m =>
+          ensure(m.getUUID).taken.contains(id) && objectiveMet(m, q) && TownBuilder.nearBoard(m)
+        )
+        val partySize = mates.size + 1
+        creditQuest(player, q, partySize)
+        mates.foreach(m => creditQuest(m, q, partySize))
+        val withParty = if mates.nonEmpty then s" together with ${mates.size} party member(s)" else ""
+        val bonus = if q.partyOnly && partySize >= 2 then s" (group quest: +${(PartyQuestXpBonusPercent * 100).toInt}% XP)" else ""
         broadcast(
           player.server,
           Component
-            .literal(s"${c.displayName} completed '${q.name}'! +${q.xp} XP, +${q.coins} gold${if q.reward.nonEmpty then " and a reward" else ""}")
+            .literal(s"${c.displayName} completed '${q.name}'$withParty! +${q.xp} XP, +${q.coins} gold${if q.reward.nonEmpty then " and a reward" else ""}$bonus")
             .withStyle(ChatFormatting.GREEN)
         )
-        player.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.0f, 1.0f)
-        s"Quest complete: ${q.name} (+${q.xp} XP, +${q.coins} gold${if q.reward.nonEmpty then s", ${q.reward.get.name}" else ""})."
+        val sharedNote = if mates.nonEmpty then s" ${mates.size} party member(s) credited too." else ""
+        s"Quest complete: ${q.name} (+${q.xp} XP, +${q.coins} gold${if q.reward.nonEmpty then s", ${q.reward.get.name}" else ""})$bonus. $sharedNote".trim
+
+  /** Credits one hero for a completed quest: consumes the objective, grants rewards. */
+  private def creditQuest(member: ServerPlayer, q: Quest, partySize: Int): Unit =
+    val mc = ensure(member.getUUID)
+    mc.taken -= q.id
+    mc.progress -= q.id
+    q.objective match
+      case Objective.Collect(item, count) => removeItems(member, item, count)
+      case _ => ()
+    giveItem(member, Loot.coinStack(q.coins))
+    q.reward.foreach(g => giveItem(member, Loot.stack(g, member.level.registryAccess())))
+    val bonusXp = if q.partyOnly && partySize >= 2 then (q.xp * PartyQuestXpBonusPercent).toLong else 0L
+    addXp(member, q.xp + bonusXp)
+    member.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.0f, 1.0f)
 
   /** The quest-board menu: turn-in offers on top, then quests you may take. Both are clickable. */
   def boardMenu(player: ServerPlayer): Unit =
@@ -333,11 +359,12 @@ object Game:
       )
     val available = Quests.all.filter(q => !c.taken.contains(q.id) && q.minLevel <= c.level)
     if available.nonEmpty then
-      message(player, "Available (click to accept):", ChatFormatting.AQUA)
+      message(player, "Available (click to accept - GROUP quests share progress and rewards with your party):", ChatFormatting.AQUA)
       available.foreach(q =>
+        val tag = if q.partyOnly then "[GROUP] " else ""
         player.displayClientMessage(
           Component
-            .literal(s"[${q.name}] ${q.minLevel}o - ${Quests.objectiveText(q)} -> ${q.xp} XP, ${q.coins} gold")
+            .literal(s"$tag[${q.name}] ${q.minLevel}o - ${Quests.objectiveText(q)} -> ${q.xp} XP, ${q.coins} gold")
             .withStyle(s => s.withColor(ChatFormatting.AQUA).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest take ${q.id}"))),
           false
         )
