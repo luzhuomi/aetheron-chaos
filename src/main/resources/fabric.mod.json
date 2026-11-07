@@ -1,0 +1,25 @@
+{
+	"schemaVersion": 1,
+	"id": "azeroth-chaos",
+	"version": "${version}",
+	"name": "Azeroth Chaos",
+	"description": "An MMORPG-style leveling sandbox for Minecraft servers, inspired by World of Warcraft. Pick a class, level up by slaying mobs, run quests from the quest board, roll loot, and hunt rare elites with your party.",
+	"authors": [
+		"luzm"
+	],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"dev.azerothchaos.AzerothChaosMod"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.16",
+		"minecraft": "~1.21",
+		"java": ">=21"
+	},
+	"suggests": {
+		"fabric-api": "*"
+	}
+}

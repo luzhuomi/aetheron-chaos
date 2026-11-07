@@ -1,0 +1,531 @@
+package dev.azerothchaos
+
+import java.util.UUID
+import scala.collection.mutable
+import scala.jdk.CollectionConverters.*
+import scala.util.Random
+
+import net.minecraft.ChatFormatting
+import net.minecraft.core.Holder
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.chat.ClickEvent
+import net.minecraft.network.chat.Component
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket
+import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket
+import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.sounds.SoundEvents
+import net.minecraft.sounds.SoundSource
+import net.minecraft.world.effect.MobEffectInstance
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.Mob
+import net.minecraft.world.item.Item
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.entity.ai.attributes.AttributeModifier
+import net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation
+import net.minecraft.world.entity.ai.attributes.Attributes
+import net.minecraft.server.level.ServerLevel
+
+/**
+ * Holds the persistent realm state: hero characters (class, level, XP, quest log),
+ * parties, quest progress, and the rare-elite spawn scheduler.
+ *
+ * Gameplay loop (MMORPG style):
+ *  - /quest join to create your hero, /quest class to pick one (WoW-style classes).
+ *  - Slay mobs for XP, level up (more health/damage), loot rolls on every kill.
+ *  - Take quests at the town board (/quest town), turn them in at the board.
+ *  - Form parties for XP sharing; rare named elites spawn on a timer for big rewards.
+ */
+object Game:
+  // Tuning knobs
+  val MaxLevel = 40
+  val PartyMaxSize = 5
+  val PartyShareRangeBlocks = 40.0
+  val PartySharePercent = 0.5
+  val DeathXpPenalty = 0.10
+  val RareIntervalTicks = 12L * 60L * 20L
+  val RareXpMultiplier = 10
+
+  final class Character(val uuid: UUID):
+    var displayName: String = "?"
+    var classId: String = ""
+    var level: Int = 1
+    var xp: Long = 0L
+    var joined: Boolean = false
+    val taken = mutable.LinkedHashSet[String]()
+    val progress = mutable.Map[String, Int]()
+    var party: Option[String] = None
+    var kills: Int = 0
+    var rareKills: Int = 0
+    var deaths: Int = 0
+
+  private val characters = mutable.Map[UUID, Character]()
+  private val parties = mutable.Map[String, mutable.LinkedHashSet[UUID]]()
+  private val rng = Random()
+  private var elapsedTicks = 0L
+  private var nextRareTick = 200L // first rare appears 10 seconds into the server run
+  private var rareAnnounced = 0
+
+  def xpToNext(level: Int): Long = 100L + 60L * level + 35L * level * level
+
+  def isJoined(player: ServerPlayer): Boolean = characters.get(player.getUUID).exists(_.joined)
+
+  private def ensure(uuid: UUID): Character = characters.getOrElseUpdate(uuid, new Character(uuid))
+
+  private[azerothchaos] def characterFor(player: ServerPlayer): Character = ensure(player.getUUID)
+
+  private def heroClassOf(c: Character): Option[HeroClass] = HeroClasses.byId(c.classId)
+
+  // --- joining the realm -----------------------------------------------------
+
+  def join(player: ServerPlayer): String =
+    CharacterStore.loadFor(player.server, player.getUUID)
+    val c = ensure(player.getUUID)
+    c.displayName = player.getName.getString
+    if c.joined then return "You are already in the realm."
+    c.joined = true
+    applyBonuses(player)
+    val hc = heroClassOf(c)
+    if hc.isEmpty then
+      s"Welcome, ${player.getName.getString}! Choose a class: /quest class warrior|mage|hunter|priest|rogue|paladin. " +
+        "Build a town with /quest town (op) and take quests at the board. Slay monsters to level up."
+    else
+      s"Welcome back to the realm, ${c.displayName} - Lv ${c.level} ${hc.get.name}."
+
+  def onJoin(player: ServerPlayer, server: MinecraftServer): Unit =
+    CharacterStore.loadFor(server, player.getUUID)
+    val c = ensure(player.getUUID)
+    if c.classId.nonEmpty || c.level > 1 || c.kills > 0 then
+      c.joined = true
+      c.displayName = player.getName.getString
+      applyBonuses(player)
+      broadcast(
+        server,
+        Component
+          .literal(s"${c.displayName} (Lv ${c.level} ${heroClassOf(c).map(_.name).getOrElse("Adventurer")}) has entered the realm.")
+          .withStyle(ChatFormatting.LIGHT_PURPLE)
+      )
+
+  def leave(player: ServerPlayer): String =
+    val c = ensure(player.getUUID)
+    if !c.joined then return "You are not in the realm."
+    c.joined = false
+    leaveParty(player)
+    "You left the realm. Rejoin anytime with /quest join."
+
+  def onDisconnect(player: ServerPlayer, server: MinecraftServer): Unit =
+    val c = ensure(player.getUUID)
+    c.joined = false
+    leaveParty(player)
+    CharacterStore.save(server)
+
+  def afterRespawn(player: ServerPlayer): Unit =
+    val c = ensure(player.getUUID)
+    if c.joined then applyBonuses(player)
+
+  // --- class & attribute bonuses ---------------------------------------------
+
+  def setClass(player: ServerPlayer, id: String): String =
+    val c = ensure(player.getUUID)
+    if !c.joined then return "Join the realm first: /quest join"
+    HeroClasses.byId(id) match
+      case None => s"Unknown class '$id'. Choose: ${HeroClasses.all.map(_.id).mkString(", ")}."
+      case Some(hc) =>
+        heroClassOf(c).foreach(old => old.passive.foreach(player.removeEffect))
+        c.classId = hc.id
+        applyBonuses(player)
+        hc.gear.foreach(g => giveItem(player, Loot.stack(g, player.level.registryAccess())))
+        broadcast(
+          player.server,
+          Component.literal(s"${c.displayName} has become a Lv ${c.level} ${hc.name}!").withStyle(ChatFormatting.LIGHT_PURPLE)
+        )
+        s"You are now a ${hc.name}: ${hc.tagline} Starting gear granted."
+
+  private[azerothchaos] def applyBonuses(player: ServerPlayer): Unit =
+    val c = ensure(player.getUUID)
+    val hc = heroClassOf(c)
+    val attributes = Seq(Attributes.MAX_HEALTH, Attributes.ATTACK_DAMAGE, Attributes.MOVEMENT_SPEED)
+    attributes.foreach { holder =>
+      Option(player.getAttribute(holder)).foreach { instance =>
+        instance.getModifiers.asScala.filter(_.id.getNamespace == HeroClasses.Namespace).toList.foreach(m =>
+          instance.removeModifier(m)
+        )
+      }
+    }
+    val classHealth = hc.map(_.healthBonus).getOrElse(0.0)
+    val classDamage = hc.map(_.damageBonus).getOrElse(0.0)
+    val classSpeed = hc.map(_.speedBonus).getOrElse(0.0)
+    val levelHealth = 2.0 * (c.level - 1)
+    val levelDamage = 0.5 * ((c.level - 1) / 4)
+
+    def add(holder: Holder[net.minecraft.world.entity.ai.attributes.Attribute], name: String, amount: Double, op: Operation): Unit =
+      if amount != 0.0 then
+        Option(player.getAttribute(holder)).foreach(
+          _.addTransientModifier(AttributeModifier(HeroClasses.modifierId(name), amount, op))
+        )
+
+    add(Attributes.MAX_HEALTH, "health", classHealth + levelHealth, Operation.ADD_VALUE)
+    add(Attributes.ATTACK_DAMAGE, "damage", classDamage + levelDamage, Operation.ADD_VALUE)
+    add(Attributes.MOVEMENT_SPEED, "speed", classSpeed, Operation.ADD_MULTIPLIED_TOTAL)
+    hc.foreach(_.passive.foreach(effect => player.addEffect(MobEffectInstance(effect, -1, 0, false, true))))
+    if player.getHealth > player.getMaxHealth then player.setHealth(player.getMaxHealth)
+
+  // --- XP, levels, kills ------------------------------------------------------
+
+  private[azerothchaos] def awardKill(player: ServerPlayer, victim: Mob): Unit =
+    val c = ensure(player.getUUID)
+    if !c.joined then return
+    val rare = victim.hasCustomName
+    c.kills += 1
+    if rare then c.rareKills += 1
+    c.taken.toList.foreach(qid =>
+      Quests.byId(qid).foreach(q =>
+        q.objective match
+          case Objective.Kill(target, count, _) if victim.getType == target =>
+            val now = c.progress.getOrElse(qid, 0) + 1
+            c.progress(qid) = now
+            if now == count then
+              message(player, s"Objective complete: ${q.name}! Turn it in at the quest board.", ChatFormatting.GREEN)
+            else if now < count then
+              message(player, s"${q.name}: $now/$count", ChatFormatting.GRAY)
+          case _ => ()
+      )
+    )
+    Loot.onKill(victim)
+    val xp = Enemies.xpFor(victim) * (if rare then RareXpMultiplier else 1)
+    addXp(player, xp)
+    c.party.foreach { pname =>
+      parties.get(pname).foreach { members =>
+        members.foreach { muuid =>
+          if muuid != c.uuid then
+            Option(player.server.getPlayerList.getPlayer(muuid)).foreach { mate =>
+              val mc = ensure(muuid)
+              if mc.joined && mate.distanceToSqr(player) <= PartyShareRangeBlocks * PartyShareRangeBlocks then
+                addXp(mate, math.max(1L, (xp * PartySharePercent).toLong))
+            }
+        }
+      }
+    }
+
+  private[azerothchaos] def onPlayerDeath(player: ServerPlayer): Unit =
+    val c = ensure(player.getUUID)
+    if !c.joined then return
+    c.deaths += 1
+    if c.xp > 0 then
+      val lost = (c.xp * DeathXpPenalty).toLong
+      c.xp -= lost
+      message(player, s"You died. The effort set you back $lost XP.", ChatFormatting.RED)
+
+  private def addXp(player: ServerPlayer, amount: Long): Unit =
+    val c = ensure(player.getUUID)
+    c.xp += amount
+    var leveled = false
+    while c.level < MaxLevel && c.xp >= xpToNext(c.level) do
+      c.xp -= xpToNext(c.level)
+      c.level += 1
+      leveled = true
+    if leveled then
+      applyBonuses(player)
+      player.setHealth(player.getMaxHealth)
+      broadcast(
+        player.server,
+        Component.literal(s"${c.displayName} reached level ${c.level}!").withStyle(ChatFormatting.GOLD)
+      )
+      player.playNotifySound(SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0f, 1.0f)
+      player.connection.send(ClientboundSetTitlesAnimationPacket(10, 70, 20))
+      player.connection.send(ClientboundSetTitleTextPacket(Component.literal(s"Level ${c.level}!").withStyle(ChatFormatting.GOLD)))
+      player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal(heroClassOf(c).map(_.name).getOrElse("Adventurer"))))
+
+  // --- quests ----------------------------------------------------------------
+
+  def takeQuest(player: ServerPlayer, id: String): String =
+    val c = ensure(player.getUUID)
+    if !c.joined then return "Join the realm first: /quest join"
+    Quests.byId(id) match
+      case None => s"Unknown quest '$id'. See the board: /quest board"
+      case Some(q) =>
+        if c.taken.contains(q.id) then "That quest is already in your log."
+        else if c.level < q.minLevel then s"You must be level ${q.minLevel} for '${q.name}'. Current level: ${c.level}."
+        else
+          c.taken += q.id
+          s"Quest accepted: ${q.name} - ${Quests.objectiveText(q)}. Hint: ${q.hint}"
+
+  def abandonQuest(player: ServerPlayer, id: String): String =
+    val c = ensure(player.getUUID)
+    if !c.taken.remove(id) then "That quest is not in your log."
+    else
+      c.progress -= id
+      s"Abandoned '$id'."
+
+  private[azerothchaos] def progressOf(player: ServerPlayer, q: Quest): Int =
+    val c = ensure(player.getUUID)
+    q.objective match
+      case Objective.Kill(_, _, _) => c.progress.getOrElse(q.id, 0)
+      case Objective.Collect(item, _) => countItem(player, item)
+
+  private def objectiveMet(player: ServerPlayer, q: Quest): Boolean =
+    q.objective match
+      case Objective.Kill(_, count, _) => ensure(player.getUUID).progress.getOrElse(q.id, 0) >= count
+      case Objective.Collect(item, count) => countItem(player, item) >= count
+
+  private def countItem(player: ServerPlayer, item: Item): Int =
+    val inv = player.getInventory
+    (inv.items.asScala.toSeq ++ inv.offhand.asScala.toSeq).filter(_.getItem == item).map(_.getCount).sum
+
+  private def removeItems(player: ServerPlayer, item: Item, count: Int): Unit =
+    var left = count
+    player.getInventory.items.asScala.foreach { stack =>
+      if left > 0 && stack.getItem == item then
+        val take = math.min(left, stack.getCount)
+        stack.shrink(take)
+        left -= take
+    }
+
+  def turnIn(player: ServerPlayer, id: String): String =
+    val c = ensure(player.getUUID)
+    if !c.taken.contains(id) then return "That quest is not in your log."
+    Quests.byId(id) match
+      case None => "Unknown quest."
+      case Some(q) =>
+        if TownBuilder.boardCount > 0 && !TownBuilder.nearBoard(player) then
+          return "Return to the quest board in town to turn quests in."
+        if !objectiveMet(player, q) then
+          val have = progressOf(player, q)
+          val why = q.objective match
+            case Objective.Kill(_, count, _) => s"Not yet: $have/$count. Keep going."
+            case Objective.Collect(item, count) => s"You need $count ${ItemStack(item).getHoverName.getString} in your inventory (you have $have)."
+          return why
+        c.taken -= id
+        c.progress -= id
+        q.objective match
+          case Objective.Collect(item, count) => removeItems(player, item, count)
+          case _ => ()
+        giveItem(player, Loot.coinStack(q.coins))
+        q.reward.foreach(g => giveItem(player, Loot.stack(g, player.level.registryAccess())))
+        addXp(player, q.xp)
+        broadcast(
+          player.server,
+          Component
+            .literal(s"${c.displayName} completed '${q.name}'! +${q.xp} XP, +${q.coins} gold${if q.reward.nonEmpty then " and a reward" else ""}")
+            .withStyle(ChatFormatting.GREEN)
+        )
+        player.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.0f, 1.0f)
+        s"Quest complete: ${q.name} (+${q.xp} XP, +${q.coins} gold${if q.reward.nonEmpty then s", ${q.reward.get.name}" else ""})."
+
+  /** The quest-board menu: turn-in offers on top, then quests you may take. Both are clickable. */
+  def boardMenu(player: ServerPlayer): Unit =
+    val c = ensure(player.getUUID)
+    if !c.joined then
+      message(player, join(player), ChatFormatting.GOLD)
+      return
+    message(player, "--- Quest Board ---", ChatFormatting.GOLD)
+    val ready = c.taken.toList.flatMap(Quests.byId).filter(q => objectiveMet(player, q))
+    if ready.nonEmpty then
+      message(player, "Ready to turn in (click):", ChatFormatting.GREEN)
+      ready.foreach(q =>
+        player.displayClientMessage(
+          Component
+            .literal(s"[TURN IN] ${q.name}")
+            .withStyle(s => s.withColor(ChatFormatting.GREEN).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest turnin ${q.id}"))),
+          false
+        )
+      )
+    val available = Quests.all.filter(q => !c.taken.contains(q.id) && q.minLevel <= c.level)
+    if available.nonEmpty then
+      message(player, "Available (click to accept):", ChatFormatting.AQUA)
+      available.foreach(q =>
+        player.displayClientMessage(
+          Component
+            .literal(s"[${q.name}] ${q.minLevel}o - ${Quests.objectiveText(q)} -> ${q.xp} XP, ${q.coins} gold")
+            .withStyle(s => s.withColor(ChatFormatting.AQUA).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest take ${q.id}"))),
+          false
+        )
+      )
+    val taken = c.taken.toList.flatMap(Quests.byId)
+    if taken.nonEmpty then
+      message(player, "In your log:", ChatFormatting.YELLOW)
+      taken.foreach(q =>
+        val have = progressOf(player, q)
+        val goal = q.objective match
+          case Objective.Kill(_, n, _) => n
+          case Objective.Collect(_, n) => n
+        message(player, s"${q.name}: $have/$goal - ${Quests.objectiveText(q)}", ChatFormatting.YELLOW)
+      )
+    if available.isEmpty && taken.isEmpty && ready.isEmpty then message(player, "Nothing for you today, adventurer.", ChatFormatting.GRAY)
+
+  // --- parties ----------------------------------------------------------------
+
+  def partyJoin(player: ServerPlayer, name: String): String =
+    val c = ensure(player.getUUID)
+    if !c.joined then return "Join the realm first: /quest join"
+    c.party.foreach(p => parties.get(p).foreach(_ -= c.uuid))
+    val members = parties.getOrElseUpdate(name.toLowerCase, mutable.LinkedHashSet[UUID]())
+    if members.size >= PartyMaxSize && !members.contains(c.uuid) then
+      c.party = None
+      return s"The party '$name' is full ($PartyMaxSize maximum)."
+    members += c.uuid
+    c.party = Some(name.toLowerCase)
+    s"Joined party '$name' (${members.size}/$PartyMaxSize). Party members within $PartyShareRangeBlocks blocks share 50% of kill XP."
+
+  def leaveParty(player: ServerPlayer): String =
+    val c = ensure(player.getUUID)
+    c.party match
+      case None => "You are not in a party."
+      case Some(p) =>
+        parties.get(p).foreach { m =>
+          m -= c.uuid
+          if m.isEmpty then parties -= p
+        }
+        c.party = None
+        "Left the party."
+
+  private[azerothchaos] def partiesOf(player: ServerPlayer, pname: String): List[String] =
+    parties
+      .getOrElse(pname, mutable.LinkedHashSet[UUID]())
+      .toList
+      .flatMap(u => Option(player.server.getPlayerList.getPlayer(u)))
+      .map(_.getName.getString)
+      .filterNot(_ == player.getName.getString)
+
+  def partyList(player: ServerPlayer): String =
+    val c = ensure(player.getUUID)
+    c.party match
+      case None => "You are not in a party. Join one: /quest party <name>"
+      case Some(p) =>
+        val names = parties.getOrElse(p, mutable.LinkedHashSet[UUID]()).flatMap(u => Option(player.server.getPlayerList.getPlayer(u)).map(_.getName.getString))
+        s"Party '$p': ${names.mkString(", ")}"
+
+  // --- stats & leaderboard ----------------------------------------------------
+
+  def statsReport(player: ServerPlayer): String =
+    val c = ensure(player.getUUID)
+    val hc = heroClassOf(c).map(_.name).getOrElse("Adventurer")
+    val need = xpToNext(c.level)
+    s"Lv ${c.level} $hc | XP ${c.xp}/$need | kills ${c.kills} (${c.rareKills} rare) | deaths ${c.deaths} | quests in log ${c.taken.size}"
+
+  def leaderboard(server: MinecraftServer): List[(String, Int, String)] =
+    val merged = mutable.Map[UUID, (Int, String, String)]() // level, classId, saved name
+    CharacterStore.readAll(server).foreach { (uuid, tag) =>
+      merged(uuid) = (tag.getInt("level"), tag.getString("class"), tag.getString("name"))
+    }
+    characters.foreach { (uuid, c) =>
+      if c.level > merged.get(uuid).map(_._1).getOrElse(0) then merged(uuid) = (c.level, c.classId, c.displayName)
+    }
+    merged.toList
+      .map { entry =>
+        val uuid = entry._1
+        val level = entry._2._1
+        val classId = entry._2._2
+        val savedName = entry._2._3
+        val name = Option(server.getPlayerList.getPlayer(uuid)).map(_.getName.getString).getOrElse(savedName)
+        (name, level, HeroClasses.byId(classId).map(_.name).getOrElse("Adventurer"))
+      }
+      .sortBy(row => -row._2)
+      .take(10)
+
+  def reset(player: ServerPlayer): String =
+    val c = ensure(player.getUUID)
+    c.classId = ""
+    c.level = 1
+    c.xp = 0L
+    c.taken.clear()
+    c.progress.clear()
+    c.kills = 0
+    c.rareKills = 0
+    c.deaths = 0
+    leaveParty(player)
+    applyBonuses(player)
+    "Your hero was reset to a level 1 Adventurer."
+
+  def resetOther(server: MinecraftServer, target: String): String =
+    Option(server.getPlayerList.getPlayerByName(target)) match
+      case Some(p) => reset(p)
+      case None => s"No online player named '$target'."
+
+  // --- rare elites & ticking --------------------------------------------------
+
+  def spawnRare(player: ServerPlayer, nameOpt: Option[String]): String =
+    val chosen = nameOpt.flatMap(n => Enemies.rares.find(_.name.equalsIgnoreCase(n)))
+      .getOrElse(Enemies.rares(rng.nextInt(Enemies.rares.size)))
+    player.level match
+      case serverLevel: ServerLevel =>
+        val factory = chosen.entityType.asInstanceOf[EntityType[Mob]]
+        Option(factory.create(serverLevel)) match
+          case None => "The rare refused to appear here."
+          case Some(m) =>
+            val ang = rng.nextDouble() * 2 * Math.PI
+            val dist = 14 + rng.nextInt(10)
+            m.setPos(player.getX + math.cos(ang) * dist, player.getY + 2, player.getZ + math.sin(ang) * dist)
+            m.setCustomName(Component.literal(chosen.name))
+            m.setCustomNameVisible(true)
+            Option(m.getAttribute(Attributes.MAX_HEALTH)).foreach { a =>
+              a.setBaseValue(a.getBaseValue * chosen.healthMult)
+              m.setHealth(a.getValue.toFloat)
+            }
+            Option(m.getAttribute(Attributes.ATTACK_DAMAGE)).foreach(a => a.setBaseValue(a.getBaseValue * chosen.attackMult))
+            serverLevel.addFreshEntity(m)
+            rareAnnounced += 1
+            broadcast(
+              player.server,
+              Component
+                .literal(s"A RARE ELITE has appeared: ${chosen.name}, near ${player.getName.getString}! Slay it for 10x XP and guaranteed loot.")
+                .withStyle(ChatFormatting.LIGHT_PURPLE)
+            )
+            player.playNotifySound(SoundEvents.ENDER_DRAGON_AMBIENT, SoundSource.HOSTILE, 1.0f, 0.9f)
+            s"Spawned rare elite: ${chosen.name}"
+      case _ => "Not on a server level."
+
+  def tick(server: MinecraftServer): Unit =
+    elapsedTicks += 1
+    if elapsedTicks >= nextRareTick then
+      nextRareTick = elapsedTicks + RareIntervalTicks
+      val online = server.getPlayerList.getPlayers.asScala.filter(isJoined)
+      if online.nonEmpty then
+        val target = online.toSeq(rng.nextInt(online.size))
+        spawnRare(target, None)
+    server.getPlayerList.getPlayers.asScala.filter(isJoined).foreach(p => Hud.update(p))
+
+  // --- persistence views -------------------------------------------------------
+
+  private[azerothchaos] def allCharacters: Iterable[Character] = characters.values
+
+  private[azerothchaos] def tagFor(c: Character): CompoundTag =
+    val tag = new CompoundTag
+    tag.putString("name", c.displayName)
+    tag.putString("class", c.classId)
+    tag.putInt("level", c.level)
+    tag.putLong("xp", c.xp)
+    tag.putString("taken", c.taken.mkString(","))
+    val progressTag = new CompoundTag
+    c.progress.foreach { (qid, n) => progressTag.putInt(qid, n) }
+    tag.put("progress", progressTag)
+    tag.putInt("kills", c.kills)
+    tag.putInt("rareKills", c.rareKills)
+    tag.putInt("deaths", c.deaths)
+    tag
+
+  private[azerothchaos] def mergeFromTag(uuid: UUID, tag: CompoundTag): Unit =
+    val c = ensure(uuid)
+    c.displayName = tag.getString("name")
+    c.classId = tag.getString("class")
+    c.level = math.max(1, tag.getInt("level"))
+    c.xp = tag.getLong("xp")
+    if tag.getString("taken").nonEmpty then c.taken ++= tag.getString("taken").split(",").toSeq
+    Option(tag.getCompound("progress")).foreach { p =>
+      p.getAllKeys.asScala.foreach(k => c.progress(k) = p.getInt(k))
+    }
+    c.kills = tag.getInt("kills")
+    c.rareKills = tag.getInt("rareKills")
+    c.deaths = tag.getInt("deaths")
+
+  // --- helpers -----------------------------------------------------------------
+
+  private def giveItem(player: ServerPlayer, stack: net.minecraft.world.item.ItemStack): Unit =
+    if !player.getInventory.add(stack) then player.drop(stack, false)
+
+  private[azerothchaos] def message(player: ServerPlayer, text: String, color: ChatFormatting): Unit =
+    player.displayClientMessage(Component.literal(text).withStyle(color), false)
+
+  private[azerothchaos] def broadcast(server: MinecraftServer, msg: Component): Unit =
+    server.getPlayerList().broadcastSystemMessage(msg, false)

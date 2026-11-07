@@ -1,0 +1,22 @@
+# Done to increase the memory available to gradle.
+org.gradle.jvmargs=-Xmx2G
+org.gradle.parallel=true
+# Fabric Loom 1.19 requires Gradle to run on Java 25+; the mod itself still targets Java 21 (MC 1.21).
+org.gradle.java.home=/path/to/jdk-25.0.5+8
+
+# Fabric Properties
+# check these on https://fabricmc.net/develop
+minecraft_version=1.21
+loader_version=0.20.1
+loom_version=1.19-SNAPSHOT
+
+# Mod Properties
+version=1.0.0
+group=dev.cookingchaos
+archives_base_name=kitchen-chaos
+
+# Dependencies
+fabric_api_version=0.102.0+1.21
+
+# Scala
+scala_version=3.3.6
