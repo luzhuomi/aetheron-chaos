@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.entity.item.ItemEntity
@@ -34,7 +35,14 @@ enum Rarity(val id: String, val label: String, val color: ChatFormatting):
  * render them correctly.
  */
 object Loot:
-  final case class Gear(item: Item, name: String, rarity: Rarity, enchantments: List[(ResourceKey[Enchantment], Int)])
+  /** A drop template. The base item must be a real vanilla item. `flavor` adds a lore line. */
+  final case class Gear(
+      item: Item,
+      name: String,
+      rarity: Rarity,
+      enchantments: List[(ResourceKey[Enchantment], Int)],
+      flavor: String = ""
+  )
 
   private val rng = Random()
 
@@ -61,8 +69,11 @@ object Loot:
       catch case _: Throwable => () // skip any enchantment vanilla rules reject for this item
     }
     val existing = Option(s.get(DataComponents.LORE)).map(_.lines().asScala.toList).getOrElse(Nil)
+    val flavor =
+      if g.flavor.nonEmpty then List(Component.literal(g.flavor).withStyle(ChatFormatting.ITALIC, ChatFormatting.YELLOW))
+      else Nil
     val lore = Component.literal(s"${g.rarity.label} loot - Azeroth Chaos").withStyle(ChatFormatting.ITALIC, ChatFormatting.GRAY)
-    s.set(DataComponents.LORE, ItemLore((existing :+ lore).asJava))
+    s.set(DataComponents.LORE, ItemLore((existing ++ flavor :+ lore).asJava))
     s
 
   def coinStack(count: Int): ItemStack =
@@ -74,12 +85,55 @@ object Loot:
     )
     s
 
+  /** Signature drops: iconic gear that ONLY this mob type ever drops (id, percent chance).
+   *  Rare (named) elites triple the odds. Boss signatures are the hunt reward. */
+  private val signatureDrops: Map[EntityType[?], (Gear, Int)] = Map(
+    EntityType.ZOMBIE -> (
+      Gear(Items.IRON_SWORD, "Rotten Cleaver", Rarity.Common, List(Enchantments.SHARPNESS -> 1),
+        "Still smells of the grave. Only zombies carry it."), 3),
+    EntityType.SPIDER -> (
+      Gear(Items.BOW, "Silkfang", Rarity.Uncommon, List(Enchantments.POWER -> 2, Enchantments.INFINITY -> 1),
+        "Strung with the webbing of a giant spider."), 5),
+    EntityType.CREEPER -> (
+      Gear(Items.BOW, "Everfuse", Rarity.Uncommon, List(Enchantments.POWER -> 1, Enchantments.FLAME -> 1),
+        "It hums faintly, like a fuse about to burn out."), 5),
+    EntityType.PILLAGER -> (
+      Gear(Items.CROSSBOW, "Oathbreaker", Rarity.Uncommon, List(Enchantments.MULTISHOT -> 1, Enchantments.QUICK_CHARGE -> 1),
+        "Taken from a raider who broke the wrong promise."), 5),
+    EntityType.WITCH -> (
+      Gear(Items.BOOK, "Hexbinder's Grimoire", Rarity.Rare, List(Enchantments.UNBREAKING -> 3),
+        "Its pages whisper in a language you almost understand."), 8),
+    EntityType.PHANTOM -> (
+      Gear(Items.IRON_HELMET, "Nightmare Shroud", Rarity.Rare, List(Enchantments.PROTECTION -> 2, Enchantments.BLAST_PROTECTION -> 2),
+        "Woven from the dreams it stole."), 8),
+    EntityType.ENDERMAN -> (
+      Gear(Items.IRON_BOOTS, "Voidstep Treads", Rarity.Rare, List(Enchantments.PROTECTION -> 2, Enchantments.FEATHER_FALLING -> 3),
+        "Your steps feel a handbreadth shorter in them."), 7),
+    EntityType.BLAZE -> (
+      Gear(Items.BOW, "Cinderheart", Rarity.Rare, List(Enchantments.POWER -> 3, Enchantments.FLAME -> 1),
+        "The arrow leaves the string already burning."), 7),
+    EntityType.RAVAGER -> (
+      Gear(Items.IRON_CHESTPLATE, "Stonefang Warplate", Rarity.Epic, List(Enchantments.PROTECTION -> 3, Enchantments.THORNS -> 2),
+        "Hammered from the armored hide of a war-beast."), 15),
+    EntityType.ELDER_GUARDIAN -> (
+      Gear(Items.TRIDENT, "Heart of the Deep Duke", Rarity.Epic, List(Enchantments.IMPALING -> 3, Enchantments.UNBREAKING -> 3),
+        "It pulses like a slow, drowned heart."), 30),
+    EntityType.WARDEN -> (
+      Gear(Items.IRON_SWORD, "Deepbrand, Bane of the Dark", Rarity.Epic, List(Enchantments.SHARPNESS -> 4, Enchantments.UNBREAKING -> 3),
+        "Forged in the dark that answers back. Only wardens carry it."), 30)
+  )
+
   /** On-kill loot roll: drop rates and rarity caps scale with the mob's tier (Enemies.tierOf).
-   *  Gear for a party kill goes through the PartyLoot need/greed lock instead of hitting the ground. */
+   *  Signature drops roll first and only come from their own mob. Gear for a party kill goes
+   *  through the PartyLoot need/greed lock instead of hitting the ground. */
   def onKill(victim: Mob, killer: ServerPlayer, party: List[ServerPlayer]): Unit =
     val registries = victim.level.registryAccess()
     val tier = Enemies.tierOf(victim)
     val rare = victim.hasCustomName
+    signatureDrops.get(victim.getType).foreach { (g, chance) =>
+      if rng.nextInt(100) < (if rare then chance * 3 else chance) then
+        lockedOrDrop(victim, stack(g, registries), killer, party)
+    }
     if rare then
       dropNear(victim, coinStack(5 + rng.nextInt(10)))
       lockedOrDrop(victim, stack(rollGear(maxRarity = Rarity.Epic, tier = 5), registries), killer, party)

@@ -24,14 +24,19 @@ object Hud:
       .literal(s"Lv ${c.level} $className  XP $pct%% $xpBar  HP $hp")
       .withStyle(ChatFormatting.GOLD)
 
-    val quests = c.taken.toList.flatMap(Quests.byId).take(2).map { q =>
+    // tracked quests with a live compass to the next objective (or the board when done)
+    val compass = Game.trackerCompass(player).toMap
+    val quests = c.tracked.toList.flatMap(Quests.byId).take(2).map { q =>
       val have = Game.progressOf(player, q)
       val goal = q.objective match
         case Objective.Kill(_, n, _) => n
         case Objective.Collect(_, n) => n
-      s"${q.name} $have/$goal"
+      val done = if have >= goal then " DONE->board" else ""
+      val nav = compass.get(q.id).map(" " + _).getOrElse("")
+      s"${q.name} $have/$goal$done$nav"
     }
-    if quests.nonEmpty then head.append(Component.literal(s"   ${quests.mkString(" | ")}").withStyle(ChatFormatting.AQUA))
+    if quests.nonEmpty then head.append(Component.literal(s"   ${quests.mkString("  |  ")}").withStyle(ChatFormatting.AQUA))
+    else head.append(Component.literal("   /quest track <id> for a compass").withStyle(ChatFormatting.DARK_GRAY))
 
     c.party.foreach { pname =>
       val mates = Game.partiesOf(player, pname)

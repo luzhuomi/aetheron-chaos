@@ -49,12 +49,21 @@ loop, built entirely from vanilla blocks, items and effects.
    seconds: a chat line with clickable **[NEED]** / **[GREED]** buttons; everyone rolls 1-100,
    highest need wins (else highest greed), no rolls = free-for-all.
 
-8. **Spend your gold** — right-click the **vendor barrel** in town (or `/quest shop`) for a clickable
-   catalog from common tools to the epic *Helm of the Black Roar* — a gold sink with guaranteed gear.
+8. **Signature loot** — every mob family has an iconic drop that *only it* ever carries: the warden
+   alone drops *Deepbrand, Bane of the Dark*, the elder guardian its trident *Heart of the Deep
+   Duke*, witches their grimoire, phantoms their shroud. Named rare elites triple the odds.
 
-9. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
-   *Silithis the Broodmother*) spawns near a random hero with a server announcement: **10x XP and
-   guaranteed loot**. Ops can trigger one with `/quest rare`.
+9. **Quest tracker with compass** — `/quest track <id>` pins up to 4 quests to your action bar with a
+   live 8-way compass: it points at the nearest objective mob (or dropped delivery item) while you
+   hunt, and flips to pointing back at the quest board once the objective is done. New quests
+   auto-track while there's room; `/quest untrack <id>` clears one.
+
+10. **Spend your gold** — right-click the **vendor barrel** in town (or `/quest shop`) for a clickable
+    catalog from common tools to the epic *Helm of the Black Roar* — a gold sink with guaranteed gear.
+
+11. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
+    *Silithis the Broodmother*) spawns near a random hero with a server announcement: **10x XP and
+    guaranteed loot**. Ops can trigger one with `/quest rare`.
 
 ### Rules
 
@@ -74,6 +83,8 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest take <id>` | everyone | Accept a quest |
 | `/quest log` | everyone | Show your quest log and progress |
 | `/quest abandon <id>` | everyone | Drop a quest |
+| `/quest track <id>` | everyone | Pin a quest to the action bar with a live compass (max 4) |
+| `/quest untrack <id>` | everyone | Unpin a quest from the action bar |
 | `/quest turnin <id>` | everyone | Turn a completed quest in (at the board) |
 | `/quest party <name>` | everyone | Join/create a party (max 5, shared XP + quest progress) |
 | `/quest party leave` | everyone | Leave your party |
@@ -149,7 +160,7 @@ src/main/scala/dev/azerothchaos/
   HeroClasses.scala      Class/role definitions (attribute bonuses + starting gear)
   Quests.scala           Quest definitions (kill / collect / boss objectives, [GROUP] flag)
   Enemies.scala          Kill-XP table, loot tiers, rare-elite spawn table
-  Loot.scala             Rarity-colored gear, gold coins, tier-scaled kill loot rolls
+  Loot.scala             Rarity-colored gear, signature mob drops, gold coins, tier-scaled rolls
   PartyLoot.scala        Party loot lock: need/greed rolls with timed resolution
   Shop.scala             Vendor stock (gold sink for gear)
   CharacterStore.scala   SNBT persistence of heroes in the world folder

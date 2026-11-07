@@ -18,8 +18,11 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.effect.MobEffectInstance
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.Mob
+import net.minecraft.world.entity.item.ItemEntity
+import net.minecraft.world.phys.Vec3
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
@@ -49,6 +52,12 @@ object Game:
   val RareXpMultiplier = 10
   val PartyQuestXpBonusPercent = 0.5
 
+  // quest tracker / navigation
+  val MaxTrackedQuests = 4
+  private val NavRefreshTicks = 40L
+  private val NavScanRadius = 96.0
+  private val CompassArrows = Array("↑", "↖", "←", "↙", "↓", "↘", "→", "↗")
+
   final class Character(val uuid: UUID):
     var displayName: String = "?"
     var classId: String = ""
@@ -56,6 +65,8 @@ object Game:
     var xp: Long = 0L
     var joined: Boolean = false
     val taken = mutable.LinkedHashSet[String]()
+    // which of the taken quests the action-bar tracker follows (max MaxTrackedQuests)
+    val tracked = mutable.LinkedHashSet[String]()
     val progress = mutable.Map[String, Int]()
     var party: Option[String] = None
     var kills: Int = 0
@@ -67,6 +78,8 @@ object Game:
   private val rng = Random()
   private var elapsedTicks = 0L
   private var nextRareTick = 200L // first rare appears 10 seconds into the server run
+  // quest tracker navigation cache: player uuid -> list of (questId, compass text)
+  private val navCache = mutable.Map[UUID, List[(String, String)]]()
   private var rareAnnounced = 0
 
   def xpToNext(level: Int): Long = 100L + 60L * level + 35L * level * level
@@ -262,14 +275,90 @@ object Game:
         else if c.level < q.minLevel then s"You must be level ${q.minLevel} for '${q.name}'. Current level: ${c.level}."
         else
           c.taken += q.id
-          s"Quest accepted: ${q.name} - ${Quests.objectiveText(q)}. Hint: ${q.hint}"
+          if c.tracked.size < MaxTrackedQuests then c.tracked += q.id
+          refreshNav(player)
+          val trackNote = if c.tracked.contains(q.id) then " (tracked)" else ""
+          s"Quest accepted: ${q.name}$trackNote - ${Quests.objectiveText(q)}. Hint: ${q.hint}"
 
   def abandonQuest(player: ServerPlayer, id: String): String =
     val c = ensure(player.getUUID)
     if !c.taken.remove(id) then "That quest is not in your log."
     else
+      c.tracked -= id
       c.progress -= id
+      navCache -= player.getUUID
       s"Abandoned '$id'."
+
+  // --- quest tracker: the action bar follows these ------------------------------
+
+  def track(player: ServerPlayer, id: String): String =
+    val c = ensure(player.getUUID)
+    Quests.byId(id) match
+      case None => s"No such quest: $id"
+      case Some(q) =>
+        if !c.taken.contains(id) then s"Accept '${q.name}' first: /quest take ${q.id}"
+        else if c.tracked.contains(id) then s"'${q.name}' is already tracked."
+        else if c.tracked.size >= MaxTrackedQuests then
+          s"Tracker is full ($MaxTrackedQuests). Untrack one first: /quest untrack <id>"
+        else
+          c.tracked += id
+          refreshNav(player)
+          s"Tracking '${q.name}' - the action bar now points the way."
+
+  def untrack(player: ServerPlayer, id: String): String =
+    val c = ensure(player.getUUID)
+    if !c.tracked.contains(id) then s"You are not tracking '$id'."
+    else
+      c.tracked -= id
+      navCache -= player.getUUID
+      Quests.byId(id).map(q => s"Stopped tracking '${q.name}'.") getOrElse "Stopped tracking."
+
+  /** Per-quest compass strings for the action bar, refreshed on NavRefreshTicks. */
+  private[azerothchaos] def trackerCompass(player: ServerPlayer): List[(String, String)] =
+    navCache.getOrElse(player.getUUID, Nil)
+
+  private def refreshNav(player: ServerPlayer): Unit =
+    val c = ensure(player.getUUID)
+    navCache(c.uuid) = c.tracked.toList.flatMap { qid =>
+      Quests.byId(qid).flatMap(q => navTarget(player, q).map(t => (qid, compassText(player, t))))
+    }
+
+  /** Where a quest's next step physically is: the objective target, or the board once it's done. */
+  private def navTarget(player: ServerPlayer, q: Quest): Option[(Vec3, String)] =
+    val level = player.level
+    if objectiveMet(player, q) then
+      TownBuilder.nearestBoard(player).map(bp => (Vec3.atBottomCenterOf(bp), "quest board"))
+    else
+      q.objective match
+        case Objective.Kill(target, _, label) =>
+          val found = level
+            .getEntitiesOfClass(classOf[Entity], scanBox(player), e => e.isAlive && e.getType == target)
+            .asScala
+            .minByOption(e => player.blockPosition.distSqr(e.blockPosition()))
+          found.map(e => (e.position(), label))
+        case Objective.Collect(item, _) =>
+          val name = ItemStack(item).getHoverName.getString
+          val found = level
+            .getEntitiesOfClass(classOf[ItemEntity], scanBox(player), ei => ei.getItem.is(item))
+            .asScala
+            .minByOption(e => player.blockPosition.distSqr(e.blockPosition()))
+          found.map(e => (e.position(), s"$name (dropped)"))
+
+  private def scanBox(player: ServerPlayer): net.minecraft.world.phys.AABB =
+    val p = player.position()
+    new net.minecraft.world.phys.AABB(
+      p.x - NavScanRadius, p.y - NavScanRadius, p.z - NavScanRadius,
+      p.x + NavScanRadius, p.y + NavScanRadius, p.z + NavScanRadius
+    )
+
+  /** "↗ 43m zombies" - 8-way arrow relative to where the player is facing. */
+  private def compassText(player: ServerPlayer, t: (Vec3, String)): String =
+    val d = t._1.subtract(player.position())
+    val dist = math.sqrt(d.x * d.x + d.z * d.z).toInt
+    val look = player.getLookAngle
+    val rel = math.atan2(d.z, d.x) - math.atan2(look.z, look.x)
+    val idx = ((math.round(math.toDegrees(rel) / 45.0).toInt % 8) + 8) % 8
+    s"${CompassArrows(idx)} ${dist}m ${t._2}"
 
   private[azerothchaos] def progressOf(player: ServerPlayer, q: Quest): Int =
     val c = ensure(player.getUUID)
@@ -331,6 +420,7 @@ object Game:
   private def creditQuest(member: ServerPlayer, q: Quest, partySize: Int): Unit =
     val mc = ensure(member.getUUID)
     mc.taken -= q.id
+    mc.tracked -= q.id
     mc.progress -= q.id
     q.objective match
       case Objective.Collect(item, count) => removeItems(member, item, count)
@@ -539,7 +629,10 @@ object Game:
       if online.nonEmpty then
         val target = online.toSeq(rng.nextInt(online.size))
         spawnRare(target, None)
-    server.getPlayerList.getPlayers.asScala.filter(isJoined).foreach(p => Hud.update(p))
+    server.getPlayerList.getPlayers.asScala.filter(isJoined).foreach { p =>
+      if elapsedTicks % NavRefreshTicks == 0 then refreshNav(p)
+      Hud.update(p)
+    }
 
   // --- persistence views -------------------------------------------------------
 
@@ -552,6 +645,7 @@ object Game:
     tag.putInt("level", c.level)
     tag.putLong("xp", c.xp)
     tag.putString("taken", c.taken.mkString(","))
+    tag.putString("tracked", c.tracked.mkString(","))
     val progressTag = new CompoundTag
     c.progress.foreach { (qid, n) => progressTag.putInt(qid, n) }
     tag.put("progress", progressTag)
@@ -567,6 +661,8 @@ object Game:
     c.level = math.max(1, tag.getInt("level"))
     c.xp = tag.getLong("xp")
     if tag.getString("taken").nonEmpty then c.taken ++= tag.getString("taken").split(",").toSeq
+    if tag.contains("tracked") && tag.getString("tracked").nonEmpty then
+      tag.getString("tracked").split(",").toSeq.filter(c.taken.contains).foreach(c.tracked += _)
     Option(tag.getCompound("progress")).foreach { p =>
       p.getAllKeys.asScala.foreach(k => c.progress(k) = p.getInt(k))
     }

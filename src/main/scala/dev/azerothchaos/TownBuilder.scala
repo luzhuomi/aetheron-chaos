@@ -35,6 +35,11 @@ object TownBuilder:
       player.blockPosition.distSqr(bp) <= 144
     }
 
+  /** The registered quest board closest to the player, if any exists. */
+  def nearestBoard(player: ServerPlayer): Option[BlockPos] =
+    if boards.isEmpty then None
+    else Some(boards.iterator.map(l => BlockPos.of(l)).minBy(bp => player.blockPosition.distSqr(bp)))
+
   def build(player: ServerPlayer): String =
     val level = player.level
     val dir = player.getDirection

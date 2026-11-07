@@ -37,6 +37,8 @@ object QuestCommand:
           .`then`(Commands.literal("board").executes(ctx => withPlayerSilent(ctx, Game.boardMenu)))
           .`then`(questArgument("take", ctx => withPlayer(ctx, p => Game.takeQuest(p, StringArgumentType.getString(ctx, "quest")))))
           .`then`(questArgument("abandon", ctx => withPlayer(ctx, p => Game.abandonQuest(p, StringArgumentType.getString(ctx, "quest")))))
+          .`then`(questArgument("track", ctx => withPlayer(ctx, p => Game.track(p, StringArgumentType.getString(ctx, "quest")))))
+          .`then`(questArgument("untrack", ctx => withPlayer(ctx, p => Game.untrack(p, StringArgumentType.getString(ctx, "quest")))))
           .`then`(questArgument("turnin", ctx => withPlayer(ctx, p => Game.turnIn(p, StringArgumentType.getString(ctx, "quest")))))
           .`then`(Commands.literal("log").executes(ctx => log(ctx)))
           .`then`(
@@ -54,7 +56,7 @@ object QuestCommand:
           .`then`(
             Commands.literal("buy")
               .`then`(
-                Commands.argument("item", StringArgumentType.word())
+                Commands.argument("item", StringArgumentType.greedyString())
                   .suggests((_, builder) => SharedSuggestionProvider.suggest(Shop.stock.map(_.id).asJava, builder))
                   .executes(ctx => withPlayer(ctx, p => Game.buy(p, StringArgumentType.getString(ctx, "item"))))
               )
@@ -93,7 +95,8 @@ object QuestCommand:
     )
 
   private def questArgument(name: String, body: CommandContext[CommandSourceStack] => Int) =
-    Commands.argument("quest", StringArgumentType.word())
+    // greedyString: quest ids contain hyphens, which word() would reject
+    Commands.argument("quest", StringArgumentType.greedyString())
       .suggests((_, builder) => SharedSuggestionProvider.suggest(Quests.all.map(_.id).asJava, builder))
       .executes(ctx => body(ctx))
 
@@ -126,21 +129,29 @@ object QuestCommand:
         if c.taken.isEmpty then
           ctx.getSource.sendSuccess(() => Component.literal("Quest log is empty. Visit the board: /quest board").withStyle(ChatFormatting.GRAY), false)
         else
-          ctx.getSource.sendSuccess(() => Component.literal("Quest log:").withStyle(ChatFormatting.GOLD), false)
+          ctx.getSource.sendSuccess(() => Component.literal(s"Quest log (${c.tracked.size}/${Game.MaxTrackedQuests} tracked):").withStyle(ChatFormatting.GOLD), false)
           c.taken.toList.flatMap(Quests.byId).foreach { q =>
             val have = Game.progressOf(p, q)
             val goal = q.objective match
               case Objective.Kill(_, n, _) => n
               case Objective.Collect(_, n) => n
             val tag = if q.partyOnly then "[GROUP] " else ""
+            val mark = if c.tracked.contains(q.id) then "★ " else "- "
             ctx.getSource.sendSuccess(
               () =>
                 Component
-                  .literal(s"$tag${q.name} ($have/$goal): ${Quests.objectiveText(q)} | reward: ${q.xp} XP + ${q.coins} gold | hint: ${q.hint}")
+                  .literal(s"$mark$tag${q.name} ($have/$goal): ${Quests.objectiveText(q)} | reward: ${q.xp} XP + ${q.coins} gold | hint: ${q.hint}")
                   .withStyle(ChatFormatting.AQUA),
               false
             )
           }
+          ctx.getSource.sendSuccess(
+            () =>
+              Component
+                .literal("★ = tracked (shows with a compass in your action bar): /quest track <id> | /quest untrack <id>")
+                .withStyle(ChatFormatting.YELLOW),
+            false
+          )
           ctx.getSource.sendSuccess(() => Component.literal("Turn completed quests in at the quest board: /quest turnin <id>").withStyle(ChatFormatting.YELLOW), false)
         1
       case _ =>
@@ -167,7 +178,7 @@ object QuestCommand:
         Component
           .literal(
             "Azeroth Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
-              "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest turnin <id> (at the board), " +
+              "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest track <id> (quest compass), /quest turnin <id> (at the board), " +
               "/quest party <name>, /quest shop (spend gold), /quest stats, /quest top. Ops: /quest town, /quest clear, /quest rare. " +
               "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."
           )
