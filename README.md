@@ -155,7 +155,8 @@ loop, built entirely from vanilla blocks, items and effects.
 
 12. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
     *Silithis the Broodmother*) spawns near a random hero with a server announcement: **10x XP and
-    guaranteed loot**. Ops can trigger one with `/quest rare`.
+    guaranteed loot**. Ops can trigger one with `/quest rare`. Fair fight rule: if the whole party
+    (or a solo hero) dies while engaged with the rare, it fades away — no respawn-grinding it down.
 
 ### Rules
 

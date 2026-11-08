@@ -86,6 +86,8 @@ object Game:
   private val rng = Random()
   private var elapsedTicks = 0L
   private var nextRareTick = 200L // first rare appears 10 seconds into the server run
+  // live rare elites, so a party wipe can end the fight instead of letting players grind it down
+  private val activeRares = mutable.LinkedHashSet[Mob]()
   private var nextAutosaveTick = AutosaveIntervalTicks
   // quest tracker navigation cache: player uuid -> list of (questId, compass text)
   private val navCache = mutable.Map[UUID, List[(String, String)]]()
@@ -228,7 +230,9 @@ object Game:
     if !c.joined then return
     val rare = victim.hasCustomName
     c.kills += 1
-    if rare then c.rareKills += 1
+    if rare then
+      c.rareKills += 1
+      activeRares -= victim
     val mates = partyMates(player)
     advanceQuests(player, victim)
     Loot.onKill(victim, player, mates)
@@ -277,6 +281,40 @@ object Game:
       val lost = (c.xp * DeathXpPenalty).toLong
       c.xp -= lost
       message(player, s"You died. The effort set you back $lost XP.", ChatFormatting.RED)
+    dropRaressOnWipe(player)
+
+  /** A wipe is not a grind: any rare the group was actually fighting fades away when the
+   *  whole group is down (solo death counts as a wipe of a party of one). */
+  private def dropRaressOnWipe(player: ServerPlayer): Unit =
+    activeRares.filterInPlace(r => r.isAlive && !r.isRemoved)
+    if activeRares.isEmpty then return
+    val c = ensure(player.getUUID)
+    val group: List[ServerPlayer] = c.party match
+      case Some(p) =>
+        parties.getOrElse(p, mutable.LinkedHashSet[UUID]()).toList
+          .flatMap(u => Option(player.server.getPlayerList.getPlayer(u)))
+      case None => List(player)
+    if group.exists(_.isAlive) then return // someone is still standing to fight it
+    activeRares.toList.foreach { r =>
+      val engaged = group.exists(g => r.getTarget == g || r.distanceToSqr(g) < 900) // targeting or within 30 blocks
+      if engaged then
+        activeRares -= r
+        r.discard()
+        r.level match
+          case sl: ServerLevel =>
+            sl.sendParticles(
+              net.minecraft.core.particles.ParticleTypes.POOF,
+              r.getX, r.getY + 1.0, r.getZ, 25, 0.4, 0.6, 0.4, 0.05
+            )
+            sl.playSound(null, r, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 0.8f, 0.7f)
+          case _ => ()
+        broadcast(
+          player.server,
+          Component
+            .literal(s"${r.getName.getString}, sensing the party's fall, fades back into the wilds.")
+            .withStyle(ChatFormatting.DARK_GRAY)
+        )
+    }
 
   private def addXp(player: ServerPlayer, amount: Long): Unit =
     val c = ensure(player.getUUID)
@@ -799,6 +837,7 @@ object Game:
             }
             Option(m.getAttribute(Attributes.ATTACK_DAMAGE)).foreach(a => a.setBaseValue(a.getBaseValue * chosen.attackMult))
             serverLevel.addFreshEntity(m)
+            activeRares += m
             rareAnnounced += 1
             broadcast(
               player.server,
