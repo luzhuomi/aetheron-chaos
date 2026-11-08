@@ -174,10 +174,12 @@ object Game:
           player.server,
           Component.literal(s"${c.displayName} has become a Lv ${c.level} ${hc.name}!").withStyle(ChatFormatting.LIGHT_PURPLE)
         )
-        val spellNote =
-          if hc.id == "mage" then
+        val spellNote = hc.id match
+          case "mage" =>
             " Your Apprentice's Wand is a spell focus: RIGHT-CLICK while holding any blaze rod to cast Fire Bolt, sneak+right-click to cycle spells, /quest spell for the spellbook."
-          else ""
+          case "priest" =>
+            " Your Book of Radiance is a holy focus: RIGHT-CLICK while holding any book to heal the ally you aim at, sneak+right-click to cycle spells, /quest spell for the spellbook."
+          case _ => ""
         s"You are now a ${hc.name}: ${hc.tagline} Starting gear granted.$spellNote"
 
   private[azerothchaos] def applyBonuses(player: ServerPlayer): Unit =
@@ -286,30 +288,37 @@ object Game:
       player.connection.send(ClientboundSetTitlesAnimationPacket(10, 70, 20))
       player.connection.send(ClientboundSetTitleTextPacket(Component.literal(s"Level ${c.level}!").withStyle(ChatFormatting.GOLD)))
       player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal(heroClassOf(c).map(_.name).getOrElse("Adventurer"))))
-      if c.classId == "mage" then
-        Spells.all.filter(s => s.unlockLevel > fromLevel && s.unlockLevel <= c.level).foreach { s =>
-          message(player, s"New spell learned: ${s.name}! Right-click with a wand to cast it, /quest spell to equip.", ChatFormatting.LIGHT_PURPLE)
+      val school = Spells.schoolFor(c.classId)
+      if school.nonEmpty then
+        Spells.all.filter(s => s.school == school && s.unlockLevel > fromLevel && s.unlockLevel <= c.level).foreach { s =>
+          message(player, s"New spell learned: ${s.name}! Right-click with your focus to cast it, /quest spell to equip.", ChatFormatting.LIGHT_PURPLE)
         }
 
   // --- mage spells --------------------------------------------------------------
 
   /** The spell a hero currently has equipped (falls back to the first known one). */
   private[azerothchaos] def equippedSpell(c: Character): Spell =
-    Spells.byId(c.spell).filter(s => s.unlockLevel <= c.level)
-      .orElse(Spells.learnedFor(c.level).lastOption)
+    val school = Spells.schoolFor(c.classId)
+    Spells.byId(c.spell).filter(s => s.school == school && s.unlockLevel <= c.level)
+      .orElse(Spells.learnedFor(school, c.level).headOption)
       .getOrElse(Spells.all.head)
 
   /** Right-click cast / sneak+right-click cycle. Returns true if the click was consumed. */
   private[azerothchaos] def castOrCycle(player: ServerPlayer): Boolean =
     val c = ensure(player.getUUID)
-    if !c.joined || c.classId != "mage" then return false
+    val school = Spells.schoolFor(c.classId)
+    if !c.joined || school.isEmpty then return false
     val inv = player.getInventory
-    val holdingFocus = (inv.items.asScala ++ inv.offhand.asScala).exists(_.is(Spells.FocusItem))
+    val focus = Spells.focusFor(school).get
+    val holdingFocus = (inv.items.asScala ++ inv.offhand.asScala).exists(_.is(focus))
     if !holdingFocus then
-      message(player, "A wand is your spell focus - hold any blaze rod (buy one, or hunt blazes).", ChatFormatting.RED)
+      val hint =
+        if school == "holy" then "A prayer book is your holy focus - hold any book (your Book of Radiance works)."
+        else "A wand is your spell focus - hold any blaze rod (hunt blazes or ask a mage friend)."
+      message(player, hint, ChatFormatting.RED)
       return true
     if player.isCrouching then
-      val known = Spells.learnedFor(c.level)
+      val known = Spells.learnedFor(school, c.level)
       if known.size < 2 then
         message(player, s"Casting ${equippedSpell(c).name}. Learn more spells by leveling up.", ChatFormatting.GRAY)
         return true
@@ -321,7 +330,7 @@ object Game:
     val spell = equippedSpell(c)
     val readyAt = spellCooldowns.getOrElse(c.uuid, 0L)
     if elapsedTicks < readyAt then
-      message(player, s"${spell.name} is still crackling... ${(readyAt - elapsedTicks + 19) / 20}s", ChatFormatting.GRAY)
+      message(player, s"${spell.name} is still recharging... ${(readyAt - elapsedTicks + 19) / 20}s", ChatFormatting.GRAY)
       return true
     spellCooldowns(c.uuid) = elapsedTicks + spell.cooldownTicks
     Spells.cast(player, spell)
@@ -329,24 +338,35 @@ object Game:
 
   private[azerothchaos] def spellList(player: ServerPlayer): String =
     val c = ensure(player.getUUID)
-    if c.classId != "mage" then return "Only mages study the arcane. /quest roles to see classes."
-    val known = Spells.learnedFor(c.level)
+    val school = Spells.schoolFor(c.classId)
+    if school.isEmpty then return "Only mages and priests wield spellbooks. /quest roles to see classes."
+    val known = Spells.learnedFor(school, c.level)
+    val focusName = if school == "holy" then "book focus" else "wand (blaze rod) focus"
     val lines = known.map { s =>
       val mark = if s.id == equippedSpell(c).id then "*" else " "
-      s"$mark ${s.name} (Lv${s.unlockLevel}) - ${s.damage.toInt} dmg" + (if s.aoeRadius > 0 then s", hits within ${s.aoeRadius.toInt} blocks" else "")
+      val effect = s.kind match
+        case "heal"    => s"mend up to ${s.damage.toInt} HP (aim at an ally)"
+        case "purify"  => "cleanse ailments from nearby allies"
+        case "protect" => "Damage Resistance 12s for nearby allies"
+        case _ if s.aoeRadius > 0 => s"${s.damage} dmg to all foes within ${s.aoeRadius.toInt} blocks"
+        case _         => s"${s.damage} dmg bolt"
+      s"$mark ${s.name} (Lv${s.unlockLevel}) - $effect"
     }
-    val locked = Spells.all.filterNot(known.contains)
-    (List("Spellbook - right-click with a wand to cast, sneak+right-click to cycle:") ++ lines ++
+    val locked = Spells.all.filter(s => s.school == school && s.unlockLevel > c.level)
+    (List(s"Spellbook - right-click with your $focusName to cast, sneak+right-click to cycle:") ++ lines ++
       (if locked.nonEmpty then List("Locked: " + locked.map(s => s"${s.name} (Lv${s.unlockLevel})").mkString(", ")) else Nil))
       .mkString("\n")
 
   private[azerothchaos] def equipSpell(player: ServerPlayer, id: String): String =
     val c = ensure(player.getUUID)
-    if c.classId != "mage" then return "Only mages study the arcane."
+    val school = Spells.schoolFor(c.classId)
+    if school.isEmpty then return "Only mages and priests wield spellbooks."
     Spells.byId(id) match
       case None =>
-        val hint = Spells.all.find(s => editDistance(s.id.toLowerCase, id.toLowerCase) <= 3).map(s => s" Did you mean ${s.id}?").getOrElse("")
+        val hint = Spells.all.find(s => s.school == school && editDistance(s.id.toLowerCase, id.toLowerCase) <= 3)
+          .map(s => s" Did you mean ${s.id}?").getOrElse("")
         s"Unknown spell '$id'.$hint See /quest spell."
+      case Some(s) if s.school != school => s"${s.name} is a ${s.school} spell - not in your book."
       case Some(s) if s.unlockLevel > c.level => s"${s.name} unlocks at level ${s.unlockLevel} (you are ${c.level})."
       case Some(s) =>
         c.spell = s.id

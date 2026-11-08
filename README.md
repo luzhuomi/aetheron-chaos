@@ -30,11 +30,14 @@ loop, built entirely from vanilla blocks, items and effects.
    | `hunter` | Ranged beast-stalker — longbow, quick feet |
    | `mage` | Arcane scholar — ranged elemental bolts (spellbook below), permanent arcane sight |
    | `rogue` | Shadow striker — swift and deadly |
-   | `priest` | Holy healer — permanent regeneration |
+   | `priest` | Holy healer — heals allies, cleanses, protects (spellbook below), regen |
 
-   **Mage's spellbook** — mages attack at range: hold **any blaze rod as a wand focus** and
-   RIGHT-CLICK to cast the equipped bolt; SNEAK+right-click cycles known spells (`/quest spell`
-   also lists/equips them). Bolts are real projectiles with element riders:
+   **Spellbooks** — mages and priests cast at range: RIGHT-CLICK while holding your focus to
+   cast the equipped spell; SNEAK+right-click cycles known spells (`/quest spell` also
+   lists/equips them). Spells are learned automatically as you level, sit on a cooldown (the
+   focus visibly greys out — vanilla item cooldown) and show in your action bar.
+
+   *Mage* — hold **any blaze rod as a wand focus**. Bolts are real projectiles with element riders:
 
    | Spell | Unlock | Effect |
    |---|---|---|
@@ -44,8 +47,18 @@ loop, built entirely from vanilla blocks, items and effects.
    | Flame Nova | Lv 15 | AoE burst (3-block radius) + fire |
    | Storm Nova | Lv 25 | AoE burst (4-block radius) + knockback |
 
-   Spells sit on a cooldown (the wand visibly greys out — vanilla item cooldown). Bolt kills grant
-   XP, quest progress and loot exactly like melee kills. The equipped spell shows in your action bar.
+   *Priest* — hold **any book as a prayer book focus** (your starting *Book of Radiance* works).
+   Damage is modest — priests exist to keep the party standing:
+
+   | Spell | Unlock | Effect |
+   |---|---|---|
+   | Holy Smite | Lv 1 | 2.5 dmg holy bolt (minimal damage, as befits a priest) |
+   | Heal | Lv 3 | mends up to 6 HP on the ally you aim at (falls back to yourself) |
+   | Purify | Lv 6 | cleanses slowness/poison/blindness/weakness/... from you + allies within 6 blocks |
+   | Protection | Lv 15 | Damage Resistance 12s on you + allies within 6 blocks |
+   | Judgment | Lv 25 | AoE holy burst (4-block radius) for groups |
+
+   Bolt kills grant XP, quest progress and loot exactly like melee kills.
 
 3. **Level up by playing** — every monster kill grants XP (bigger mobs, bigger XP). Leveling grants
    +2 health per level, more damage every few levels, a server-wide announcement and a title screen.
@@ -107,7 +120,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest leave` | everyone | Leave the realm |
 | `/quest roles` | everyone | List the hero classes |
 | `/quest class <name>` | everyone | Choose a class (grants its gear) |
-| `/quest spell [id]` | everyone | Mage spellbook: list or equip a spell |
+| `/quest spell [id]` | everyone | Spellbook: list or equip a spell (mage/priest) |
 | `/quest board` | everyone | Quest-board menu (accept / turn in, clickable) |
 | `/quest take <id>` | everyone | Accept a quest |
 | `/quest log` | everyone | Show your quest log and progress |
@@ -190,7 +203,7 @@ src/main/scala/dev/azerothchaos/
   AzerothChaosMod.scala  Fabric entrypoint, event wiring
   Game.scala             Characters: classes, XP/levels, quests, parties, rare spawns
   HeroClasses.scala      Class/role definitions (attribute bonuses + starting gear)
-  Spells.scala           Mage spellbook: elemental bolts + novas as real projectiles
+  Spells.scala           Spellbooks: mage elemental bolts/novas + priest holy heal/purify/protect
   Quests.scala           Quest definitions (kill / collect / boss objectives, [GROUP] flag)
   Enemies.scala          Kill-XP table, loot tiers, rare-elite spawn table
   Loot.scala             Rarity-colored gear, signature mob drops, gold coins, tier-scaled rolls

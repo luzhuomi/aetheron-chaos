@@ -82,7 +82,9 @@ object HeroClasses:
       6.0, 0.5, 0.0, Some(net.minecraft.world.effect.MobEffects.REGENERATION),
       List(
         Gear(Items.IRON_SWORD, "Sanctified Blade", Rarity.Uncommon, List(Enchantments.SHARPNESS -> 1)),
-        Gear(Items.CHAINMAIL_CHESTPLATE, "Holy Vestments", Rarity.Uncommon, List(Enchantments.PROJECTILE_PROTECTION -> 2))
+        Gear(Items.CHAINMAIL_CHESTPLATE, "Holy Vestments", Rarity.Uncommon, List(Enchantments.PROJECTILE_PROTECTION -> 2)),
+        Gear(Items.BOOK, "Book of Radiance", Rarity.Common, List(),
+          "Your prayer book - hold any book to channel holy spells.")
       )
     )
   )
