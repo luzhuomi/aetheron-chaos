@@ -25,8 +25,8 @@ object Interactions:
   private val GuardTips = List(
     "Guard Captain Mara: 'Rare elites roam the wilds every 12 minutes. Bring friends.'",
     "Guard Captain Mara: 'The stronger the beast, the finer the loot. Hunt what frightens you.'",
-    "Hearthkeeper Finn: 'Party up with /quest party - shared XP, need/greed loot rolls.'",
-    "Hearthkeeper Finn: 'Gold spends well at the vendor barrel or /quest shop.'"
+    "Guard Captain Mara: 'Hearthkeeper Finn feeds the hungry once a day - ask him.'",
+    "Guard Captain Mara: 'Party up with /quest party before hunting rares - shared XP, shared risk.'"
   )
 
   def register(): Unit =
@@ -50,6 +50,9 @@ object Interactions:
             InteractionResult.SUCCESS
           case (p: ServerPlayer, Some("vendor")) =>
             if p.isCrouching then Game.message(p, Game.sellHeld(p), ChatFormatting.GOLD) else Game.shopMenu(p)
+            InteractionResult.SUCCESS
+          case (p: ServerPlayer, Some("hearth")) =>
+            Game.message(p, Game.dailyRation(p), ChatFormatting.GOLD)
             InteractionResult.SUCCESS
           case (p: ServerPlayer, Some("guard")) =>
             Game.message(p, GuardTips(rng.nextInt(GuardTips.size)), ChatFormatting.GRAY)

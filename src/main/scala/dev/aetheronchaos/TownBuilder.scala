@@ -110,7 +110,8 @@ object TownBuilder:
         v.getCustomName.getString match
           case QuestNpcName  => Some("board")
           case VendorNpcName => Some("vendor")
-          case GuardNpcName | HearthNpcName => Some("guard")
+          case HearthNpcName => Some("hearth")
+          case GuardNpcName  => Some("guard")
           case _             => None
       case _ => None
 

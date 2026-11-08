@@ -15,8 +15,9 @@ loop, built entirely from vanilla blocks, items and effects.
 
 1. **Arrive in town** — the first hero to join a realm gets a starter town built at their spawn:
    a plaza with a **loom quest board**, vendor barrel, hearth and lantern-lit fences, plus permanent
-   **town NPCs**: Questmaster Boralus (opens the quest board), Merchant Tilli (opens the shop), and
-   guards who hand out hints. **Town guard**: plaza lanterns suppress hostile spawns, and any hostile
+   **town NPCs**: Questmaster Boralus (opens the quest board), Merchant Tilli (opens the shop),
+   Hearthkeeper Finn (a **free meal once per day** — bread and chicken, tracked per real-world
+   day), and guards who hand out hints. **Town guard**: plaza lanterns suppress hostile spawns, and any hostile
    stray that wanders in (creepers first!) is escorted back outside the plaza every few seconds —
    unless a hero has pulled it into combat. Every new hero is teleported into the plaza and respawns
    there. Ops can raise more hubs anywhere with `/quest town`; towns and boards persist across restarts.

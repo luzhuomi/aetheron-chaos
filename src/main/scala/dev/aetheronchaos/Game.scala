@@ -72,6 +72,8 @@ object Game:
     var joined: Boolean = false
     // equipped mage spell (see Spells.scala); learned spells derive from level, nothing to save there
     var spell: String = "fire-bolt"
+    // last day Hearthkeeper Finn handed out free food (ISO date), so it's once per real day
+    var fedOnDay: String = ""
     val taken = mutable.LinkedHashSet[String]()
     // which of the taken quests the action-bar tracker follows (max MaxTrackedQuests)
     val tracked = mutable.LinkedHashSet[String]()
@@ -717,6 +719,26 @@ object Game:
         val names = parties.getOrElse(p, mutable.LinkedHashSet[UUID]()).flatMap(u => Option(player.server.getPlayerList.getPlayer(u)).map(_.getName.getString))
         s"Party '$p': ${names.mkString(", ")}"
 
+  // --- the hearth ---------------------------------------------------------------
+
+  /** Hearthkeeper Finn's daily charity: a free meal, once per real-world day, saved with
+   *  the character so logging out or restarting the server doesn't refresh it. */
+  private[aetheronchaos] def dailyRation(player: ServerPlayer): String =
+    val c = ensure(player.getUUID)
+    if !c.joined then return "Join the realm first: /quest join - then the hearth will know you."
+    val today = java.time.LocalDate.now().toString
+    if c.fedOnDay == today then
+      s"${TownBuilder.HearthNpcName}: 'Already fed you today, friend. Come back at dawn - the pot's always on, but portions are portions.'"
+    else
+      c.fedOnDay = today
+      giveItem(player, ItemStack(Items.BREAD, 2))
+      giveItem(player, ItemStack(Items.COOKED_CHICKEN, 2))
+      player.level match
+        case sl: ServerLevel =>
+          sl.playSound(null, player, SoundEvents.PLAYER_BURP, SoundSource.PLAYERS, 0.6f, 1.0f)
+        case _ => ()
+      s"${TownBuilder.HearthNpcName}: 'Here - eat while it's warm. Two loaves, two drumsticks. Every day, one basket, that's the house rule.'"
+
   // --- vendor / shop ------------------------------------------------------------
 
   def shopMenu(player: ServerPlayer): Unit =
@@ -876,6 +898,7 @@ object Game:
     tag.putString("name", c.displayName)
     tag.putString("class", c.classId)
     tag.putString("spell", c.spell)
+    tag.putString("fedOn", c.fedOnDay)
     tag.putInt("level", c.level)
     tag.putLong("xp", c.xp)
     tag.putString("taken", c.taken.mkString(","))
@@ -893,6 +916,7 @@ object Game:
     c.displayName = tag.getString("name")
     c.classId = tag.getString("class")
     if Spells.byId(tag.getString("spell")).nonEmpty then c.spell = tag.getString("spell")
+    c.fedOnDay = tag.getString("fedOn")
     c.level = math.max(1, tag.getInt("level"))
     c.xp = tag.getLong("xp")
     if tag.getString("taken").nonEmpty then c.taken ++= tag.getString("taken").split(",").toSeq
