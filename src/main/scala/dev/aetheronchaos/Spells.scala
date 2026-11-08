@@ -4,16 +4,21 @@ import scala.jdk.CollectionConverters.*
 import scala.util.Random
 
 import net.minecraft.ChatFormatting
+import net.minecraft.core.BlockPos
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
+import net.minecraft.tags.ItemTags
 import net.minecraft.world.effect.MobEffectInstance
 import net.minecraft.world.effect.MobEffects
 import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.monster.Monster
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.entity.projectile.AbstractArrow
+import net.minecraft.world.entity.projectile.Arrow
 import net.minecraft.world.entity.projectile.Snowball
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
@@ -21,26 +26,33 @@ import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.Vec3
 
-/** A class spell. Learned automatically at unlockLevel. kind: bolt | heal | purify | protect. */
+/** A class spell. Learned automatically at unlockLevel. kind: bolt | heal | purify | protect | blink | burst | steal | buff | arrows.
+ *  Notes: heal damage = HP restored; buff damage = duration in ticks; aoeRadius doubles as blink distance. */
 final case class Spell(
     id: String,
     name: String,
     unlockLevel: Int,
     damage: Float, // bolt: damage; heal: HP restored (beyond that it tunes nothing else)
     cooldownTicks: Int,
-    element: String, // fire | frost | storm | holy (visuals + riders)
+    element: String, // fire | frost | storm | holy | shadow | arrow (visuals + riders)
     aoeRadius: Double = 0.0, // >0 = bursts in an area on impact/max range
     kind: String = "bolt",
-    school: String = "arcane" // arcane (mage) | holy (priest)
+    school: String = "arcane", // arcane (mage) | holy (priest) | shadow (rogue) | hunt (hunter)
+    effect: String = "", // rider descriptor: poison | slow | pierce | speed | invis
+    count: Int = 1 // arrows: projectiles per cast (volley)
 )
 
 /**
- * The spellbooks: arcane bolts for mages, holy spells for priests. Casting is server-side only:
- * bolts are real vanilla projectiles (snowballs retextured per element) with the element applied
- * on hit, so any vanilla client sees the particles and the flying bolt. Bolts detonate at max
- * range even without a hit (novas). holy spells (heal/purify/protect) act on nearby players.
+ * The spellbooks: arcane bolts for mages, holy support for priests, martial arts for rogues
+ * (channeled through any sword) and skill-shots for hunters (any bow). Arcane/holy bolts are
+ * real vanilla projectiles (snowballs retextured per element) with the element applied on hit,
+ * so any vanilla client sees the particles and the flying bolt; bolts detonate at max range
+ * even without a hit (novas). Support spells act on nearby players; rogues blink/burst/steal;
+ * hunters fire real arrows.
  */
 object Spells:
+  private val rng = Random()
+
   val all: List[Spell] = List(
     // mage - arcane
     Spell("fire-bolt", "Fire Bolt", 1, 3.5f, 60, "fire"),
@@ -53,14 +65,30 @@ object Spells:
     Spell("heal", "Heal", 3, 6.0f, 110, "holy", kind = "heal", school = "holy"),
     Spell("purify", "Purify", 6, 0f, 160, "holy", kind = "purify", school = "holy"),
     Spell("protection", "Protection", 15, 0f, 400, "holy", kind = "protect", school = "holy"),
-    Spell("judgment", "Judgment", 25, 4.0f, 190, "holy", 4.0, kind = "bolt", school = "holy")
+    Spell("judgment", "Judgment", 25, 4.0f, 190, "holy", 4.0, kind = "bolt", school = "holy"),
+    // rogue - shadow (focus: any sword)
+    Spell("shadowstep", "Shadowstep", 1, 0f, 150, "shadow", 8.0, kind = "blink", school = "shadow"),
+    Spell("fan-of-knives", "Fan of Knives", 3, 3.5f, 130, "shadow", 3.5, kind = "burst", school = "shadow"),
+    Spell("pickpocket", "Pickpocket", 8, 0f, 200, "shadow", 5.0, kind = "steal", school = "shadow"),
+    Spell("evasion", "Evasion", 14, 160f, 300, "shadow", kind = "buff", effect = "speed", school = "shadow"),
+    Spell("vanish", "Vanish", 22, 130f, 420, "shadow", kind = "buff", effect = "invis", school = "shadow"),
+    // hunter - skill shots (focus: any bow)
+    Spell("quick-shot", "Quick Shot", 1, 3.0f, 25, "arrow", kind = "arrows", school = "hunt"),
+    Spell("serpent-shot", "Serpent Shot", 5, 2.5f, 90, "arrow", kind = "arrows", effect = "poison", school = "hunt"),
+    Spell("piercing-shot", "Piercing Shot", 12, 3.0f, 130, "arrow", kind = "arrows", effect = "pierce", school = "hunt"),
+    Spell("volley", "Arrow Volley", 18, 2.5f, 220, "arrow", kind = "arrows", count = 5, school = "hunt"),
+    Spell("crippling-shot", "Crippling Shot", 25, 4.5f, 160, "arrow", kind = "arrows", effect = "slow", school = "hunt")
   )
 
-  /** Spell focus per school: mages channel through a blaze rod, priests through a book. */
-  def focusFor(school: String) = school match
-    case "arcane" => Some(Items.BLAZE_ROD)
-    case "holy"   => Some(Items.BOOK)
-    case _        => None
+  /** Spell focus per school: mages a blaze rod, priests a book, rogues any sword, hunters any bow. */
+  def isFocus(school: String, stack: ItemStack): Boolean =
+    !stack.isEmpty && (school match
+      case "arcane" => stack.is(Items.BLAZE_ROD)
+      case "holy"   => stack.is(Items.BOOK)
+      case "shadow" => stack.is(ItemTags.SWORDS)
+      case "hunt"   => stack.is(ItemTags.BOW_ENCHANTABLE)
+      case _        => false
+    )
 
   val NegativeEffects = List(
     MobEffects.MOVEMENT_SLOWDOWN, MobEffects.DIG_SLOWDOWN, MobEffects.BLINDNESS,
@@ -71,6 +99,8 @@ object Spells:
   def schoolFor(classId: String): String = classId match
     case "mage"   => "arcane"
     case "priest" => "holy"
+    case "rogue"  => "shadow"
+    case "hunter" => "hunt"
     case _        => ""
 
   def byId(id: String): Option[Spell] = all.find(_.id == id)
@@ -83,10 +113,18 @@ object Spells:
     all.filter(s => s.school == school && s.unlockLevel == level)
 
   private def particleFor(element: String) = element match
-    case "fire"  => ParticleTypes.FLAME
-    case "frost" => ParticleTypes.SNOWFLAKE
-    case "holy"  => ParticleTypes.END_ROD
-    case _       => ParticleTypes.ELECTRIC_SPARK
+    case "fire"   => ParticleTypes.FLAME
+    case "frost"  => ParticleTypes.SNOWFLAKE
+    case "holy"   => ParticleTypes.END_ROD
+    case "shadow" => ParticleTypes.PORTAL
+    case _        => ParticleTypes.ELECTRIC_SPARK
+
+  /** Extra rider applied after a hit lands, per spell descriptor. */
+  private def riderFor(spec: Spell, t: net.minecraft.world.entity.LivingEntity): Unit =
+    spec.effect match
+      case "poison" => t.addEffect(new MobEffectInstance(MobEffects.POISON, 100, 0))
+      case "slow"   => t.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 140, 1))
+      case _        => ()
 
   private def boltItemFor(element: String): ItemStack = element match
     case "fire"  => ItemStack(Items.BLAZE_POWDER)
@@ -103,10 +141,15 @@ object Spells:
   /** Entry point: bolts fly, support spells act on the caster's surroundings. */
   def cast(caster: ServerPlayer, spell: Spell): Unit =
     spell.kind match
-      case "heal"    => castHeal(caster, spell)
-      case "purify"  => castPurify(caster, spell)
+      case "heal"   => castHeal(caster, spell)
+      case "purify" => castPurify(caster, spell)
       case "protect" => castProtect(caster, spell)
-      case _         => castBolt(caster, spell)
+      case "blink"  => castBlink(caster, spell)
+      case "burst"  => castBurst(caster, spell)
+      case "steal"  => castSteal(caster, spell)
+      case "buff"   => castBuff(caster, spell)
+      case "arrows" => castArrows(caster, spell)
+      case _        => castBolt(caster, spell)
 
   /** Launches the bolt from the caster's eyes toward the crosshair. */
   private def castBolt(caster: ServerPlayer, spell: Spell): Unit =
@@ -194,11 +237,159 @@ object Spells:
           .map(_._2)
       case _ => None
 
+  // --- rogue martial arts & hunter skill shots ---------------------------------------
+
+  /** Shadowstep: blink toward the crosshair, landing on the furthest clear spot. */
+  private def castBlink(caster: ServerPlayer, spell: Spell): Unit =
+    caster.level match
+      case sl: ServerLevel =>
+        val look = caster.getLookAngle
+        val from = caster.position()
+        var landing: Option[Vec3] = None
+        var d = spell.aoeRadius.toInt
+        while landing.isEmpty && d >= 1 do
+          val cand = new Vec3(from.x + look.x * d, from.y + math.max(-1.0, math.min(1.5, look.y * d)), from.z + look.z * d)
+          if standingRoom(sl, cand) then landing = Some(cand)
+          else d -= 1
+        landing match
+          case Some(p) =>
+            sl.sendParticles(ParticleTypes.PORTAL, from.x, from.y + 1.0, from.z, 20, 0.3, 0.8, 0.3, 0.01)
+            caster.teleportTo(p.x, p.y, p.z)
+            sl.sendParticles(ParticleTypes.PORTAL, p.x, p.y + 1.0, p.z, 20, 0.3, 0.8, 0.3, 0.01)
+            sl.playSound(null, caster, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.5f, 1.6f)
+          case None =>
+            Game.message(caster, "The shadows don't open there - aim at clear ground.", ChatFormatting.GRAY)
+      case _ => ()
+
+  /** True when the 1.8-tall box above this spot is all air. */
+  private def standingRoom(sl: ServerLevel, at: Vec3): Boolean =
+    val it = BlockPos
+      .betweenClosed(
+        Math.floor(at.x - 0.3).toInt, Math.floor(at.y).toInt, Math.floor(at.z - 0.3).toInt,
+        Math.floor(at.x + 0.3).toInt, Math.floor(at.y + 1.8).toInt, Math.floor(at.z + 0.3).toInt
+      )
+      .iterator()
+    var clear = true
+    while clear && it.hasNext do
+      if !sl.getBlockState(it.next()).isAir then clear = false
+    clear
+
+  /** Fan of Knives: an instant burst of blade-work around the caster. */
+  private def castBurst(caster: ServerPlayer, spell: Spell): Unit =
+    caster.level match
+      case sl: ServerLevel =>
+        val c = caster.position()
+        val box = new AABB(c, c).inflate(spell.aoeRadius)
+        val foes = sl.getEntitiesOfClass(classOf[Monster], box, (e: Monster) => e.isAlive)
+        foes.forEach((e: Monster) => applyHit(caster, spell, caster, e))
+        sl.sendParticles(ParticleTypes.CRIT, c.x, c.y + 1.2, c.z, 30, spell.aoeRadius * 0.7, 0.5, spell.aoeRadius * 0.7, 0.1)
+        sl.playSound(null, caster, SoundEvents.GLASS_BREAK, SoundSource.PLAYERS, 0.7f, 1.5f)
+      case _ => ()
+
+  /** Pickpocket: coin from the pockets of nearby foes. */
+  private def castSteal(caster: ServerPlayer, spell: Spell): Unit =
+    caster.level match
+      case sl: ServerLevel =>
+        val c = caster.position()
+        val box = new AABB(c, c).inflate(spell.aoeRadius)
+        val near = sl.getEntitiesOfClass(classOf[Monster], box, (e: Monster) => e.isAlive).asScala.toList
+        var coins = 0
+        var picked = 0
+        near.foreach { m =>
+          if rng.nextInt(100) < 60 then
+            coins += 1 + rng.nextInt(3)
+            picked += 1
+            sl.sendParticles(ParticleTypes.HAPPY_VILLAGER, m.getX, m.getY + 1.0, m.getZ, 6, 0.2, 0.3, 0.2, 0.0)
+        }
+        if coins > 0 then
+          Game.giveCoins(caster, coins)
+          Game.message(caster, s"Quick hands: $picked pockets rifled, $coins gold pocketed.", ChatFormatting.GOLD)
+        else
+          Game.message(caster, "Empty pockets all around - get closer to more foes.", ChatFormatting.GRAY)
+      case _ => ()
+
+  /** Evasion / Vanish: a short martial trick on the caster themselves. */
+  private def castBuff(caster: ServerPlayer, spell: Spell): Unit =
+    val ticks = spell.damage.toInt
+    spell.effect match
+      case "speed" =>
+        caster.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, ticks, 1, true, true))
+        Game.message(caster, "Evasion - your feet blur.", ChatFormatting.AQUA)
+      case "invis" =>
+        caster.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, ticks, 0, true, true))
+        caster.setHealth(math.min(caster.getMaxHealth, caster.getHealth + 2))
+        Game.message(caster, "Vanish - you slip out of every eye's reach.", ChatFormatting.AQUA)
+      case _ => ()
+    caster.level match
+      case sl: ServerLevel =>
+        sl.sendParticles(ParticleTypes.PORTAL, caster.getX, caster.getY + 1.0, caster.getZ, 24, 0.4, 0.9, 0.4, 0.01)
+        sl.playSound(null, caster, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.4f, 1.8f)
+      case _ => ()
+
+  /** Skill-shot: one real arrow, or a fanned volley. */
+  private def castArrows(caster: ServerPlayer, spell: Spell): Unit =
+    caster.level match
+      case sl: ServerLevel =>
+        val look = caster.getLookAngle
+        val eye = caster.getEyePosition()
+        val n = spell.count
+        for k <- 0 until n do
+          val dir = rotateY(look, (k - (n - 1) / 2.0) * 0.13)
+          val arrow = new BoltArrow(caster, spell, sl)
+          arrow.setPos(eye.x + dir.x * 0.5, eye.y - 0.1, eye.z + dir.z * 0.5)
+          arrow.shoot(dir.x, dir.y, dir.z, 3.0f, if n > 1 then 2.0f else 0.0f)
+          sl.addFreshEntity(arrow)
+        sl.playSound(null, caster, SoundEvents.ARROW_SHOOT, SoundSource.PLAYERS, 0.6f, 1.0f)
+      case _ => ()
+
+  private def rotateY(v: Vec3, a: Double): Vec3 =
+    val cos = math.cos(a)
+    val sin = math.sin(a)
+    new Vec3(v.x * cos - v.z * sin, v.y, v.x * sin + v.z * cos)
+
+  /** Shared hit application for every damaging spell (bolts, novas, bursts, arrows). */
+  private def applyHit(caster: ServerPlayer, spec: Spell, source: net.minecraft.world.entity.Entity, target: net.minecraft.world.entity.Entity): Unit =
+    target match
+      case t: Monster if t.isAlive && t != source =>
+        val src = caster.damageSources.indirectMagic(source, caster)
+        if t.hurt(src, spec.damage) then
+          spec.element match
+            case "fire" =>
+              t.setRemainingFireTicks(100)
+            case "frost" =>
+              t.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 1))
+            case "storm" =>
+              val push = t.position().subtract(caster.position()).normalize()
+              t.push(push.x * 0.5, 0.35, push.z * 0.5)
+            case _ => ()
+          riderFor(spec, t)
+      case _ => ()
+
+  /** The hunter's skill-shot: a real arrow; Piercing Shot keeps flying through foes. */
+  final class BoltArrow(val caster: ServerPlayer, val spec: Spell, val sl: ServerLevel)
+      extends Arrow(EntityType.ARROW, sl):
+    private var age = 0
+    private var hits = 0
+    private val maxHits = if spec.effect == "pierce" then 6 else 1
+
+    setOwner(caster)
+    pickup = AbstractArrow.Pickup.CREATIVE_ONLY
+
+    override def tick(): Unit =
+      super.tick()
+      age += 1
+      if age > 160 then discard()
+
+    override protected def onHitEntity(hit: EntityHitResult): Unit =
+      if hits < maxHits then
+        hits += 1
+        applyHit(caster, spec, this, hit.getEntity)
+        if hits >= maxHits then discard()
+
   /** The flying bolt: a vanilla snowball with our element applied on impact or at max range. */
   final class Bolt(val caster: ServerPlayer, val spec: Spell, val sl: ServerLevel)
       extends Snowball(sl, caster):
     private var age = 0
-    private val rng = Random()
 
     setItem(boltItemFor(spec.element))
 
@@ -215,33 +406,18 @@ object Spells:
     override protected def onHitEntity(hit: EntityHitResult): Unit =
       val p = hit.getEntity.position()
       if spec.aoeRadius > 0 then burst(p)
-      else applyTo(hit.getEntity)
+      else applyHit(caster, spec, Bolt.this, hit.getEntity)
       super.onHitEntity(hit) // lets vanilla discard the projectile
 
     /** Everything hostile within the nova radius takes the spell. */
     private def burst(center: Vec3): Unit =
       val box = new AABB(center, center).inflate(spec.aoeRadius)
-      sl.getEntitiesOfClass(classOf[Monster], box, (e: Monster) => e.isAlive).forEach(e => applyTo(e))
+      sl.getEntitiesOfClass(classOf[Monster], box, (e: Monster) => e.isAlive).forEach(e => applyHit(caster, spec, Bolt.this, e))
       sl.sendParticles(particleFor(spec.element), center.x, center.y + 0.3, center.z, 24, spec.aoeRadius * 0.6, 0.6, spec.aoeRadius * 0.6, 0.04)
       sl.playSound(null, center.x, center.y, center.z, SoundEvents.BLAZE_SHOOT, SoundSource.PLAYERS, 0.7f, castPitch(spec.element) * 0.8f)
 
     private def fizz(): Unit =
       val p = position()
       sl.sendParticles(particleFor(spec.element), p.x, p.y, p.z, 6, 0.1, 0.1, 0.1, 0.02)
-
-    private def applyTo(target: net.minecraft.world.entity.Entity): Unit =
-      target match
-        case t: Monster if t.isAlive && t != Bolt.this =>
-          val src = caster.damageSources.indirectMagic(Bolt.this, caster)
-          if t.hurt(src, spec.damage) then
-            spec.element match
-              case "fire" =>
-                t.setRemainingFireTicks(100)
-              case "frost" =>
-                t.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 1))
-              case "storm" =>
-                val push = t.position().subtract(caster.position()).normalize()
-                t.push(push.x * 0.5, 0.35, push.z * 0.5)
-              case _ => ()
 
     private def MaxAge = 28 // ~40 blocks at bolt speed

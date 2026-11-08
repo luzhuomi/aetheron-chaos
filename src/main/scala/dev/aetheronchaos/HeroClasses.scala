@@ -50,7 +50,7 @@ object HeroClasses:
     HeroClass(
       "hunter",
       "Hunter",
-      "Ranged beast-stalker - quick feet and a fine longbow.",
+      "Ranged beast-stalker - quick feet; any bow fires skill-shots (see spellbooks).",
       2.0, 0.5, 0.05, None,
       List(
         Gear(Items.BOW, "Hunter's Longbow", Rarity.Uncommon, List(Enchantments.POWER -> 2, Enchantments.PUNCH -> 1)),
@@ -69,7 +69,7 @@ object HeroClasses:
     HeroClass(
       "rogue",
       "Rogue",
-      "Shadow striker - swift and deadly.",
+      "Shadow striker - swift, deadly; any sword hides tricks (see spellbooks).",
       2.0, 1.0, 0.15, Some(net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED),
       List(
         Gear(Items.IRON_SWORD, "Shadowfang", Rarity.Uncommon, List(Enchantments.SHARPNESS -> 1, Enchantments.KNOCKBACK -> 1))

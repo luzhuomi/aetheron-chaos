@@ -179,6 +179,10 @@ object Game:
             " Your Apprentice's Wand is a spell focus: RIGHT-CLICK while holding any blaze rod to cast Fire Bolt, sneak+right-click to cycle spells, /quest spell for the spellbook."
           case "priest" =>
             " Your Book of Radiance is a holy focus: RIGHT-CLICK while holding any book to heal the ally you aim at, sneak+right-click to cycle spells, /quest spell for the spellbook."
+          case "rogue" =>
+            " Your blades hide tricks: RIGHT-CLICK while holding any sword to Shadowstep, sneak+right-click to cycle techniques, /quest spell to see them."
+          case "hunter" =>
+            " Your bow fires skill-shots: RIGHT-CLICK to loose a Quick Shot (charged draw replaced), sneak+right-click to cycle shots, /quest spell for the list."
           case _ => ""
         s"You are now a ${hc.name}: ${hc.tagline} Starting gear granted.$spellNote"
 
@@ -309,12 +313,13 @@ object Game:
     val school = Spells.schoolFor(c.classId)
     if !c.joined || school.isEmpty then return false
     val inv = player.getInventory
-    val focus = Spells.focusFor(school).get
-    val holdingFocus = (inv.items.asScala ++ inv.offhand.asScala).exists(_.is(focus))
+    val holdingFocus = (inv.items.asScala ++ inv.offhand.asScala).exists(st => Spells.isFocus(school, st))
     if !holdingFocus then
-      val hint =
-        if school == "holy" then "A prayer book is your holy focus - hold any book (your Book of Radiance works)."
-        else "A wand is your spell focus - hold any blaze rod (hunt blazes or ask a mage friend)."
+      val hint = school match
+        case "holy"   => "A prayer book is your holy focus - hold any book (your Book of Radiance works)."
+        case "shadow" => "Your blades are your focus - hold any sword to call on your martial arts."
+        case "hunt"   => "Your bow is your focus - hold a bow to fire skill-shots."
+        case _        => "A wand is your spell focus - hold any blaze rod (hunt blazes or ask a mage friend)."
       message(player, hint, ChatFormatting.RED)
       return true
     if player.isCrouching then
@@ -339,15 +344,33 @@ object Game:
   private[aetheronchaos] def spellList(player: ServerPlayer): String =
     val c = ensure(player.getUUID)
     val school = Spells.schoolFor(c.classId)
-    if school.isEmpty then return "Only mages and priests wield spellbooks. /quest roles to see classes."
+    if school.isEmpty then return "Only mages, priests, rogues and hunters hone crafts like these. /quest roles to see classes."
     val known = Spells.learnedFor(school, c.level)
-    val focusName = if school == "holy" then "book focus" else "wand (blaze rod) focus"
+    val focusName = school match
+      case "holy"   => "book focus"
+      case "shadow" => "sword focus (any blade)"
+      case "hunt"   => "bow focus (any bow)"
+      case _        => "wand (blaze rod) focus"
     val lines = known.map { s =>
       val mark = if s.id == equippedSpell(c).id then "*" else " "
       val effect = s.kind match
         case "heal"    => s"mend up to ${s.damage.toInt} HP (aim at an ally)"
         case "purify"  => "cleanse ailments from nearby allies"
         case "protect" => "Damage Resistance 12s for nearby allies"
+        case "blink"   => s"blink up to ${s.aoeRadius.toInt} blocks toward your aim"
+        case "burst"   => s"${s.damage} dmg to all foes around you (${s.aoeRadius} blocks)"
+        case "steal"   => s"steal coin from foes within ${s.aoeRadius.toInt} blocks"
+        case "buff"    =>
+          if s.effect == "speed" then s"Speed II for ${s.damage.toInt / 20}s"
+          else s"invisibility ${s.damage.toInt / 20}s + a little mending"
+        case "arrows"  =>
+          val rider = s.effect match
+            case "poison" => ", poisons"
+            case "slow"   => ", hobbles the target"
+            case "pierce" => ", flies through up to 6 foes"
+            case _        => ""
+          val shots = if s.count > 1 then s"fires ${s.count} arrows" else "one arrow"
+          s"${s.damage} dmg - $shots$rider"
         case _ if s.aoeRadius > 0 => s"${s.damage} dmg to all foes within ${s.aoeRadius.toInt} blocks"
         case _         => s"${s.damage} dmg bolt"
       s"$mark ${s.name} (Lv${s.unlockLevel}) - $effect"
@@ -360,7 +383,7 @@ object Game:
   private[aetheronchaos] def equipSpell(player: ServerPlayer, id: String): String =
     val c = ensure(player.getUUID)
     val school = Spells.schoolFor(c.classId)
-    if school.isEmpty then return "Only mages and priests wield spellbooks."
+    if school.isEmpty then return "Only mages, priests, rogues and hunters hone crafts like these."
     Spells.byId(id) match
       case None =>
         val hint = Spells.all.find(s => s.school == school && editDistance(s.id.toLowerCase, id.toLowerCase) <= 3)
@@ -849,6 +872,9 @@ object Game:
 
   private def giveItem(player: ServerPlayer, stack: net.minecraft.world.item.ItemStack): Unit =
     if !player.getInventory.add(stack) then player.drop(stack, false)
+
+  private[aetheronchaos] def giveCoins(player: ServerPlayer, amount: Int): Unit =
+    giveItem(player, Loot.coinStack(amount))
 
   private[aetheronchaos] def message(player: ServerPlayer, text: String, color: ChatFormatting): Unit =
     player.displayClientMessage(Component.literal(text).withStyle(color), false)

@@ -27,15 +27,17 @@ loop, built entirely from vanilla blocks, items and effects.
    |---|---|
    | `warrior` | Stalwart frontline — extra health, harder hits |
    | `paladin` | Holy knight — most health, blessed shield |
-   | `hunter` | Ranged beast-stalker — longbow, quick feet |
+   | `hunter` | Ranged beast-stalker — skill-shots with any bow (spellbook below), quick feet |
    | `mage` | Arcane scholar — ranged elemental bolts (spellbook below), permanent arcane sight |
-   | `rogue` | Shadow striker — swift and deadly |
+   | `rogue` | Shadow striker — blink, blades and stolen coin via any sword (spellbook below) |
    | `priest` | Holy healer — heals allies, cleanses, protects (spellbook below), regen |
 
-   **Spellbooks** — mages and priests cast at range: RIGHT-CLICK while holding your focus to
-   cast the equipped spell; SNEAK+right-click cycles known spells (`/quest spell` also
-   lists/equips them). Spells are learned automatically as you level, sit on a cooldown (the
-   focus visibly greys out — vanilla item cooldown) and show in your action bar.
+   **Spellbooks** — mages, priests, rogues and hunters each practice a discipline: RIGHT-CLICK
+   while holding your focus to use the equipped technique; SNEAK+right-click cycles known ones
+   (`/quest spell` also lists/equips them). Techniques are learned automatically as you level,
+   sit on a cooldown (the focus visibly greys out — vanilla item cooldown) and show in your
+   action bar. Focuses: mage — any blaze rod · priest — any book · rogue — any sword ·
+   hunter — any bow (the charged draw is replaced by instant skill-shots).
 
    *Mage* — hold **any blaze rod as a wand focus**. Bolts are real projectiles with element riders:
 
@@ -58,7 +60,30 @@ loop, built entirely from vanilla blocks, items and effects.
    | Protection | Lv 15 | Damage Resistance 12s on you + allies within 6 blocks |
    | Judgment | Lv 25 | AoE holy burst (4-block radius) for groups |
 
-   Bolt kills grant XP, quest progress and loot exactly like melee kills.
+   *Rogue* — your **blade is the focus**: hold any sword, right-click for martial techniques
+   (left-click fighting is untouched):
+
+   | Technique | Unlock | Effect |
+   |---|---|---|
+   | Shadowstep | Lv 1 | blink up to 8 blocks toward your aim (lands on clear ground) |
+   | Fan of Knives | Lv 3 | 3.5 dmg to every foe within 3.5 blocks of you |
+   | Pickpocket | Lv 8 | steal 1–3 gold from each nearby foe's pockets (60% per foe) |
+   | Evasion | Lv 14 | Speed II for 8s |
+   | Vanish | Lv 22 | invisibility 6.5s + a small mend |
+
+   *Hunter* — your **bow is the focus**: right-click fires skill-shots (real arrows; the
+   charged draw is replaced, so your ranged basic is Quick Shot at a 1.25s cadence):
+
+   | Shot | Unlock | Effect |
+   |---|---|---|
+   | Quick Shot | Lv 1 | 3 dmg arrow, fast |
+   | Serpent Shot | Lv 5 | 2.5 dmg + poison |
+   | Piercing Shot | Lv 12 | 3 dmg, flies through up to 6 foes |
+   | Arrow Volley | Lv 18 | 5-arrow fan, 2.5 dmg each |
+   | Crippling Shot | Lv 25 | 4.5 dmg + heavy slowness |
+
+   Kills from any spell or shot grant XP, quest progress and loot exactly like melee kills;
+   arrows you conjure can't be picked back up (they're magic, not ammunition).
 
 3. **Level up by playing** — every monster kill grants XP (bigger mobs, bigger XP). Leveling grants
    +2 health per level, more damage every few levels, a server-wide announcement and a title screen.

@@ -57,7 +57,8 @@ object Interactions:
           case _ => InteractionResult.PASS
     )
 
-    // mage spell casting: right-click with a wand focus = cast, sneak+right-click = cycle spells
+    // spell-class casting: right-click with the school focus = cast, sneak+right-click = cycle
+    // (mage: blaze rod, priest: book, rogue: any sword, hunter: any bow)
     UseItemCallback.EVENT.register((player, _, _) =>
       player match
         case p: ServerPlayer if Game.castOrCycle(p) => InteractionResultHolder.consume(ItemStack.EMPTY)
