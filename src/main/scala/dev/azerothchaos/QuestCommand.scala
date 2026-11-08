@@ -34,6 +34,15 @@ object QuestCommand:
               )
           )
           .`then`(Commands.literal("roles").executes(ctx => roles(ctx)))
+          .`then`(
+            Commands.literal("spell")
+              .executes(ctx => withPlayer(ctx, Game.spellList))
+              .`then`(
+                Commands.argument("spell", StringArgumentType.word())
+                  .suggests((_, builder) => SharedSuggestionProvider.suggest(Spells.all.map(_.id).asJava, builder))
+                  .executes(ctx => withPlayer(ctx, p => Game.equipSpell(p, StringArgumentType.getString(ctx, "spell"))))
+              )
+          )
           .`then`(Commands.literal("board").executes(ctx => withPlayerSilent(ctx, Game.boardMenu)))
           .`then`(questArgument("take", ctx => withPlayer(ctx, p => Game.takeQuest(p, StringArgumentType.getString(ctx, "quest")))))
           .`then`(questArgument("abandon", ctx => withPlayer(ctx, p => Game.abandonQuest(p, StringArgumentType.getString(ctx, "quest")))))

@@ -28,9 +28,24 @@ loop, built entirely from vanilla blocks, items and effects.
    | `warrior` | Stalwart frontline — extra health, harder hits |
    | `paladin` | Holy knight — most health, blessed shield |
    | `hunter` | Ranged beast-stalker — longbow, quick feet |
-   | `mage` | Arcane scholar — permanent arcane sight |
+   | `mage` | Arcane scholar — ranged elemental bolts (spellbook below), permanent arcane sight |
    | `rogue` | Shadow striker — swift and deadly |
    | `priest` | Holy healer — permanent regeneration |
+
+   **Mage's spellbook** — mages attack at range: hold **any blaze rod as a wand focus** and
+   RIGHT-CLICK to cast the equipped bolt; SNEAK+right-click cycles known spells (`/quest spell`
+   also lists/equips them). Bolts are real projectiles with element riders:
+
+   | Spell | Unlock | Effect |
+   |---|---|---|
+   | Fire Bolt | Lv 1 | 3.5 dmg + sets alight |
+   | Frost Bolt | Lv 5 | 3 dmg + slowness |
+   | Thunder Bolt | Lv 12 | 5.5 dmg + knockback |
+   | Flame Nova | Lv 15 | AoE burst (3-block radius) + fire |
+   | Storm Nova | Lv 25 | AoE burst (4-block radius) + knockback |
+
+   Spells sit on a cooldown (the wand visibly greys out — vanilla item cooldown). Bolt kills grant
+   XP, quest progress and loot exactly like melee kills. The equipped spell shows in your action bar.
 
 3. **Level up by playing** — every monster kill grants XP (bigger mobs, bigger XP). Leveling grants
    +2 health per level, more damage every few levels, a server-wide announcement and a title screen.
@@ -92,6 +107,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest leave` | everyone | Leave the realm |
 | `/quest roles` | everyone | List the hero classes |
 | `/quest class <name>` | everyone | Choose a class (grants its gear) |
+| `/quest spell [id]` | everyone | Mage spellbook: list or equip a spell |
 | `/quest board` | everyone | Quest-board menu (accept / turn in, clickable) |
 | `/quest take <id>` | everyone | Accept a quest |
 | `/quest log` | everyone | Show your quest log and progress |
@@ -174,6 +190,7 @@ src/main/scala/dev/azerothchaos/
   AzerothChaosMod.scala  Fabric entrypoint, event wiring
   Game.scala             Characters: classes, XP/levels, quests, parties, rare spawns
   HeroClasses.scala      Class/role definitions (attribute bonuses + starting gear)
+  Spells.scala           Mage spellbook: elemental bolts + novas as real projectiles
   Quests.scala           Quest definitions (kill / collect / boss objectives, [GROUP] flag)
   Enemies.scala          Kill-XP table, loot tiers, rare-elite spawn table
   Loot.scala             Rarity-colored gear, signature mob drops, gold coins, tier-scaled rolls

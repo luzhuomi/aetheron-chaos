@@ -60,7 +60,7 @@ object HeroClasses:
     HeroClass(
       "mage",
       "Mage",
-      "Arcane scholar - arcane sight and a runed wand.",
+      "Arcane scholar - hurls fire/frost/storm bolts with a wand, and keeps arcane sight.",
       4.0, 0.5, 0.0, Some(net.minecraft.world.effect.MobEffects.NIGHT_VISION),
       List(
         Gear(Items.BLAZE_ROD, "Apprentice's Wand", Rarity.Uncommon, List(Enchantments.UNBREAKING -> 3))

@@ -20,8 +20,9 @@ object Hud:
     val xpBar = ("█" * filled) + ("░" * (10 - filled))
     val hp = f"${player.getHealth.toFloat}%.0f/${player.getMaxHealth.toFloat}%.0f"
 
+    val spellTag = if c.classId == "mage" then s"  ✦ ${Game.equippedSpell(c).name}" else ""
     val head = Component
-      .literal(s"Lv ${c.level} $className  XP $pct%% $xpBar  HP $hp")
+      .literal(s"Lv ${c.level} $className  XP $pct%% $xpBar  HP $hp$spellTag")
       .withStyle(ChatFormatting.GOLD)
 
     // tracked quests with a live compass to the next objective (or the board when done)

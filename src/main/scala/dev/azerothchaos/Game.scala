@@ -70,6 +70,8 @@ object Game:
     var level: Int = 1
     var xp: Long = 0L
     var joined: Boolean = false
+    // equipped mage spell (see Spells.scala); learned spells derive from level, nothing to save there
+    var spell: String = "fire-bolt"
     val taken = mutable.LinkedHashSet[String]()
     // which of the taken quests the action-bar tracker follows (max MaxTrackedQuests)
     val tracked = mutable.LinkedHashSet[String]()
@@ -87,6 +89,8 @@ object Game:
   private var nextAutosaveTick = AutosaveIntervalTicks
   // quest tracker navigation cache: player uuid -> list of (questId, compass text)
   private val navCache = mutable.Map[UUID, List[(String, String)]]()
+  // spell cooldowns: uuid -> tick the focus is ready again
+  private val spellCooldowns = mutable.Map[UUID, Long]()
   private var rareAnnounced = 0
 
   def xpToNext(level: Int): Long = 100L + 60L * level + 35L * level * level
@@ -170,7 +174,11 @@ object Game:
           player.server,
           Component.literal(s"${c.displayName} has become a Lv ${c.level} ${hc.name}!").withStyle(ChatFormatting.LIGHT_PURPLE)
         )
-        s"You are now a ${hc.name}: ${hc.tagline} Starting gear granted."
+        val spellNote =
+          if hc.id == "mage" then
+            " Your Apprentice's Wand is a spell focus: RIGHT-CLICK while holding any blaze rod to cast Fire Bolt, sneak+right-click to cycle spells, /quest spell for the spellbook."
+          else ""
+        s"You are now a ${hc.name}: ${hc.tagline} Starting gear granted.$spellNote"
 
   private[azerothchaos] def applyBonuses(player: ServerPlayer): Unit =
     val c = ensure(player.getUUID)
@@ -261,6 +269,7 @@ object Game:
   private def addXp(player: ServerPlayer, amount: Long): Unit =
     val c = ensure(player.getUUID)
     c.xp += amount
+    val fromLevel = c.level
     var leveled = false
     while c.level < MaxLevel && c.xp >= xpToNext(c.level) do
       c.xp -= xpToNext(c.level)
@@ -277,6 +286,71 @@ object Game:
       player.connection.send(ClientboundSetTitlesAnimationPacket(10, 70, 20))
       player.connection.send(ClientboundSetTitleTextPacket(Component.literal(s"Level ${c.level}!").withStyle(ChatFormatting.GOLD)))
       player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal(heroClassOf(c).map(_.name).getOrElse("Adventurer"))))
+      if c.classId == "mage" then
+        Spells.all.filter(s => s.unlockLevel > fromLevel && s.unlockLevel <= c.level).foreach { s =>
+          message(player, s"New spell learned: ${s.name}! Right-click with a wand to cast it, /quest spell to equip.", ChatFormatting.LIGHT_PURPLE)
+        }
+
+  // --- mage spells --------------------------------------------------------------
+
+  /** The spell a hero currently has equipped (falls back to the first known one). */
+  private[azerothchaos] def equippedSpell(c: Character): Spell =
+    Spells.byId(c.spell).filter(s => s.unlockLevel <= c.level)
+      .orElse(Spells.learnedFor(c.level).lastOption)
+      .getOrElse(Spells.all.head)
+
+  /** Right-click cast / sneak+right-click cycle. Returns true if the click was consumed. */
+  private[azerothchaos] def castOrCycle(player: ServerPlayer): Boolean =
+    val c = ensure(player.getUUID)
+    if !c.joined || c.classId != "mage" then return false
+    val inv = player.getInventory
+    val holdingFocus = (inv.items.asScala ++ inv.offhand.asScala).exists(_.is(Spells.FocusItem))
+    if !holdingFocus then
+      message(player, "A wand is your spell focus - hold any blaze rod (buy one, or hunt blazes).", ChatFormatting.RED)
+      return true
+    if player.isCrouching then
+      val known = Spells.learnedFor(c.level)
+      if known.size < 2 then
+        message(player, s"Casting ${equippedSpell(c).name}. Learn more spells by leveling up.", ChatFormatting.GRAY)
+        return true
+      val current = known.indexWhere(_.id == c.spell)
+      val next = known((current + 1) % known.size)
+      c.spell = next.id
+      message(player, s"Equipped: ${next.name} - right-click to cast.", ChatFormatting.LIGHT_PURPLE)
+      return true
+    val spell = equippedSpell(c)
+    val readyAt = spellCooldowns.getOrElse(c.uuid, 0L)
+    if elapsedTicks < readyAt then
+      message(player, s"${spell.name} is still crackling... ${(readyAt - elapsedTicks + 19) / 20}s", ChatFormatting.GRAY)
+      return true
+    spellCooldowns(c.uuid) = elapsedTicks + spell.cooldownTicks
+    Spells.cast(player, spell)
+    true
+
+  private[azerothchaos] def spellList(player: ServerPlayer): String =
+    val c = ensure(player.getUUID)
+    if c.classId != "mage" then return "Only mages study the arcane. /quest roles to see classes."
+    val known = Spells.learnedFor(c.level)
+    val lines = known.map { s =>
+      val mark = if s.id == equippedSpell(c).id then "*" else " "
+      s"$mark ${s.name} (Lv${s.unlockLevel}) - ${s.damage.toInt} dmg" + (if s.aoeRadius > 0 then s", hits within ${s.aoeRadius.toInt} blocks" else "")
+    }
+    val locked = Spells.all.filterNot(known.contains)
+    (List("Spellbook - right-click with a wand to cast, sneak+right-click to cycle:") ++ lines ++
+      (if locked.nonEmpty then List("Locked: " + locked.map(s => s"${s.name} (Lv${s.unlockLevel})").mkString(", ")) else Nil))
+      .mkString("\n")
+
+  private[azerothchaos] def equipSpell(player: ServerPlayer, id: String): String =
+    val c = ensure(player.getUUID)
+    if c.classId != "mage" then return "Only mages study the arcane."
+    Spells.byId(id) match
+      case None =>
+        val hint = Spells.all.find(s => editDistance(s.id.toLowerCase, id.toLowerCase) <= 3).map(s => s" Did you mean ${s.id}?").getOrElse("")
+        s"Unknown spell '$id'.$hint See /quest spell."
+      case Some(s) if s.unlockLevel > c.level => s"${s.name} unlocks at level ${s.unlockLevel} (you are ${c.level})."
+      case Some(s) =>
+        c.spell = s.id
+        s"Equipped: ${s.name}."
 
   // --- quests ----------------------------------------------------------------
 
@@ -666,6 +740,7 @@ object Game:
     val tag = new CompoundTag
     tag.putString("name", c.displayName)
     tag.putString("class", c.classId)
+    tag.putString("spell", c.spell)
     tag.putInt("level", c.level)
     tag.putLong("xp", c.xp)
     tag.putString("taken", c.taken.mkString(","))
@@ -682,6 +757,7 @@ object Game:
     val c = ensure(uuid)
     c.displayName = tag.getString("name")
     c.classId = tag.getString("class")
+    if Spells.byId(tag.getString("spell")).nonEmpty then c.spell = tag.getString("spell")
     c.level = math.max(1, tag.getInt("level"))
     c.xp = tag.getLong("xp")
     if tag.getString("taken").nonEmpty then c.taken ++= tag.getString("taken").split(",").toSeq

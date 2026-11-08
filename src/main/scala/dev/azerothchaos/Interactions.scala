@@ -4,10 +4,13 @@ import scala.util.Random
 
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
+import net.fabricmc.fabric.api.event.player.UseItemCallback
 import net.minecraft.ChatFormatting
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
+import net.minecraft.world.InteractionResultHolder
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.Blocks
 
 /**
@@ -52,4 +55,11 @@ object Interactions:
             Game.message(p, GuardTips(rng.nextInt(GuardTips.size)), ChatFormatting.GRAY)
             InteractionResult.SUCCESS
           case _ => InteractionResult.PASS
+    )
+
+    // mage spell casting: right-click with a wand focus = cast, sneak+right-click = cycle spells
+    UseItemCallback.EVENT.register((player, _, _) =>
+      player match
+        case p: ServerPlayer if Game.castOrCycle(p) => InteractionResultHolder.consume(ItemStack.EMPTY)
+        case _ => InteractionResultHolder.pass(ItemStack.EMPTY)
     )
