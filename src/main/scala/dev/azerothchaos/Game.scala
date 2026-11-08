@@ -397,7 +397,8 @@ object Game:
 
   def turnIn(player: ServerPlayer, id: String): String =
     val c = ensure(player.getUUID)
-    if !c.taken.contains(id) then return "That quest is not in your log."
+    if !c.taken.contains(id) then
+      return s"'$id' is not in your log, so there is nothing to turn in. To ACCEPT a quest: /quest board then LEFT-click its blue line, or type /quest take $id (Tab completes ids)."
     Quests.byId(id) match
       case None => "Unknown quest."
       case Some(q) =>
@@ -451,7 +452,7 @@ object Game:
     message(player, "--- Quest Board ---", ChatFormatting.GOLD)
     val ready = c.taken.toList.flatMap(Quests.byId).filter(q => objectiveMet(player, q))
     if ready.nonEmpty then
-      message(player, "Ready to turn in (click):", ChatFormatting.GREEN)
+      message(player, "Ready to turn in (left-click):", ChatFormatting.GREEN)
       ready.foreach(q =>
         player.displayClientMessage(
           Component
@@ -462,7 +463,7 @@ object Game:
       )
     val available = Quests.all.filter(q => !c.taken.contains(q.id) && q.minLevel <= c.level)
     if available.nonEmpty then
-      message(player, "Click a line to accept (press T first to free the mouse). GROUP quests share progress and rewards with your party:", ChatFormatting.AQUA)
+      message(player, "LEFT-click a line to accept (press T first to free the mouse). GROUP quests share progress and rewards with your party:", ChatFormatting.AQUA)
       available.foreach(q =>
         val tag = if q.partyOnly then "[GROUP] " else ""
         player.displayClientMessage(
@@ -538,7 +539,7 @@ object Game:
         .withStyle(st => st.withColor(color).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest buy ${s.id}")))
       player.displayClientMessage(text, false)
     }
-    message(player, "Press T then click a line to buy. Gold comes from coin drops and quest rewards.", ChatFormatting.GRAY)
+    message(player, "Press T then LEFT-click a line to buy. Gold comes from coin drops and quest rewards.", ChatFormatting.GRAY)
 
   def buy(player: ServerPlayer, id: String): String =
     Shop.byId(id) match

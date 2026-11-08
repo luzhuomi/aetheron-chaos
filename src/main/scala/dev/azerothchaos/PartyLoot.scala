@@ -50,7 +50,7 @@ object PartyLoot:
           s => s.withColor(ChatFormatting.YELLOW).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest loot greed ${o.id}"))
         )
       )
-      .append(Component.literal(s" (60s - party of the kill only; press T to click NEED/GREED)").withStyle(ChatFormatting.GRAY))
+      .append(Component.literal(s" (60s - party of the kill only; press T then LEFT-click NEED/GREED)").withStyle(ChatFormatting.GRAY))
     Game.broadcast(server, msg)
 
   def roll(player: ServerPlayer, id: Int, need: Boolean): String =
