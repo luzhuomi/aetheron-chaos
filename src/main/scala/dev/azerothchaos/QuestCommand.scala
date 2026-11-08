@@ -95,10 +95,13 @@ object QuestCommand:
     )
 
   private def questArgument(name: String, body: CommandContext[CommandSourceStack] => Int) =
-    // greedyString: quest ids contain hyphens, which word() would reject
-    Commands.argument("quest", StringArgumentType.greedyString())
-      .suggests((_, builder) => SharedSuggestionProvider.suggest(Quests.all.map(_.id).asJava, builder))
-      .executes(ctx => body(ctx))
+    // literal subcommand (/quest <name> ...) + greedy id: quest ids contain hyphens, which word() would reject
+    Commands.literal(name)
+      .`then`(
+        Commands.argument("quest", StringArgumentType.greedyString())
+          .suggests((_, builder) => SharedSuggestionProvider.suggest(Quests.all.map(_.id).asJava, builder))
+          .executes(ctx => body(ctx))
+      )
 
   private def offerArgument(need: Boolean) =
     Commands.argument("offer", IntegerArgumentType.integer())
