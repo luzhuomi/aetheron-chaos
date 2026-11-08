@@ -88,6 +88,8 @@ object Game:
   private val rng = Random()
   private var elapsedTicks = 0L
   private var nextRareTick = 200L // first rare appears 10 seconds into the server run
+  // date of the last town mason pass, so towns repair once per real-world day (and on boot)
+  private var lastTownRepairDay = ""
   // live rare elites, so a party wipe can end the fight instead of letting players grind it down
   private val activeRares = mutable.LinkedHashSet[Mob]()
   private var nextAutosaveTick = AutosaveIntervalTicks
@@ -878,6 +880,11 @@ object Game:
       nextAutosaveTick = elapsedTicks + AutosaveIntervalTicks
       CharacterStore.save(server) // crash safety net between disconnect saves
     if elapsedTicks % TownGuardIntervalTicks == 0 then TownBuilder.expelHostileMobs(server)
+    // the mason's daily round: patch creeper scars and missing town blocks
+    val today = java.time.LocalDate.now().toString
+    if today != lastTownRepairDay then
+      lastTownRepairDay = today
+      TownBuilder.repairTowns(server)
     if elapsedTicks >= nextRareTick then
       nextRareTick = elapsedTicks + RareIntervalTicks
       val online = server.getPlayerList.getPlayers.asScala.filter(isJoined)

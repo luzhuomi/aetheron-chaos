@@ -17,10 +17,14 @@ loop, built entirely from vanilla blocks, items and effects.
    a plaza with a **loom quest board**, vendor barrel, hearth and lantern-lit fences, plus permanent
    **town NPCs**: Questmaster Boralus (opens the quest board), Merchant Tilli (opens the shop),
    Hearthkeeper Finn (a **free meal once per day** — bread and chicken, tracked per real-world
-   day), and guards who hand out hints. **Town guard**: plaza lanterns suppress hostile spawns, and any hostile
-   stray that wanders in (creepers first!) is escorted back outside the plaza every few seconds —
-   unless a hero has pulled it into combat. Every new hero is teleported into the plaza and respawns
-   there. Ops can raise more hubs anywhere with `/quest town`; towns and boards persist across restarts.
+   day), and guards who hand out hints. **Town guard**: the town is a sanctuary — hostile mobs
+   inside town land are escorted back outside every few seconds unless a hero has actually *hit*
+   them; a creeper with its fuse lit is relocated even mid-fight, so it detonates at the walls
+   instead of the fence line (they lock onto any hero within ~16 blocks, which is how they used
+   to sneak past the old "in combat" exemption). **Daily mason pass**: every real-world day (and
+   on server start), missing town blocks are auto-restored from the stored layout — holes only,
+   your own builds and changes are never touched. Every new hero is teleported into the plaza and
+   respawns there. Ops can raise more hubs anywhere with `/quest town`; towns and boards persist across restarts.
 
 2. **Create your hero** — `/quest join`, then choose a class (WoW-style roles):
 

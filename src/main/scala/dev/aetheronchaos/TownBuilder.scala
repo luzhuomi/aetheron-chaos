@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.monster.Creeper
 import net.minecraft.world.entity.monster.Monster
 import net.minecraft.world.entity.npc.Villager
 import net.minecraft.world.entity.npc.VillagerData
@@ -72,10 +73,12 @@ object TownBuilder:
   // --- town guard -----------------------------------------------------------------
 
   /**
-   * Hostile mobs that wander or spawn into town land are escorted back outside the
-   * plaza. Plaza lanterns already suppress most natural spawns; this sweep catches
-   * the strays (and any creeper that wanders in before it can blow anything up).
-   * A monster actively chasing a player is left alone - heroes may pull fights home.
+   * The town is a sanctuary: hostile mobs inside town land are escorted back outside
+   * the plaza unless a hero is actually fighting them (dealt the last blow). Merely
+   * having a target is not enough - a creeper locks onto any hero within ~16 blocks
+   * and would otherwise stroll into the plaza and take the fence line with it.
+   * A creeper with its fuse lit is always moved out, even one under attack: heroes
+   * can still fight it, but it detonates at the walls, not on the lanterns.
    */
   def expelHostileMobs(server: MinecraftServer): Unit =
     val level = server.overworld()
@@ -87,10 +90,13 @@ object TownBuilder:
       val cx = (x1 + x2 + 1) / 2.0
       val cz = (z1 + z2 + 1) / 2.0
       level.getEntitiesOfClass(classOf[Monster], box).asScala.foreach { m =>
-        val chasingSomeone = m.getTarget match
+        val foughtByHero = m.getLastHurtByMob match
           case _: net.minecraft.world.entity.player.Player => true
           case _ => false
-        if !chasingSomeone then
+        val midFuse = m match
+          case c: Creeper => c.getSwellDir != 0
+          case _ => false
+        if !foughtByHero || midFuse then
           // escorted out along whichever axis points further out, landing past the edge
           val dx = m.getX - cx
           val dz = m.getZ - cz
@@ -183,20 +189,51 @@ object TownBuilder:
 
   /** Places one quest hub (board, vendor, hearth, fences, signs, NPCs) and registers it. */
   private def buildAt(level: ServerLevel, base: BlockPos, dir: Direction, capital: Boolean): Int =
+    val placed = layout(level, base, dir, repair = false)
+    spawnNpc(level, atOf(base, dir)(7, 0, 1), QuestNpcName)
+    spawnNpc(level, atOf(base, dir)(4, 4, 1), VendorNpcName)
+    spawnNpc(level, atOf(base, dir)(1, -4, 1), GuardNpcName)
+    spawnNpc(level, atOf(base, dir)(4, -3, 1), HearthNpcName)
+    towns += Town(base, dir, regionOf(base, dir), capital)
+    registerBoardAndVendor(towns.last)
+    placed
+
+  /**
+   * Replaces missing blocks in every registered town from its stored layout - the
+   * daily mason's pass for creeper scars and weather. It only fills holes (air
+   * where the plan calls for a block): blocks heroes placed or changed themselves
+   * are left alone, and NPCs are never duplicated.
+   */
+  def repairTowns(server: MinecraftServer): Int =
+    val level = server.overworld()
+    if level == null then return 0
+    var restored = 0
+    towns.toList.foreach { t => restored += layout(level, t.base, t.dir, repair = true) }
+    if restored > 0 then System.out.println(s"[aetheron-chaos] town repair: restored $restored block(s)")
+    restored
+
+  /** Places (or in repair mode, re-fills) the plaza, board, hearth, vendor and fittings. */
+  private def layout(level: ServerLevel, base: BlockPos, dir: Direction, repair: Boolean): Int =
     def at(f: Int, l: Int, dy: Int): BlockPos = atOf(base, dir)(f, l, dy)
 
     var placed = 0
     def set(pos: BlockPos, block: Block): Unit =
-      if level.setBlock(pos, block.defaultBlockState, 3) then placed += 1
+      val state = block.defaultBlockState
+      if repair then
+        // repair mode: refill holes only - never remove foreign blocks, never place "air"
+        if !state.isAir && level.getBlockState(pos).isAir then
+          if level.setBlock(pos, state, 3) then placed += 1
+      else if level.setBlock(pos, state, 3) then placed += 1
 
     def sign(pos: BlockPos, lines: List[String]): Unit =
       set(pos, Blocks.OAK_SIGN)
-      level.getBlockEntity(pos) match
-        case s: SignBlockEntity =>
-          val front = s.getFrontText
-          lines.zipWithIndex.foreach { (line, i) => front.setMessage(i, Component.literal(line)) }
-          s.setChanged()
-        case _ => ()
+      if !repair || Option(level.getBlockEntity(pos)).forall(_.isInstanceOf[SignBlockEntity]) then
+        level.getBlockEntity(pos) match
+          case s: SignBlockEntity =>
+            val front = s.getFrontText
+            lines.zipWithIndex.foreach { (line, i) => front.setMessage(i, Component.literal(line)) }
+            s.setChanged()
+          case _ => ()
 
     // stone plaza with cleared headroom
     for f <- 0 to 10; l <- -5 to 5 do
@@ -230,14 +267,6 @@ object TownBuilder:
       set(at(0, l, 1), Blocks.OAK_FENCE)
       sign(at(0, l, 2), List("WELCOME, ADVENTURER", "Slay monsters -> XP", "Level up -> loot", "/quest board"))
 
-    // permanent town NPCs
-    spawnNpc(level, at(7, 0, 1), QuestNpcName)
-    spawnNpc(level, at(4, 4, 1), VendorNpcName)
-    spawnNpc(level, at(1, -4, 1), GuardNpcName)
-    spawnNpc(level, at(4, -3, 1), HearthNpcName)
-
-    towns += Town(base, dir, regionOf(base, dir), capital)
-    registerBoardAndVendor(towns.last)
     placed
 
   /** Spawns a permanent, invulnerable, named nitwit villager (no AI = stands post-like). */
