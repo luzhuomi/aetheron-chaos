@@ -1,4 +1,4 @@
-package dev.azerothchaos
+package dev.aetheronchaos
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
@@ -29,7 +29,7 @@ import net.minecraft.world.phys.AABB
  * Registered boards gate quest turn-ins.
  *
  * The first hero to join a realm gets a starter town built at their spawn point
- * and respawns there from then on. Towns persist to azeroth-chaos-towns.snbt so
+ * and respawns there from then on. Towns persist to aetheron-chaos-towns.snbt so
  * board registrations survive restarts.
  */
 object TownBuilder:
@@ -171,7 +171,7 @@ object TownBuilder:
           val base = player.blockPosition.offset(-dir.getStepX * 2, 0, -dir.getStepZ * 2)
           buildAt(level, base, dir, capital = true)
           TownStore.save(player.server)
-          System.out.println("[azeroth-chaos] starter town raised for the first hero")
+          System.out.println("[aetheron-chaos] starter town raised for the first hero")
         case _ => ()
     capitalTown.foreach { t =>
       val stand = atOf(t.base, t.dir)(2, 0, 1)

@@ -1,4 +1,4 @@
-package dev.azerothchaos
+package dev.aetheronchaos
 
 import java.nio.file.{Files, Path}
 import java.util.UUID
@@ -12,12 +12,20 @@ import net.minecraft.world.level.storage.LevelResource
 
 /**
  * Persists hero characters to a plain SNBT file in the world folder
- * (azeroth-chaos-characters.snbt), so levels, quests and class survive restarts.
+ * (aetheron-chaos-characters.snbt), so levels, quests and class survive restarts.
  */
 object CharacterStore:
-  private val FileName = "azeroth-chaos-characters.snbt"
+  private val FileName = "aetheron-chaos-characters.snbt"
+  // worlds saved back when the mod was named "azeroth-chaos": migrated on first load
+  private val LegacyFileName = "azeroth-chaos-characters.snbt"
 
-  private def path(server: MinecraftServer): Path = server.getWorldPath(LevelResource.ROOT).resolve(FileName)
+  private def path(server: MinecraftServer): Path =
+    val dir = server.getWorldPath(LevelResource.ROOT)
+    val current = dir.resolve(FileName)
+    if !Files.exists(current) then
+      val legacy = dir.resolve(LegacyFileName)
+      if Files.exists(legacy) then Try(Files.move(legacy, current))
+    current
 
   def readAll(server: MinecraftServer): Map[UUID, CompoundTag] =
     val p = path(server)
@@ -42,4 +50,4 @@ object CharacterStore:
       val p = path(server)
       Files.createDirectories(p.getParent)
       Files.writeString(p, root.getAsString)
-    catch case e: Throwable => System.err.println(s"[azeroth-chaos] failed to save characters: $e")
+    catch case e: Throwable => System.err.println(s"[aetheron-chaos] failed to save characters: $e")

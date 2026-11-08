@@ -1,4 +1,4 @@
-package dev.azerothchaos
+package dev.aetheronchaos
 
 import java.util.UUID
 import scala.collection.mutable

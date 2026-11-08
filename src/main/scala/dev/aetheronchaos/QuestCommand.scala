@@ -1,4 +1,4 @@
-package dev.azerothchaos
+package dev.aetheronchaos
 
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
@@ -189,7 +189,7 @@ object QuestCommand:
       () =>
         Component
           .literal(
-            "Azeroth Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
+            "Aetheron Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
               "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest track <id> (quest compass), /quest turnin <id> (at the board), " +
               "/quest party <name>, /quest shop (spend gold), /quest stats, /quest top. Ops: /quest town, /quest clear, /quest rare. " +
               "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."

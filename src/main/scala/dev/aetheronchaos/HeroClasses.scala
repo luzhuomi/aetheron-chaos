@@ -1,4 +1,4 @@
-package dev.azerothchaos
+package dev.aetheronchaos
 
 import net.minecraft.ChatFormatting
 import net.minecraft.world.item.Items
@@ -92,6 +92,6 @@ object HeroClasses:
   def byId(id: String): Option[HeroClass] = all.find(_.id == id)
 
   // attribute modifier ids - namespaced so we can find and remove our own modifiers
-  val Namespace = "azeroth-chaos"
+  val Namespace = "aetheron-chaos"
   def modifierId(name: String): net.minecraft.resources.ResourceLocation =
     net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(Namespace, name)

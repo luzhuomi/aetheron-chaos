@@ -1,4 +1,4 @@
-package dev.azerothchaos
+package dev.aetheronchaos
 
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.enchantment.Enchantments

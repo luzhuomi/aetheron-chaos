@@ -1,4 +1,4 @@
-package dev.azerothchaos
+package dev.aetheronchaos
 
 import scala.jdk.CollectionConverters.*
 import scala.util.Random

@@ -1,4 +1,4 @@
-# Azeroth Chaos
+# Aetheron Chaos
 
 An **MMORPG-style leveling sandbox** for Minecraft servers, inspired by **World of Warcraft**, written in
 **Scala 3** as a **Fabric server-side mod** (vanilla clients can join — no client mod required).
@@ -151,7 +151,7 @@ Java 21 bytecode for Minecraft 1.21). Point Gradle at it via `org.gradle.java.ho
 ./gradlew build
 ```
 
-The mod jar is produced at `build/libs/azeroth-chaos-1.0.0.jar` (already remapped to intermediary
+The mod jar is produced at `build/libs/aetheron-chaos-1.0.0.jar` (already remapped to intermediary
 names, with the Scala stdlib bundled as a jar-in-jar — no Scala plugin needed on the server).
 
 ### Run a test server
@@ -173,34 +173,35 @@ console run `op your_username` and in game:
 ## Installing on a real server
 
 2. Install the [Fabric server](https://fabricmc.net/use/) for Minecraft 1.21.
-3. Drop `azeroth-chaos-1.0.0.jar` and
+3. Drop `aetheron-chaos-1.0.0.jar` and
    [Fabric API](https://modrinth.com/mod/fabric-api) (`0.102.0+1.21`) into the `mods/` folder.
 4. Players connect with an unmodified (vanilla) client — the mod is server-authoritative.
 
 ## Persistence
 
 Hero characters (class, level, XP, quest log, stats) persist to
-`azeroth-chaos-characters.snbt` in the world folder, so levels and quests survive server restarts.
+`aetheron-chaos-characters.snbt` in the world folder, so levels and quests survive server restarts.
 Written on every disconnect, again on a clean server stop, and autosaved every 5 minutes while
 heroes are online so even a hard crash loses at most a few minutes of play. Built towns and their
-quest-board registrations persist to `azeroth-chaos-towns.snbt` next to it.
-Delete those files to wipe the realm.
+quest-board registrations persist to `aetheron-chaos-towns.snbt` next to it.
+Delete those files to wipe the realm. (Worlds saved under the old `azeroth-chaos-*.snbt` file
+names are renamed automatically on first load — no manual step needed.)
 
 ## Tuning
 
-Gameplay knobs live at the top of [`Game.scala`](src/main/scala/dev/azerothchaos/Game.scala)
+Gameplay knobs live at the top of [`Game.scala`](src/main/scala/dev/aetheronchaos/Game.scala)
 (max level, party rules, death penalty, group bonus, rare-spawn interval); drop rates and rarity
-tiers in [`Loot.scala`](src/main/scala/dev/azerothchaos/Loot.scala). Classes/roles are in
-[`HeroClasses.scala`](src/main/scala/dev/azerothchaos/HeroClasses.scala), quests in
-[`Quests.scala`](src/main/scala/dev/azerothchaos/Quests.scala), mob XP/tiers and rare elites in
-[`Enemies.scala`](src/main/scala/dev/azerothchaos/Enemies.scala), vendor stock in
-[`Shop.scala`](src/main/scala/dev/azerothchaos/Shop.scala).
+tiers in [`Loot.scala`](src/main/scala/dev/aetheronchaos/Loot.scala). Classes/roles are in
+[`HeroClasses.scala`](src/main/scala/dev/aetheronchaos/HeroClasses.scala), quests in
+[`Quests.scala`](src/main/scala/dev/aetheronchaos/Quests.scala), mob XP/tiers and rare elites in
+[`Enemies.scala`](src/main/scala/dev/aetheronchaos/Enemies.scala), vendor stock in
+[`Shop.scala`](src/main/scala/dev/aetheronchaos/Shop.scala).
 
 ## Project layout
 
 ```
-src/main/scala/dev/azerothchaos/
-  AzerothChaosMod.scala  Fabric entrypoint, event wiring
+src/main/scala/dev/aetheronchaos/
+  AetheronChaosMod.scala  Fabric entrypoint, event wiring
   Game.scala             Characters: classes, XP/levels, quests, parties, rare spawns
   HeroClasses.scala      Class/role definitions (attribute bonuses + starting gear)
   Spells.scala           Spellbooks: mage elemental bolts/novas + priest holy heal/purify/protect

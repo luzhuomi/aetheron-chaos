@@ -10,7 +10,7 @@ repositories {
 
 loom {
 	mods {
-		"azeroth-chaos" {
+		"aetheron-chaos" {
 			sourceSet sourceSets.main
 		}
 	}

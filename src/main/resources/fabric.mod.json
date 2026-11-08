@@ -1,8 +1,8 @@
 {
 	"schemaVersion": 1,
-	"id": "azeroth-chaos",
+	"id": "aetheron-chaos",
 	"version": "${version}",
-	"name": "Azeroth Chaos",
+	"name": "Aetheron Chaos",
 	"description": "An MMORPG-style leveling sandbox for Minecraft servers, inspired by World of Warcraft. Pick a class, level up by slaying mobs, run quests from the quest board, roll loot, and hunt rare elites with your party.",
 	"authors": [
 		"luzm"
@@ -11,7 +11,7 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"dev.azerothchaos.AzerothChaosMod"
+			"dev.aetheronchaos.AetheronChaosMod"
 		]
 	},
 	"depends": {

@@ -1,4 +1,4 @@
-package dev.azerothchaos
+package dev.aetheronchaos
 
 import java.nio.file.{Files, Path}
 import scala.jdk.CollectionConverters.*
@@ -12,14 +12,22 @@ import net.minecraft.world.level.storage.LevelResource
 
 /**
  * Persists built towns to a plain SNBT file in the world folder
- * (azeroth-chaos-towns.snbt): just the anchor block + facing of each hub, which
+ * (aetheron-chaos-towns.snbt): just the anchor block + facing of each hub, which
  * is enough to re-register quest boards and vendor barrels after a restart
  * (the blocks themselves are already in the world).
  */
 object TownStore:
-  private val FileName = "azeroth-chaos-towns.snbt"
+  private val FileName = "aetheron-chaos-towns.snbt"
+  // worlds saved back when the mod was named "azeroth-chaos": migrated on first load
+  private val LegacyFileName = "azeroth-chaos-towns.snbt"
 
-  private def path(server: MinecraftServer): Path = server.getWorldPath(LevelResource.ROOT).resolve(FileName)
+  private def path(server: MinecraftServer): Path =
+    val dir = server.getWorldPath(LevelResource.ROOT)
+    val current = dir.resolve(FileName)
+    if !Files.exists(current) then
+      val legacy = dir.resolve(LegacyFileName)
+      if Files.exists(legacy) then Try(Files.move(legacy, current))
+    current
 
   def load(server: MinecraftServer): List[TownBuilder.Town] =
     val p = path(server)
@@ -61,4 +69,4 @@ object TownStore:
       val p = path(server)
       Files.createDirectories(p.getParent)
       Files.writeString(p, root.getAsString)
-    catch case e: Throwable => System.err.println(s"[azeroth-chaos] failed to save towns: $e")
+    catch case e: Throwable => System.err.println(s"[aetheron-chaos] failed to save towns: $e")

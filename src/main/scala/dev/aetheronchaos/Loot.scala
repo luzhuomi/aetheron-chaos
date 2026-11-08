@@ -1,4 +1,4 @@
-package dev.azerothchaos
+package dev.aetheronchaos
 
 import scala.jdk.CollectionConverters.*
 import scala.util.Random
@@ -72,7 +72,7 @@ object Loot:
     val flavor =
       if g.flavor.nonEmpty then List(Component.literal(g.flavor).withStyle(ChatFormatting.ITALIC, ChatFormatting.YELLOW))
       else Nil
-    val lore = Component.literal(s"${g.rarity.label} loot - Azeroth Chaos").withStyle(ChatFormatting.ITALIC, ChatFormatting.GRAY)
+    val lore = Component.literal(s"${g.rarity.label} loot - Aetheron Chaos").withStyle(ChatFormatting.ITALIC, ChatFormatting.GRAY)
     s.set(DataComponents.LORE, ItemLore((existing ++ flavor :+ lore).asJava))
     s
 

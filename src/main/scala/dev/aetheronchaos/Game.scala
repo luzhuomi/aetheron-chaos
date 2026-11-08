@@ -1,4 +1,4 @@
-package dev.azerothchaos
+package dev.aetheronchaos
 
 import java.util.UUID
 import scala.collection.mutable
@@ -99,7 +99,7 @@ object Game:
 
   private def ensure(uuid: UUID): Character = characters.getOrElseUpdate(uuid, new Character(uuid))
 
-  private[azerothchaos] def characterFor(player: ServerPlayer): Character = ensure(player.getUUID)
+  private[aetheronchaos] def characterFor(player: ServerPlayer): Character = ensure(player.getUUID)
 
   private def heroClassOf(c: Character): Option[HeroClass] = HeroClasses.byId(c.classId)
 
@@ -182,7 +182,7 @@ object Game:
           case _ => ""
         s"You are now a ${hc.name}: ${hc.tagline} Starting gear granted.$spellNote"
 
-  private[azerothchaos] def applyBonuses(player: ServerPlayer): Unit =
+  private[aetheronchaos] def applyBonuses(player: ServerPlayer): Unit =
     val c = ensure(player.getUUID)
     val hc = heroClassOf(c)
     val attributes = Seq(Attributes.MAX_HEALTH, Attributes.ATTACK_DAMAGE, Attributes.MOVEMENT_SPEED)
@@ -213,7 +213,7 @@ object Game:
 
   // --- XP, levels, kills ------------------------------------------------------
 
-  private[azerothchaos] def awardKill(player: ServerPlayer, victim: Mob): Unit =
+  private[aetheronchaos] def awardKill(player: ServerPlayer, victim: Mob): Unit =
     val c = ensure(player.getUUID)
     if !c.joined then return
     val rare = victim.hasCustomName
@@ -259,7 +259,7 @@ object Game:
       }
     }
 
-  private[azerothchaos] def onPlayerDeath(player: ServerPlayer): Unit =
+  private[aetheronchaos] def onPlayerDeath(player: ServerPlayer): Unit =
     val c = ensure(player.getUUID)
     if !c.joined then return
     c.deaths += 1
@@ -297,14 +297,14 @@ object Game:
   // --- mage spells --------------------------------------------------------------
 
   /** The spell a hero currently has equipped (falls back to the first known one). */
-  private[azerothchaos] def equippedSpell(c: Character): Spell =
+  private[aetheronchaos] def equippedSpell(c: Character): Spell =
     val school = Spells.schoolFor(c.classId)
     Spells.byId(c.spell).filter(s => s.school == school && s.unlockLevel <= c.level)
       .orElse(Spells.learnedFor(school, c.level).headOption)
       .getOrElse(Spells.all.head)
 
   /** Right-click cast / sneak+right-click cycle. Returns true if the click was consumed. */
-  private[azerothchaos] def castOrCycle(player: ServerPlayer): Boolean =
+  private[aetheronchaos] def castOrCycle(player: ServerPlayer): Boolean =
     val c = ensure(player.getUUID)
     val school = Spells.schoolFor(c.classId)
     if !c.joined || school.isEmpty then return false
@@ -336,7 +336,7 @@ object Game:
     Spells.cast(player, spell)
     true
 
-  private[azerothchaos] def spellList(player: ServerPlayer): String =
+  private[aetheronchaos] def spellList(player: ServerPlayer): String =
     val c = ensure(player.getUUID)
     val school = Spells.schoolFor(c.classId)
     if school.isEmpty then return "Only mages and priests wield spellbooks. /quest roles to see classes."
@@ -357,7 +357,7 @@ object Game:
       (if locked.nonEmpty then List("Locked: " + locked.map(s => s"${s.name} (Lv${s.unlockLevel})").mkString(", ")) else Nil))
       .mkString("\n")
 
-  private[azerothchaos] def equipSpell(player: ServerPlayer, id: String): String =
+  private[aetheronchaos] def equipSpell(player: ServerPlayer, id: String): String =
     val c = ensure(player.getUUID)
     val school = Spells.schoolFor(c.classId)
     if school.isEmpty then return "Only mages and priests wield spellbooks."
@@ -427,7 +427,7 @@ object Game:
       Quests.byId(id).map(q => s"Stopped tracking '${q.name}'.") getOrElse "Stopped tracking."
 
   /** Per-quest compass strings for the action bar, refreshed on NavRefreshTicks. */
-  private[azerothchaos] def trackerCompass(player: ServerPlayer): List[(String, String)] =
+  private[aetheronchaos] def trackerCompass(player: ServerPlayer): List[(String, String)] =
     navCache.getOrElse(player.getUUID, Nil)
 
   private def refreshNav(player: ServerPlayer): Unit =
@@ -473,7 +473,7 @@ object Game:
     val idx = ((math.round(math.toDegrees(rel) / 45.0).toInt % 8) + 8) % 8
     s"${CompassArrows(idx)} ${dist}m ${t._2}"
 
-  private[azerothchaos] def progressOf(player: ServerPlayer, q: Quest): Int =
+  private[aetheronchaos] def progressOf(player: ServerPlayer, q: Quest): Int =
     val c = ensure(player.getUUID)
     q.objective match
       case Objective.Kill(_, _, _) => c.progress.getOrElse(q.id, 0)
@@ -613,7 +613,7 @@ object Game:
         c.party = None
         "Left the party."
 
-  private[azerothchaos] def partiesOf(player: ServerPlayer, pname: String): List[String] =
+  private[aetheronchaos] def partiesOf(player: ServerPlayer, pname: String): List[String] =
     parties
       .getOrElse(pname, mutable.LinkedHashSet[UUID]())
       .toList
@@ -754,9 +754,9 @@ object Game:
 
   // --- persistence views -------------------------------------------------------
 
-  private[azerothchaos] def allCharacters: Iterable[Character] = characters.values
+  private[aetheronchaos] def allCharacters: Iterable[Character] = characters.values
 
-  private[azerothchaos] def tagFor(c: Character): CompoundTag =
+  private[aetheronchaos] def tagFor(c: Character): CompoundTag =
     val tag = new CompoundTag
     tag.putString("name", c.displayName)
     tag.putString("class", c.classId)
@@ -773,7 +773,7 @@ object Game:
     tag.putInt("deaths", c.deaths)
     tag
 
-  private[azerothchaos] def mergeFromTag(uuid: UUID, tag: CompoundTag): Unit =
+  private[aetheronchaos] def mergeFromTag(uuid: UUID, tag: CompoundTag): Unit =
     val c = ensure(uuid)
     c.displayName = tag.getString("name")
     c.classId = tag.getString("class")
@@ -824,8 +824,8 @@ object Game:
   private def giveItem(player: ServerPlayer, stack: net.minecraft.world.item.ItemStack): Unit =
     if !player.getInventory.add(stack) then player.drop(stack, false)
 
-  private[azerothchaos] def message(player: ServerPlayer, text: String, color: ChatFormatting): Unit =
+  private[aetheronchaos] def message(player: ServerPlayer, text: String, color: ChatFormatting): Unit =
     player.displayClientMessage(Component.literal(text).withStyle(color), false)
 
-  private[azerothchaos] def broadcast(server: MinecraftServer, msg: Component): Unit =
+  private[aetheronchaos] def broadcast(server: MinecraftServer, msg: Component): Unit =
     server.getPlayerList().broadcastSystemMessage(msg, false)
