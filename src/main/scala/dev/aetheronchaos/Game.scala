@@ -91,6 +91,8 @@ object Game:
   private val navCache = mutable.Map[UUID, List[(String, String)]]()
   // spell cooldowns: uuid -> tick the focus is ready again
   private val spellCooldowns = mutable.Map[UUID, Long]()
+  // throttle for "hold your focus" hints: uuid -> tick of the last hint
+  private val spellNags = mutable.Map[UUID, Long]()
   private var rareAnnounced = 0
 
   def xpToNext(level: Int): Long = 100L + 60L * level + 35L * level * level
@@ -312,22 +314,30 @@ object Game:
       .getOrElse(Spells.all.head)
 
   /** Right-click cast / sneak+right-click cycle. Returns true if the click was consumed. */
-  private[aetheronchaos] def castOrCycle(player: ServerPlayer): Boolean =
+  private[aetheronchaos] def castOrCycle(player: ServerPlayer, hand: net.minecraft.world.InteractionHand): Boolean =
     val c = ensure(player.getUUID)
     val school = Spells.schoolFor(c.classId)
     if !c.joined || school.isEmpty then return false
-    val inv = player.getInventory
-    val holdingFocus = (inv.items.asScala ++ inv.offhand.asScala).exists(st => Spells.isFocus(school, st))
-    if !holdingFocus then
-      val hint = school match
-        case "holy"    => "A prayer book is your holy focus - hold any book (your Book of Radiance works)."
-        case "shadow"  => "Your blades are your focus - hold any sword to call on your martial arts."
-        case "hunt"    => "Your bow is your focus - hold a bow to fire skill-shots."
-        case "might"   => "An axe focuses your might - hold any axe (the vendor sells one)."
-        case "crusade" => "Your shield is your prayer focus - hold any shield to call down blessings."
-        case _         => "A wand is your spell focus - hold any blaze rod (hunt blazes or ask a mage friend)."
-      message(player, hint, ChatFormatting.RED)
-      return true
+    // only the hand being used matters: carrying a wand in the bag must not block eating,
+    // placing or using anything else. Mirror vanilla's choice: an empty main hand uses the off-hand.
+    val primary = player.getItemInHand(hand)
+    val used =
+      if primary.isEmpty && hand == net.minecraft.world.InteractionHand.MAIN_HAND then player.getOffhandItem
+      else primary
+    if !Spells.isFocus(school, used) then
+      if used.isEmpty then
+        // empty-hand right-click: a nudge about the focus, at most once per 10s
+        if elapsedTicks >= spellNags.getOrElse(c.uuid, 0L) then
+          spellNags(c.uuid) = elapsedTicks + 200
+          val hint = school match
+            case "holy"    => "A prayer book is your holy focus - hold any book (your Book of Radiance works) to cast."
+            case "shadow"  => "Your blades are your focus - hold any sword to call on your martial arts."
+            case "hunt"    => "Your bow is your focus - hold a bow to fire skill-shots."
+            case "might"   => "An axe focuses your might - hold any axe (the vendor sells one)."
+            case "crusade" => "Your shield is your prayer focus - hold any shield to call down blessings."
+            case _         => "A wand is your spell focus - hold any blaze rod to cast. Your other items stay usable."
+          message(player, hint, ChatFormatting.GRAY)
+      return false
     if player.isCrouching then
       val known = Spells.learnedFor(school, c.level)
       if known.size < 2 then
@@ -344,13 +354,14 @@ object Game:
       message(player, s"${spell.name} is still recharging... ${(readyAt - elapsedTicks + 19) / 20}s", ChatFormatting.GRAY)
       return true
     spellCooldowns(c.uuid) = elapsedTicks + spell.cooldownTicks
+    player.getCooldowns.addCooldown(used.getItem, spell.cooldownTicks) // the focus visibly greys out
     Spells.cast(player, spell)
     true
 
   private[aetheronchaos] def spellList(player: ServerPlayer): String =
     val c = ensure(player.getUUID)
     val school = Spells.schoolFor(c.classId)
-    if school.isEmpty then return "Only mages, priests, rogues and hunters hone crafts like these. /quest roles to see classes."
+    if school.isEmpty then return "That class has no spellbook. /quest roles to see classes."
     val known = Spells.learnedFor(school, c.level)
     val focusName = school match
       case "holy"    => "book focus"
@@ -399,7 +410,7 @@ object Game:
   private[aetheronchaos] def equipSpell(player: ServerPlayer, id: String): String =
     val c = ensure(player.getUUID)
     val school = Spells.schoolFor(c.classId)
-    if school.isEmpty then return "Only mages, priests, rogues and hunters hone crafts like these."
+    if school.isEmpty then return "That class has no spellbook."
     Spells.byId(id) match
       case None =>
         val hint = Spells.all.find(s => s.school == school && editDistance(s.id.toLowerCase, id.toLowerCase) <= 3)

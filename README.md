@@ -35,7 +35,8 @@ loop, built entirely from vanilla blocks, items and effects.
    **Spellbooks** — every class but a plain fighter has a discipline: RIGHT-CLICK while holding
    your focus to use the equipped technique; SNEAK+right-click cycles known ones (`/quest spell`
    also lists/equips them). Techniques are learned automatically as you level, sit on a cooldown
-   (the focus visibly greys out — vanilla item cooldown) and show in your action bar.
+   (the focus visibly greys out — vanilla item cooldown) and show in your action bar. When your
+   hands hold anything else, right-click works as vanilla — eat, place, pull, block freely.
    Focuses: mage — any blaze rod · priest — any book · rogue — any sword · hunter — any bow (the
    charged draw is replaced by instant skill-shots) · warrior — any axe · paladin — any shield.
 
