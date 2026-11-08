@@ -1,6 +1,7 @@
 package dev.azerothchaos
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.*
 
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
@@ -10,6 +11,7 @@ import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.monster.Monster
 import net.minecraft.world.entity.npc.Villager
 import net.minecraft.world.entity.npc.VillagerData
 import net.minecraft.world.entity.npc.VillagerProfession
@@ -18,6 +20,7 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.entity.SignBlockEntity
+import net.minecraft.world.phys.AABB
 
 /**
  * Builds small quest hubs ("villages"): a quest board (loom + signs) where quests
@@ -65,6 +68,40 @@ object TownBuilder:
   def nearestBoard(player: ServerPlayer): Option[BlockPos] =
     if boards.isEmpty then None
     else Some(boards.iterator.map(l => BlockPos.of(l)).minBy(bp => player.blockPosition.distSqr(bp)))
+
+  // --- town guard -----------------------------------------------------------------
+
+  /**
+   * Hostile mobs that wander or spawn into town land are escorted back outside the
+   * plaza. Plaza lanterns already suppress most natural spawns; this sweep catches
+   * the strays (and any creeper that wanders in before it can blow anything up).
+   * A monster actively chasing a player is left alone - heroes may pull fights home.
+   */
+  def expelHostileMobs(server: MinecraftServer): Unit =
+    val level = server.overworld()
+    if level == null || towns.isEmpty then return
+    val rng = scala.util.Random()
+    towns.foreach { t =>
+      val (x1, y1, z1, x2, y2, z2) = t.region
+      val box = new AABB(x1 - 4, y1 - 6, z1 - 4, x2 + 4, y2 + 6, z2 + 4)
+      val cx = (x1 + x2 + 1) / 2.0
+      val cz = (z1 + z2 + 1) / 2.0
+      level.getEntitiesOfClass(classOf[Monster], box).asScala.foreach { m =>
+        val chasingSomeone = m.getTarget match
+          case _: net.minecraft.world.entity.player.Player => true
+          case _ => false
+        if !chasingSomeone then
+          // escorted out along whichever axis points further out, landing past the edge
+          val dx = m.getX - cx
+          val dz = m.getZ - cz
+          val (px, pz) =
+            if math.abs(dx) >= math.abs(dz) then
+              (if dx >= 0 then x2 + 8.0 + rng.nextInt(8) else x1 - 8.0 - rng.nextInt(8), m.getZ)
+            else
+              (m.getX, if dz >= 0 then z2 + 8.0 + rng.nextInt(8) else z1 - 8.0 - rng.nextInt(8))
+          m.teleportTo(px, m.getY, pz)
+      }
+    }
 
   /** Role of a right-clicked entity for the interaction hook: board/vendor/guard. */
   def npcRole(entity: Entity): Option[String] =

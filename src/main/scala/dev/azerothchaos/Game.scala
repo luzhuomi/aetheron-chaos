@@ -54,6 +54,8 @@ object Game:
 
   // characters autosave to disk while online (crash safety net; normal saves happen on disconnect)
   val AutosaveIntervalTicks = 5L * 60L * 20L
+  // town guard sweep: how often hostile strays inside town land get escorted out
+  private val TownGuardIntervalTicks = 40L
 
   // quest tracker / navigation
   val MaxTrackedQuests = 4
@@ -642,6 +644,7 @@ object Game:
     if elapsedTicks >= nextAutosaveTick && server.getPlayerList.getPlayerCount > 0 then
       nextAutosaveTick = elapsedTicks + AutosaveIntervalTicks
       CharacterStore.save(server) // crash safety net between disconnect saves
+    if elapsedTicks % TownGuardIntervalTicks == 0 then TownBuilder.expelHostileMobs(server)
     if elapsedTicks >= nextRareTick then
       nextRareTick = elapsedTicks + RareIntervalTicks
       val online = server.getPlayerList.getPlayers.asScala.filter(isJoined)
