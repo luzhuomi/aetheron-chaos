@@ -76,9 +76,13 @@ object Loot:
     s.set(DataComponents.LORE, ItemLore((existing ++ flavor :+ lore).asJava))
     s
 
+  /** The amount is the vanilla stack count - never baked into the name, or it goes stale when
+   *  stacks shrink, merge or split. */
+  val coinName: Component = Component.literal("Gold Coins").withStyle(ChatFormatting.GOLD)
+
   def coinStack(count: Int): ItemStack =
     val s = ItemStack(Items.GOLD_NUGGET, count)
-    s.set(DataComponents.ITEM_NAME, Component.literal(s"$count Gold Coins").withStyle(ChatFormatting.GOLD))
+    s.set(DataComponents.ITEM_NAME, coinName)
     s.set(
       DataComponents.LORE,
       ItemLore(List(Component.literal("Hard currency of the realm - spend it, or hoard it.").withStyle(ChatFormatting.ITALIC, ChatFormatting.GRAY)).asJava)

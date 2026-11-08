@@ -7,6 +7,7 @@ import scala.util.Random
 
 import net.minecraft.ChatFormatting
 import net.minecraft.core.Holder
+import net.minecraft.core.component.DataComponents
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
@@ -116,6 +117,7 @@ object Game:
 
   def onJoin(player: ServerPlayer, server: MinecraftServer): Unit =
     CharacterStore.loadFor(server, player.getUUID)
+    normalizeCoinNames(player)
     // a hero with no entry on disk has never played this realm: give them a town and a home
     if !CharacterStore.readAll(server).contains(player.getUUID) then TownBuilder.greetNewcomer(player)
     val c = ensure(player.getUUID)
@@ -693,6 +695,14 @@ object Game:
     c.deaths = tag.getInt("deaths")
 
   // --- helpers -----------------------------------------------------------------
+
+  /** Legacy fix-up: old coin stacks baked their amount into the name; the count is the stack size. */
+  private def normalizeCoinNames(player: ServerPlayer): Unit =
+    val inv = player.getInventory
+    (inv.items.asScala ++ inv.offhand.asScala).foreach { stack =>
+      if stack.is(Items.GOLD_NUGGET) && stack.has(DataComponents.ITEM_NAME) then
+        stack.set(DataComponents.ITEM_NAME, Loot.coinName)
+    }
 
   /** Typo help: the closest quest id within edit distance 3, e.g. bone-copllection -> bone-collection. */
   private def didYouMean(input: String): Option[String] =
