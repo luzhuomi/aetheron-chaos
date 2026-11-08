@@ -38,6 +38,9 @@ loop, built entirely from vanilla blocks, items and effects.
    clickable list of quests filtered by your level: kill quests, collection deliveries and boss hunts
    ("The Warden Below"). Accept with a click, track progress in your action bar, turn in **at the
    board** for XP, gold and occasionally gear.
+   *Tip: chat lines are only clickable while the chat screen is open — press `T` first (it frees the
+   mouse from the crosshair), then click, and `Esc` to return. `/quest take <id>` with Tab-completion
+   works without opening chat.*
 
 5. **Loot that scales** — drop rate and rarity **scale with the mob's tier** (from its kill-XP value):
    zombies drop trash, elders and wardens drop epics. WoW-colored gear: white common, green
