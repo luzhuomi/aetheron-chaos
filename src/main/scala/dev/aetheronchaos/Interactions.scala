@@ -36,7 +36,7 @@ object Interactions:
           Game.boardMenu(p)
           InteractionResult.SUCCESS
         case p: ServerPlayer if TownBuilder.isVendor(hitResult.getBlockPos) && world.getBlockState(hitResult.getBlockPos).is(Blocks.BARREL) =>
-          Game.shopMenu(p)
+          if p.isCrouching then Game.message(p, Game.sellHeld(p), ChatFormatting.GOLD) else Game.shopMenu(p)
           InteractionResult.SUCCESS
         case _ => InteractionResult.PASS
     )
@@ -49,7 +49,7 @@ object Interactions:
             Game.boardMenu(p)
             InteractionResult.SUCCESS
           case (p: ServerPlayer, Some("vendor")) =>
-            Game.shopMenu(p)
+            if p.isCrouching then Game.message(p, Game.sellHeld(p), ChatFormatting.GOLD) else Game.shopMenu(p)
             InteractionResult.SUCCESS
           case (p: ServerPlayer, Some("guard")) =>
             Game.message(p, GuardTips(rng.nextInt(GuardTips.size)), ChatFormatting.GRAY)

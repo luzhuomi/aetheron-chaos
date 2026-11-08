@@ -63,6 +63,10 @@ object QuestCommand:
           .`then`(Commands.literal("top").executes(ctx => top(ctx)))
           .`then`(Commands.literal("shop").executes(ctx => withPlayerSilent(ctx, Game.shopMenu)))
           .`then`(
+            Commands.literal("sell")
+              .executes(ctx => withPlayer(ctx, p => Game.sellHeld(p)))
+          )
+          .`then`(
             Commands.literal("buy")
               .`then`(
                 Commands.argument("item", StringArgumentType.greedyString())

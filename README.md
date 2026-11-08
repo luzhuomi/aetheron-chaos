@@ -98,9 +98,11 @@ loop, built entirely from vanilla blocks, items and effects.
    hunt, and flips to pointing back at the quest board once the objective is done. New quests
    auto-track while there's room; `/quest untrack <id>` clears one.
 
-11. **Spend your gold** — right-click the **vendor barrel** or Merchant Tilli (or `/quest shop`) for a
+11. **Trade gold** — right-click the **vendor barrel** or Merchant Tilli (or `/quest shop`) for a
     clickable catalog from common tools to the epic *Helm of the Black Roar* — a gold sink with
-    guaranteed gear.
+    guaranteed gear. Sell too: **hold an item and `/quest sell`** (or sneak+right-click the merchant)
+    and she pays by rarity — 5/12/30/65 gold for common-to-epic loot — and buys everyday junk
+    (mob drops, crops, ores, gems). Buy-high, sell-low keeps it a sink.
 
 12. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
     *Silithis the Broodmother*) spawns near a random hero with a server announcement: **10x XP and
@@ -131,6 +133,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest party <name>` | everyone | Join/create a party (max 5, shared XP + quest progress) |
 | `/quest party leave` | everyone | Leave your party |
 | `/quest shop` | everyone | Vendor catalog (also right-click the town vendor barrel) |
+| `/quest sell` | everyone | Sell the item in your main hand to the merchant for gold |
 | `/quest buy <id>` | everyone | Buy gear with gold coins |
 | `/quest loot need <n>` / `greed <n>` | everyone | Roll on party-locked loot |
 | `/quest stats` | everyone | Your hero's stat sheet |
