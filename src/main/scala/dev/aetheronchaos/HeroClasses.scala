@@ -30,17 +30,18 @@ object HeroClasses:
     HeroClass(
       "warrior",
       "Warrior",
-      "Stalwart frontline fighter - extra health, hits harder.",
+      "Stalwart frontline fighter - extra health, hits harder; any axe fuels war techniques.",
       10.0, 1.5, 0.0, None,
       List(
         Gear(Items.IRON_SWORD, "Warrior's Blade", Rarity.Uncommon, List(Enchantments.SHARPNESS -> 1)),
+        Gear(Items.IRON_AXE, "Warrior's Cleaver", Rarity.Uncommon, List(Enchantments.SHARPNESS -> 1)),
         Gear(Items.IRON_CHESTPLATE, "Warrior's Plate", Rarity.Uncommon, List(Enchantments.PROTECTION -> 1))
       )
     ),
     HeroClass(
       "paladin",
       "Paladin",
-      "Holy knight - the most health and a blessed shield.",
+      "Holy knight - the most health, a blessed shield that channels holy blessings.",
       16.0, 1.0, 0.0, None,
       List(
         Gear(Items.IRON_SWORD, "Lightbringer", Rarity.Uncommon, List(Enchantments.SHARPNESS -> 1)),

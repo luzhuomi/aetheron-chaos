@@ -25,19 +25,19 @@ loop, built entirely from vanilla blocks, items and effects.
 
    | Class | Playstyle |
    |---|---|
-   | `warrior` | Stalwart frontline — extra health, harder hits |
-   | `paladin` | Holy knight — most health, blessed shield |
+   | `warrior` | Stalwart frontline — extra health, harder hits; war techniques with any axe (spellbook below) |
+   | `paladin` | Holy knight — most health; blessings through any shield (spellbook below) |
    | `hunter` | Ranged beast-stalker — skill-shots with any bow (spellbook below), quick feet |
    | `mage` | Arcane scholar — ranged elemental bolts (spellbook below), permanent arcane sight |
    | `rogue` | Shadow striker — blink, blades and stolen coin via any sword (spellbook below) |
    | `priest` | Holy healer — heals allies, cleanses, protects (spellbook below), regen |
 
-   **Spellbooks** — mages, priests, rogues and hunters each practice a discipline: RIGHT-CLICK
-   while holding your focus to use the equipped technique; SNEAK+right-click cycles known ones
-   (`/quest spell` also lists/equips them). Techniques are learned automatically as you level,
-   sit on a cooldown (the focus visibly greys out — vanilla item cooldown) and show in your
-   action bar. Focuses: mage — any blaze rod · priest — any book · rogue — any sword ·
-   hunter — any bow (the charged draw is replaced by instant skill-shots).
+   **Spellbooks** — every class but a plain fighter has a discipline: RIGHT-CLICK while holding
+   your focus to use the equipped technique; SNEAK+right-click cycles known ones (`/quest spell`
+   also lists/equips them). Techniques are learned automatically as you level, sit on a cooldown
+   (the focus visibly greys out — vanilla item cooldown) and show in your action bar.
+   Focuses: mage — any blaze rod · priest — any book · rogue — any sword · hunter — any bow (the
+   charged draw is replaced by instant skill-shots) · warrior — any axe · paladin — any shield.
 
    *Mage* — hold **any blaze rod as a wand focus**. Bolts are real projectiles with element riders:
 
@@ -81,6 +81,29 @@ loop, built entirely from vanilla blocks, items and effects.
    | Piercing Shot | Lv 12 | 3 dmg, flies through up to 6 foes |
    | Arrow Volley | Lv 18 | 5-arrow fan, 2.5 dmg each |
    | Crippling Shot | Lv 25 | 4.5 dmg + heavy slowness |
+
+   *Warrior* — your **battle-axe is the focus**: hold any axe (you start with *Warrior's Cleaver*,
+   or buy a *Woodcutter's Axe*) for techniques of force:
+
+   | Technique | Unlock | Effect |
+   |---|---|---|
+   | Charge | Lv 1 | leap up to 6 blocks toward your aim, slamming + knocking back foes on landing |
+   | Deep Wound | Lv 3 | the aimed foe bleeds (withers) for 5s |
+   | Whirlwind | Lv 12 | 4 dmg to all foes around you (4 blocks) |
+   | Intimidating Shout | Lv 18 | scare foes within 5 blocks into fleeing |
+   | Avatar | Lv 25 | harder hits for 10s |
+
+   *Paladin* — your **shield is the focus**: hold any shield (you start with *Blessed Bulwark*)
+   to channel holy blessings — you trade the vanilla block for blessings that protect the whole
+   body. Paladins also self-mend:
+
+   | Blessing | Unlock | Effect |
+   |---|---|---|
+   | Consecrate | Lv 1 | 2.5 holy dmg to all foes around you (3 blocks) |
+   | Lay on Hands | Lv 5 | mend up to 10 HP on yourself |
+   | Hammer of Justice | Lv 12 | stun the aimed foe in place ~3s (+ small dmg) |
+   | Guardian's Blessing | Lv 15 | Damage Resistance on yourself for 6s |
+   | Divine Storm | Lv 25 | 5 holy dmg to all foes around you (4.5 blocks) |
 
    Kills from any spell or shot grant XP, quest progress and loot exactly like melee kills;
    arrows you conjure can't be picked back up (they're magic, not ammunition).

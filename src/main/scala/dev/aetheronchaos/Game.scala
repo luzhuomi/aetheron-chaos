@@ -183,6 +183,10 @@ object Game:
             " Your blades hide tricks: RIGHT-CLICK while holding any sword to Shadowstep, sneak+right-click to cycle techniques, /quest spell to see them."
           case "hunter" =>
             " Your bow fires skill-shots: RIGHT-CLICK to loose a Quick Shot (charged draw replaced), sneak+right-click to cycle shots, /quest spell for the list."
+          case "warrior" =>
+            " Your battle-axe focuses your might: RIGHT-CLICK while holding any axe to Charge, sneak+right-click to cycle techniques, /quest spell for the list."
+          case "paladin" =>
+            " Your shield is a prayer focus: RIGHT-CLICK while holding any shield to Consecrate the ground (blocking becomes blessings), sneak+right-click to cycle, /quest spell for the list."
           case _ => ""
         s"You are now a ${hc.name}: ${hc.tagline} Starting gear granted.$spellNote"
 
@@ -316,10 +320,12 @@ object Game:
     val holdingFocus = (inv.items.asScala ++ inv.offhand.asScala).exists(st => Spells.isFocus(school, st))
     if !holdingFocus then
       val hint = school match
-        case "holy"   => "A prayer book is your holy focus - hold any book (your Book of Radiance works)."
-        case "shadow" => "Your blades are your focus - hold any sword to call on your martial arts."
-        case "hunt"   => "Your bow is your focus - hold a bow to fire skill-shots."
-        case _        => "A wand is your spell focus - hold any blaze rod (hunt blazes or ask a mage friend)."
+        case "holy"    => "A prayer book is your holy focus - hold any book (your Book of Radiance works)."
+        case "shadow"  => "Your blades are your focus - hold any sword to call on your martial arts."
+        case "hunt"    => "Your bow is your focus - hold a bow to fire skill-shots."
+        case "might"   => "An axe focuses your might - hold any axe (the vendor sells one)."
+        case "crusade" => "Your shield is your prayer focus - hold any shield to call down blessings."
+        case _         => "A wand is your spell focus - hold any blaze rod (hunt blazes or ask a mage friend)."
       message(player, hint, ChatFormatting.RED)
       return true
     if player.isCrouching then
@@ -347,22 +353,32 @@ object Game:
     if school.isEmpty then return "Only mages, priests, rogues and hunters hone crafts like these. /quest roles to see classes."
     val known = Spells.learnedFor(school, c.level)
     val focusName = school match
-      case "holy"   => "book focus"
-      case "shadow" => "sword focus (any blade)"
-      case "hunt"   => "bow focus (any bow)"
-      case _        => "wand (blaze rod) focus"
+      case "holy"    => "book focus"
+      case "shadow"  => "sword focus (any blade)"
+      case "hunt"    => "bow focus (any bow)"
+      case "might"   => "axe focus (any axe)"
+      case "crusade" => "shield focus (any shield)"
+      case _         => "wand (blaze rod) focus"
     val lines = known.map { s =>
       val mark = if s.id == equippedSpell(c).id then "*" else " "
       val effect = s.kind match
         case "heal"    => s"mend up to ${s.damage.toInt} HP (aim at an ally)"
         case "purify"  => "cleanse ailments from nearby allies"
         case "protect" => "Damage Resistance 12s for nearby allies"
-        case "blink"   => s"blink up to ${s.aoeRadius.toInt} blocks toward your aim"
+        case "blink"   =>
+          if s.effect == "charge" then s"charge up to ${s.aoeRadius.toInt} blocks, slamming foes on landing"
+          else s"blink up to ${s.aoeRadius.toInt} blocks toward your aim"
         case "burst"   => s"${s.damage} dmg to all foes around you (${s.aoeRadius} blocks)"
         case "steal"   => s"steal coin from foes within ${s.aoeRadius.toInt} blocks"
         case "buff"    =>
           if s.effect == "speed" then s"Speed II for ${s.damage.toInt / 20}s"
-          else s"invisibility ${s.damage.toInt / 20}s + a little mending"
+          else if s.effect == "invis" then s"invisibility ${s.damage.toInt / 20}s + a little mending"
+          else if s.effect == "guard" then s"Damage Resistance (hard to hurt) for ${s.damage.toInt / 20}s"
+          else s"harder hits (+damage) for ${s.damage.toInt / 20}s"
+        case "wound"    => s"open a bleeding wound: withers the aimed foe for ${s.damage.toInt / 20}s"
+        case "stun"     => s"${s.damage} dmg + stuns the aimed foe in place ~3s"
+        case "fear"     => s"scare foes within ${s.aoeRadius.toInt} blocks into fleeing"
+        case "mendself" => s"mend up to ${s.damage.toInt} HP on yourself"
         case "arrows"  =>
           val rider = s.effect match
             case "poison" => ", poisons"

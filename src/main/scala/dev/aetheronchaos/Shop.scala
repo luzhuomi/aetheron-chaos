@@ -19,6 +19,7 @@ object Shop:
   val stock: List[ShopItem] = List(
     ShopItem("drill-sword", Loot.Gear(Items.IRON_SWORD, "Drill Ground Blade", Rarity.Common, List(Enchantments.SHARPNESS -> 1)), 10),
     ShopItem("militia-bow", Loot.Gear(Items.BOW, "Militia Longbow", Rarity.Common, List(Enchantments.POWER -> 1)), 12),
+    ShopItem("woodcutter-axe", Loot.Gear(Items.IRON_AXE, "Woodcutter's Axe", Rarity.Common, List(Enchantments.SHARPNESS -> 1)), 12),
     ShopItem("guard-shirt", Loot.Gear(Items.CHAINMAIL_CHESTPLATE, "Militia Shirt", Rarity.Common, List(Enchantments.PROTECTION -> 1)), 12),
     ShopItem("travel-boots", Loot.Gear(Items.CHAINMAIL_BOOTS, "Postboy Boots", Rarity.Common, List(Enchantments.PROTECTION -> 1)), 10),
     ShopItem("kite-shield", Loot.Gear(Items.SHIELD, "Kite Shield", Rarity.Uncommon, List(Enchantments.UNBREAKING -> 2)), 18),
