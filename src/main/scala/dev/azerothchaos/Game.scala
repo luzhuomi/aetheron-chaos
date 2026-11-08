@@ -280,7 +280,9 @@ object Game:
     val c = ensure(player.getUUID)
     if !c.joined then return "Join the realm first: /quest join"
     Quests.byId(id) match
-      case None => s"Unknown quest '$id'. See the board: /quest board"
+      case None =>
+        val hint = didYouMean(id).map(s => s" Did you mean /quest take $s?").getOrElse("")
+        s"Unknown quest '$id'.$hint See the board: /quest board"
       case Some(q) =>
         if c.taken.contains(q.id) then "That quest is already in your log."
         else if c.level < q.minLevel then s"You must be level ${q.minLevel} for '${q.name}'. Current level: ${c.level}."
@@ -305,7 +307,9 @@ object Game:
   def track(player: ServerPlayer, id: String): String =
     val c = ensure(player.getUUID)
     Quests.byId(id) match
-      case None => s"No such quest: $id"
+      case None =>
+        val hint = didYouMean(id).map(s => s" Did you mean /quest track $s?").getOrElse("")
+        s"No such quest: $id.$hint"
       case Some(q) =>
         if !c.taken.contains(id) then s"Accept '${q.name}' first: /quest take ${q.id}"
         else if c.tracked.contains(id) then s"'${q.name}' is already tracked."
@@ -686,6 +690,27 @@ object Game:
     c.deaths = tag.getInt("deaths")
 
   // --- helpers -----------------------------------------------------------------
+
+  /** Typo help: the closest quest id within edit distance 3, e.g. bone-copllection -> bone-collection. */
+  private def didYouMean(input: String): Option[String] =
+    Quests.all
+      .map(_.id)
+      .map(id => (editDistance(id.toLowerCase, input.toLowerCase), id))
+      .filter(_._1 <= 3)
+      .sortBy(_._1)
+      .headOption
+      .map(_._2)
+
+  private def editDistance(a: String, b: String): Int =
+    var prev = Array.tabulate(b.length + 1)(identity)
+    for i <- 1 to a.length do
+      val cur = Array.ofDim[Int](b.length + 1)
+      cur(0) = i
+      for j <- 1 to b.length do
+        val sub = prev(j - 1) + (if a(i - 1) == b(j - 1) then 0 else 1)
+        cur(j) = math.min(math.min(prev(j) + 1, cur(j - 1) + 1), sub)
+      prev = cur
+    prev(b.length)
 
   private def giveItem(player: ServerPlayer, stack: net.minecraft.world.item.ItemStack): Unit =
     if !player.getInventory.add(stack) then player.drop(stack, false)
