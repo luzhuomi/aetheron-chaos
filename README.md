@@ -269,6 +269,16 @@ loop, built entirely from vanilla blocks, items and effects.
     *the Everwalking*, *the Undying*). `/quest prestige` reads the whole thing out: your tier, the
     progress to the next, and what it grants. The tier persists in the character save; old saves
     simply read as tier 0.
+22. **Hero-to-hero trading** — a vanilla client has no trade window, so the trade is the chat
+    window: `/quest trade <hero>` invites a hero standing within 40 blocks of you, and they answer
+    with a click ([Accept] / [Decline]). Each side offers **the stack in hand** (`/quest trade give`
+    — the whole stack, named legendary gear and all; `/quest trade clear` takes an offer back), and
+    both offers are read out to both heroes every step of the way. Nothing moves until **both**
+    confirm (`/quest trade confirm`, or the clickable [Confirm]) — and at the moment of the swap every
+    promised stack is re-checked against the giver's pack as it is *right now*: if anything was spent,
+    dropped or moved between offer and handshake, the trade calls itself off and says what was missing,
+    rather than lying about what changed hands. Distance is re-checked too, and a trade dies the moment
+    either hero logs off.
 
 ### Rules
 
@@ -302,6 +312,9 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest loot need <n>` / `greed <n>` | everyone | Roll on party-locked loot |
 | `/quest stats` | everyone | Your hero's stat sheet |
 | `/quest prestige` | everyone | Paragon tiers past the level cap: progress, bonuses, cost |
+| `/quest trade <hero>` | everyone | Invite a nearby hero to trade goods (chat-window trade) |
+| `/quest trade` | everyone | Read the open trade: both offers, confirm status, clickable actions |
+| `/quest trade yes/no/give/clear/confirm/cancel` | everyone | Answer an invitation; offer the stack in hand; clear it; confirm; call it off |
 | `/quest titles` | everyone | Title ladder: what you've earned and what's next, with progress |
 | `/quest title <id>` | everyone | Carry an earned title (action bar + leaderboard), `none` to set down |
 | `/quest guard` | everyone | The realm's watch: strength and shortfalls at every hub |

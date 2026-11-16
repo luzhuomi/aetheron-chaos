@@ -2,14 +2,14 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~4,750 lines, 24 files, 39 commits — see README.md.
+Current state: ~5,100 lines, 25 files, 41 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Player trading** — `/quest trade <player>` with double-confirm via chat clicks. Legends,
-   sigils and re-maning all make a tradable surplus worth having.
-2. **Trial rewards** — class trials pay XP/gold only; a small class-flavored keepsake drop
+1. **Trial rewards** — class trials pay XP/gold only; a small class-flavored keepsake drop
    would make them feel like WoW dungeons-lite, and give paragon heroes something to grind.
+2. **Threat polish** — the table landed (damage/heal/taunt aggro, hysteresis retarget).
+   Next: show it (`/quest threat`), threat from party buffs, mob-specific modifiers.
 
 ## A. Make the trinity real
 
@@ -33,8 +33,10 @@ Current state: ~4,750 lines, 24 files, 39 commits — see README.md.
 
 ## D. Social & economy
 
-- [ ] **Player trading** — `/quest trade <player>` with double-confirm via chat clicks.
-      Keep small; no UI available server-side.
+- [ ] **A trade post at the plaza** — trading works face to face now. Next: a sign at the hub where
+      a hero can leave a stack and a price, and another hero buys it later (asynchronous, safe).
+- [ ] **A guild, lightly** — parties exist; a named guild with a roster in chat and one shared
+      daily would be the next social rung. No new entities needed.
 
 ## E. Engineering
 

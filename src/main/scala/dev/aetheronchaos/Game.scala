@@ -170,6 +170,7 @@ object Game:
     val c = ensure(player.getUUID)
     c.joined = false
     leaveParty(player)
+    Trading.closeFor(player.getUUID) // a trade cannot survive one side leaving the realm
     CharacterStore.save(server)
 
   /** Server is stopping (clean /stop): persist everyone before the world closes. */
