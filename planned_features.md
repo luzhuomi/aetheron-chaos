@@ -6,10 +6,10 @@ Current state: ~5,100 lines, 25 files, 41 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Trial rewards** — class trials pay XP/gold only; a small class-flavored keepsake drop
-   would make them feel like WoW dungeons-lite, and give paragon heroes something to grind.
-2. **Threat polish** — the table landed (damage/heal/taunt aggro, hysteresis retarget).
+1. **Threat polish** — the table landed (damage/heal/taunt aggro, hysteresis retarget).
    Next: show it (`/quest threat`), threat from party buffs, mob-specific modifiers.
+2. **A trade post at the plaza** — trading works face to face now. Next: a hub sign where
+   a hero leaves a stack and a price, and another hero buys it later (asynchronous, safe).
 
 ## A. Make the trinity real
 
@@ -18,8 +18,6 @@ Current state: ~5,100 lines, 25 files, 41 commits — see README.md.
 
 ## B. Content that multiplies what exists
 
-- [ ] **Trial rewards** — class trials currently pay XP/gold only; a small class-flavored keepsake
-      drop would make them feel like WoW dungeons-lite.
 - [ ] **A barracks at the plaza** — the watch is real now (companies, horn, falls, re-maning).
       Next: a built barracks that raises a hub's charter, and gear for guards (a re-manned
       guard with a sword the war band can see).

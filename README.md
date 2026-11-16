@@ -123,7 +123,11 @@ loop, built entirely from vanilla blocks, items and effects.
    paladin *Hammer of Justice* ← The Unbroken Circle (4 creepers, Lv 12); hunter *Piercing Shot*
    ← The Long Shot (4 phantoms, Lv 12); rogue *Evasion* ← Guild Trials: Silence (6 spiders, Lv 14);
    mage *Flame Nova* ← The Crucible of Embers (4 blazes, Lv 15); priest *Protection* ←
-   The Shepherd's Vigil (6 glowstone dust, Lv 15). Completing the trial announces the spell;
+   The Shepherd's Vigil (6 glowstone dust, Lv 15). Completing the trial announces the spell **and
+    hands over a class keepsake** — *Hollowblades, the Second Rank* (warrior's axe), *The Unbroken
+    Circle* (paladin's shield, Mending), *The Long Shot* (hunter's bow), *Silence Between Steps*
+    (rogue's blade), *Emberbank* (mage's blaze-rod focus), *The Shepherd's Lamp* (a lantern that has
+    not been put down since) — each Epic-rated, each carrying the story of its trial in its lore.
    `/quest spell` shows what you're trialling for.
 
    Kills from any spell or shot grant XP, quest progress and loot exactly like melee kills;

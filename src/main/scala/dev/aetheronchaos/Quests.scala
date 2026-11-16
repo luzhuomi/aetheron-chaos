@@ -129,37 +129,53 @@ object Quests:
     Quest(
       "trial-warrior-battalion", "Hollow Battalion", 12,
       "A warrior's answer to a raid is geometry: make eight pillagers into fewer.",
-      Objective.Kill(EntityType.PILLAGER, 8, "pillagers"), 700, 12, None,
+      Objective.Kill(EntityType.PILLAGER, 8, "pillagers"), 700, 12,
+      Some(Gear(Items.IRON_AXE, "Hollowblades, the Second Rank", Rarity.Epic,
+        List(Enchantments.SHARPNESS -> 3, Enchantments.UNBREAKING -> 2),
+        "Eight ranks of pillagers fell in the same arc. This axe counted them.")),
       forClass = "warrior"
     ),
     Quest(
       "trial-paladin-circle", "The Unbroken Circle", 12,
       "Four creepers, four walls, zero detonations. The hammer learns who swings it.",
-      Objective.Kill(EntityType.CREEPER, 4, "creepers"), 680, 12, None,
+      Objective.Kill(EntityType.CREEPER, 4, "creepers"), 680, 12,
+      Some(Gear(Items.SHIELD, "The Unbroken Circle", Rarity.Epic,
+        List(Enchantments.UNBREAKING -> 3, Enchantments.MENDING -> 1),
+        "Four detonations, four walls, zero steps back. The rim remembers none of them.")),
       forClass = "paladin"
     ),
     Quest(
       "trial-hunter-longshot", "The Long Shot", 12,
       "Phantoms are the only targets that mock a bow from above. Four clean kills.",
-      Objective.Kill(EntityType.PHANTOM, 4, "phantoms"), 650, 12, None,
+      Objective.Kill(EntityType.PHANTOM, 4, "phantoms"), 650, 12,
+      Some(Gear(Items.BOW, "The Long Shot", Rarity.Epic,
+        List(Enchantments.POWER -> 3, Enchantments.UNBREAKING -> 2),
+        "The four clean kills were all the same shot, taken four times.")),
       forClass = "hunter"
     ),
     Quest(
       "trial-rogue-silence", "Guild Trials: Silence", 14,
       "The Guild counts cellars cleared, not swords drawn. Six spiders, quietly.",
-      Objective.Kill(EntityType.SPIDER, 6, "spiders"), 750, 14, None,
+      Objective.Kill(EntityType.SPIDER, 6, "spiders"), 750, 14,
+      Some(Gear(Items.IRON_SWORD, "Silence Between Steps", Rarity.Epic,
+        List(Enchantments.SHARPNESS -> 3, Enchantments.UNBREAKING -> 2),
+        "The Guild audited the cellar. Nothing in it died loudly.")),
       forClass = "rogue"
     ),
     Quest(
       "trial-mage-embers", "The Crucible of Embers", 15,
       "A nova is a circle of fire you stand in the middle of. Prove you survive one: four blazes.",
-      Objective.Kill(EntityType.BLAZE, 4, "blazes"), 900, 15, None,
+      Objective.Kill(EntityType.BLAZE, 4, "blazes"), 900, 15,
+      Some(Gear(Items.BLAZE_ROD, "Emberbank", Rarity.Epic, List(),
+        "It burns a little brighter in the middle of a ring of fire. You should know.")),
       forClass = "mage"
     ),
     Quest(
       "trial-priest-vigil", "The Shepherd's Vigil", 15,
       "Six altars dark, six lamps to carry. Protection is learned by staying awake.",
-      Objective.Collect(Items.GLOWSTONE_DUST, 6), 850, 15, None,
+      Objective.Collect(Items.GLOWSTONE_DUST, 6), 850, 15,
+      Some(Gear(Items.SEA_LANTERN, "The Shepherd's Lamp", Rarity.Epic, List(),
+        "Lit for six altars that had gone dark. It has not been put down since.")),
       forClass = "priest"
     ),
     // --- the daily rotation pool: three of these are posted realm-wide each day -----
