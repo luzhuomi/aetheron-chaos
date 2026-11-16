@@ -95,6 +95,7 @@ loop, built entirely from vanilla blocks, items and effects.
    |---|---|---|
    | Charge | Lv 1 | leap up to 6 blocks toward your aim, slamming + knocking back foes on landing |
    | Deep Wound | Lv 3 | the aimed foe bleeds (withers) for 5s |
+   | Taunt | Lv 5 | the aimed foe must come at you — hold its attention |
    | Whirlwind | Lv 12 | 4 dmg to all foes around you (4 blocks) |
    | Intimidating Shout | Lv 18 | scare foes within 5 blocks into fleeing |
    | Avatar | Lv 25 | harder hits for 10s |
@@ -107,6 +108,7 @@ loop, built entirely from vanilla blocks, items and effects.
    |---|---|---|
    | Consecrate | Lv 1 | 2.5 holy dmg to all foes around you (3 blocks) |
    | Lay on Hands | Lv 5 | mend up to 10 HP on yourself |
+   | Challenge | Lv 8 | sound the war-horn: all foes within 5 blocks turn on you |
    | Hammer of Justice | Lv 12 | stun the aimed foe in place ~3s (+ small dmg) |
    | Guardian's Blessing | Lv 15 | Damage Resistance on yourself for 6s |
    | Divine Storm | Lv 25 | 5 holy dmg to all foes around you (4.5 blocks) |
@@ -160,8 +162,13 @@ loop, built entirely from vanilla blocks, items and effects.
 
 12. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
     *Silithis the Broodmother*) spawns near a random hero with a server announcement: **10x XP and
-    guaranteed loot**. Ops can trigger one with `/quest rare`. Fair fight rule: if the whole party
-    (or a solo hero) dies while engaged with the rare, it fades away — no respawn-grinding it down.
+    guaranteed loot**. A **boss bar** with its name and live HP appears at the top of every hero's
+    screen while it lives (vanilla boss-event packet — no client mods). Ops can trigger one with
+    `/quest rare`. Fair fight rule: if the whole party (or a solo hero) dies while engaged with the
+    rare, it fades away — no respawn-grinding it down.
+13. **Hold the line** — warrior *Taunt* (aimed) and paladin *Challenge* (war-horn, 5 blocks) force
+    foes to come at you. Stand between the party and the rare, keep its eyes on you, and the healer
+    stops getting mauled — a real tank trio, server-side.
 
 ### Rules
 

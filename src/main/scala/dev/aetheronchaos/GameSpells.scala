@@ -110,6 +110,9 @@ object GameSpells:
         case "stun"     => s"${s.damage} dmg + stuns the aimed foe in place ~3s"
         case "fear"     => s"scare foes within ${s.aoeRadius.toInt} blocks into fleeing"
         case "mendself" => s"mend up to ${s.damage.toInt} HP on yourself"
+        case "taunt"    =>
+          if s.effect == "single" then "taunt the aimed foe - it must come at you"
+          else s"challenge all foes within ${s.aoeRadius.toInt} blocks to battle you"
         case "arrows"  =>
           val rider = s.effect match
             case "poison" => ", poisons"

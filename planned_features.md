@@ -2,25 +2,22 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~3,000 lines, 20 files, 23 commits — see README.md.
+Current state: ~3,100 lines, 20 files, 24 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Bossbar + taunt pair** — bossbar HP for rares (`ClientboundBossEventPacket`, ~30 lines)
-   plus paladin *Challenge* (AoE aggro pull) and warrior *Taunt* (single target). Turns rares
-   from "buffed mob" into boss encounters and makes the tank role real.
-2. **Adopt vanilla villages as towns** — detect village structures, graft in a board/vendor/NPCs.
+1. **Adopt vanilla villages as towns** — detect village structures, graft in a board/vendor/NPCs.
    Biggest content multiplier relative to systems that already exist.
+2. **Quest chains** — finishing A unlocks B; turns one-step quests into story and gives the
+   adopted villages something to say.
 
 ## A. Make the trinity real
 
-- [ ] **Bossbar HP for rares** — vanilla boss event packet, synced from the `activeRares`
-      registry; bar follows the rare the engaged group is fighting.
-- [ ] **Taunt abilities** — paladin *Challenge* (AoE pull), warrior *Taunt* (single target);
-      `Mob.setTarget` server-side. Tanks gain a real job in parties.
 - [ ] **Healer XP from healing** — small XP per HP restored on allies, so support priests
       aren't starved in melee parties.
 - [ ] **Party-scaled rares** — HP × (1 + 0.5 per extra member), announced at spawn.
+- [ ] **Threat table** — taunt now forces targets; a real threat list (heal = aggro, damage
+      over time = aggro) would make party tactics fully MMO-like. Needs per-mob bookkeeping.
 
 ## B. Content that multiplies what exists
 

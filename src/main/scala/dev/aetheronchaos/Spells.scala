@@ -26,8 +26,9 @@ import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.Vec3
 
-/** A class spell. Learned automatically at unlockLevel. kind: bolt | heal | purify | protect | blink | burst | steal | buff | arrows | wound | stun | fear | mendself.
+/** A class spell. kind: bolt | heal | purify | protect | blink | burst | steal | buff | arrows | wound | stun | fear | mendself | taunt.
  *  Notes: heal/mendself damage = HP restored; buff damage = duration in ticks; wound damage = wither ticks;
+ *  taunt effect: single = the aimed foe, otherwise all foes within aoeRadius;
  *  aoeRadius doubles as blink/charge distance. */
 final case class Spell(
     id: String,
@@ -83,12 +84,14 @@ object Spells:
     // warrior - might (focus: any axe; wound damage = wither ticks)
     Spell("charge", "Charge", 1, 1.5f, 140, "might", 6.0, kind = "blink", effect = "charge", school = "might"),
     Spell("deep-wound", "Deep Wound", 3, 100f, 120, "might", kind = "wound", school = "might"),
+    Spell("taunt", "Taunt", 5, 0f, 100, "might", kind = "taunt", effect = "single", school = "might"),
     Spell("whirlwind", "Whirlwind", 12, 4.0f, 170, "might", 4.0, kind = "burst", school = "might"),
     Spell("intimidating-shout", "Intimidating Shout", 18, 0f, 300, "might", 5.0, kind = "fear", school = "might"),
     Spell("avatar", "Avatar", 25, 200f, 600, "might", kind = "buff", effect = "rage", school = "might"),
     // paladin - crusade (focus: any shield)
     Spell("consecrate", "Consecrate", 1, 2.5f, 120, "holy", 3.0, kind = "burst", school = "crusade"),
     Spell("lay-on-hands", "Lay on Hands", 5, 10.0f, 200, "holy", kind = "mendself", school = "crusade"),
+    Spell("challenge", "Challenge", 8, 0f, 160, "holy", 5.0, kind = "taunt", school = "crusade"),
     Spell("hammer-of-justice", "Hammer of Justice", 12, 1.5f, 200, "holy", kind = "stun", school = "crusade"),
     Spell("guardians-blessing", "Guardian's Blessing", 15, 120f, 400, "holy", kind = "buff", effect = "guard", school = "crusade"),
     Spell("divine-storm", "Divine Storm", 25, 5.0f, 240, "holy", 4.5, kind = "burst", school = "crusade")
@@ -171,6 +174,7 @@ object Spells:
       case "wound"    => castWound(caster, spell)
       case "stun"     => castStun(caster, spell)
       case "fear"     => castFear(caster, spell)
+      case "taunt"    => castTaunt(caster, spell)
       case "mendself" => castMendSelf(caster, spell)
       case _          => castBolt(caster, spell)
 
@@ -419,6 +423,38 @@ object Spells:
         else
           Game.message(caster, "Only the wind heeds your shout.", ChatFormatting.GRAY)
       case _ => ()
+
+  /** Taunt (warrior, aimed) / Challenge (paladin, around you): foes take their anger out on you. */
+  private def castTaunt(caster: ServerPlayer, spell: Spell): Unit =
+    if spell.effect == "single" then
+      aimFoe(caster, 10.0) match
+        case Some(t) =>
+          t.setTarget(caster)
+          t.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 40, 0, true, true))
+          t.level match
+            case sl: ServerLevel =>
+              sl.sendParticles(ParticleTypes.ANGRY_VILLAGER, t.getX, t.getY + 1.6, t.getZ, 8, 0.3, 0.3, 0.3, 0.0)
+            case _ => ()
+          Game.message(caster, s"${t.getDisplayName.getString} glares back at you - its eyes are on you now.", ChatFormatting.YELLOW)
+        case None =>
+          Game.message(caster, "No foe hears your taunt. Aim at one in reach.", ChatFormatting.GRAY)
+    else
+      caster.level match
+        case sl: ServerLevel =>
+          val c = caster.position()
+          val box = new AABB(c, c).inflate(spell.aoeRadius)
+          val foes = sl.getEntitiesOfClass(classOf[Monster], box, (m: Monster) => m.isAlive && m.getTarget != caster)
+          foes.forEach((m: Monster) =>
+            m.setTarget(caster)
+            m.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 40, 0, true, true))
+          )
+          sl.sendParticles(ParticleTypes.END_ROD, c.x, c.y + 1.4, c.z, 24, 1.2, 0.6, 1.2, 0.05)
+          sl.playSound(null, caster, SoundEvents.GOAT_HORN_PLAY, SoundSource.PLAYERS, 1.0f, 0.7f)
+          if !foes.isEmpty then
+            Game.message(caster, s"${foes.size} foes turn their anger on you - hold the line!", ChatFormatting.GOLD)
+          else
+            Game.message(caster, "You call out to the horizon. Nothing answers.", ChatFormatting.GRAY)
+        case _ => ()
 
   /** Lay on Hands: mend yourself. */
   private def castMendSelf(caster: ServerPlayer, spell: Spell): Unit =

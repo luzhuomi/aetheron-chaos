@@ -8,16 +8,19 @@ import net.minecraft.ChatFormatting
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerBossEvent
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
+import net.minecraft.world.BossEvent
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.entity.ai.attributes.Attributes
 
 /**
  * Rare-elite lifecycle: the spawn scheduler, the live registry (so a party wipe can
- * end a fight instead of letting players grind it down), and the spawn itself.
+ * end a fight instead of letting players grind it down), the boss bar shown while a
+ * rare lives, and the spawn itself.
  * The rare table lives in Enemies.scala; XP crediting stays in Game.awardKill.
  */
 object GameRares:
@@ -25,9 +28,12 @@ object GameRares:
   private var nextRareTick = 200L // first rare appears 10 seconds into the server run
   // live rare elites, so a party wipe can end the fight instead of letting players grind it down
   private val activeRares = mutable.LinkedHashSet[Mob]()
+  // boss bar per live rare (vanilla boss-event packet: every vanilla client renders it)
+  private val rareBars = mutable.Map[Mob, ServerBossEvent]()
 
-  /** Called from Game.tick: spawns the next scheduled rare near a random online hero. */
+  /** Called from Game.tick: keeps the rare boss bars honest, then spawns the next scheduled rare. */
   private[aetheronchaos] def tickScheduler(server: MinecraftServer): Unit =
+    sweepBars(server)
     if Game.now >= nextRareTick then
       nextRareTick = Game.now + Game.RareIntervalTicks
       val online = server.getPlayerList.getPlayers.asScala.filter(Game.isJoined)
@@ -35,8 +41,28 @@ object GameRares:
         val target = online.toSeq(rng.nextInt(online.size))
         spawnRare(target, None)
 
+  /** Update HP bars, drop bars of dead or faded rares, keep every hero subscribed. */
+  private def sweepBars(server: MinecraftServer): Unit =
+    if rareBars.isEmpty then return
+    val online = server.getPlayerList.getPlayers.asScala.toList
+    rareBars.toList.foreach { (r, bar) =>
+      if !r.isAlive || r.isRemoved then
+        rareBars -= r
+        activeRares -= r
+        bar.removeAllPlayers()
+      else
+        bar.setProgress(math.max(0.0f, r.getHealth / r.getMaxHealth))
+        // heroes who joined or reloaded mid-fight get the bar too (addPlayer is idempotent)
+        online.foreach(bar.addPlayer)
+    }
+
   /** Called from Game.awardKill when a rare dies by player hands. */
-  private[aetheronchaos] def forget(victim: Mob): Unit = activeRares -= victim
+  private[aetheronchaos] def forget(victim: Mob): Unit =
+    activeRares -= victim
+    rareBars.remove(victim).foreach { bar =>
+      bar.setProgress(0.0f)
+      bar.removeAllPlayers()
+    }
 
   def spawnRare(player: ServerPlayer, nameOpt: Option[String]): String =
     val chosen = nameOpt.flatMap(n => Enemies.rares.find(_.name.equalsIgnoreCase(n)))
@@ -59,6 +85,14 @@ object GameRares:
             Option(m.getAttribute(Attributes.ATTACK_DAMAGE)).foreach(a => a.setBaseValue(a.getBaseValue * chosen.attackMult))
             serverLevel.addFreshEntity(m)
             activeRares += m
+            val bar = new ServerBossEvent(
+              Component.literal(chosen.name).withStyle(ChatFormatting.LIGHT_PURPLE),
+              BossEvent.BossBarColor.PURPLE,
+              BossEvent.BossBarOverlay.NOTCHED_10
+            )
+            bar.setProgress(1.0f)
+            serverLevel.players().forEach(bar.addPlayer) // everyone online sees the fight start
+            rareBars += m -> bar
             Game.broadcast(
               player.server,
               Component
@@ -84,6 +118,7 @@ object GameRares:
       val engaged = group.exists(g => r.getTarget == g || r.distanceToSqr(g) < 900) // targeting or within 30 blocks
       if engaged then
         activeRares -= r
+        rareBars.remove(r).foreach(_.removeAllPlayers())
         r.discard()
         r.level match
           case sl: ServerLevel =>
