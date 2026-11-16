@@ -59,6 +59,13 @@ object QuestCommand:
                   .executes(ctx => withPlayer(ctx, p => Game.partyJoin(p, StringArgumentType.getString(ctx, "name"))))
               )
           )
+          .`then`(
+            Commands.literal("warp")
+              .`then`(
+                Commands.argument("hub", IntegerArgumentType.integer())
+                  .executes(ctx => withPlayer(ctx, p => GameQuests.warp(p, IntegerArgumentType.getInteger(ctx, "hub"))))
+              )
+          )
           .`then`(Commands.literal("stats").executes(ctx => withPlayer(ctx, Game.statsReport)))
           .`then`(Commands.literal("top").executes(ctx => top(ctx)))
           .`then`(Commands.literal("shop").executes(ctx => withPlayerSilent(ctx, GameShop.shopMenu)))
@@ -195,6 +202,7 @@ object QuestCommand:
           .literal(
             "Aetheron Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
               "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest track <id> (quest compass), /quest turnin <id> (at the board), " +
+              "/quest warp <n> (wayside portal at any board), " +
               "/quest party <name>, /quest shop (spend gold), /quest stats, /quest top. Ops: /quest town, /quest clear, /quest rare. " +
               "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."
           )

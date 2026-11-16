@@ -5,9 +5,11 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
 import net.minecraft.ChatFormatting
+import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
@@ -15,6 +17,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 
@@ -252,6 +255,40 @@ object GameQuests:
     Game.addXp(member, q.xp + bonusXp)
     member.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.0f, 1.0f)
 
+  // --- the wayside portal: boards are the network -----------------------------------
+
+  /** Step up to any quest board and pay gold to fold the road to another hub. */
+  def warp(player: ServerPlayer, index: Int): String =
+    val c = Game.ensure(player.getUUID)
+    if !c.joined then return "Join the realm first: /quest join"
+    if TownBuilder.boardCount == 0 then return "The network has no stations yet - towns raise boards."
+    if !TownBuilder.nearBoard(player) then return "Step up to a quest board to use the wayside portal."
+    TownBuilder.townNearest(player) match
+      case None => "The board you stand at is no longer on the network."
+      case Some(here) =>
+        TownBuilder.townByIndex(index) match
+          case None => s"There is no hub #$index on the network. The board lists what there is."
+          case Some(dest) if dest == here => "You already stand here, hero."
+          case Some(dest) =>
+            val cost = TownBuilder.warpCost(here, dest)
+            val gold = Game.countItem(player, Items.GOLD_NUGGET)
+            if gold < cost then s"The portal to ${TownBuilder.townLabel(dest)} asks $cost gold - you carry only $gold."
+            else
+              Game.removeItems(player, Items.GOLD_NUGGET, cost)
+              foldTheRoad(player, dest)
+              s"The wayside portal folds the road: ${TownBuilder.townLabel(here)} -> ${TownBuilder.townLabel(dest)} for $cost gold (${gold - cost} left)."
+
+  /** The fold itself: a poof here, a chorp there, standing on the far plaza. */
+  private def foldTheRoad(player: ServerPlayer, dest: TownBuilder.Town): Unit =
+    player.level match
+      case sl: ServerLevel =>
+        sl.sendParticles(ParticleTypes.PORTAL, player.getX, player.getY + 1.0, player.getZ, 30, 0.4, 0.8, 0.4, 0.02)
+        sl.playSound(null, player, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0f, 0.9f)
+        val stand = TownBuilder.plazaStand(dest)
+        player.teleportTo(stand.getX + 0.5, stand.getY.toDouble, stand.getZ + 0.5)
+        sl.sendParticles(ParticleTypes.PORTAL, player.getX, player.getY + 1.0, player.getZ, 30, 0.4, 0.8, 0.4, 0.02)
+      case _ => ()
+
   /** The quest-board menu: turn-in offers on top, then quests you may take. Both are clickable. */
   def boardMenu(player: ServerPlayer): Unit =
     val c = Game.ensure(player.getUUID)
@@ -301,6 +338,18 @@ object GameQuests:
             false
           )
       )
+    // wayside portal: every board is a station on the network
+    val offers = TownBuilder.warpOffers(player)
+    if offers.nonEmpty then
+      Game.message(player, "WAYSIDE PORTAL (pay the toll at the portal, arrive on the far plaza):", ChatFormatting.LIGHT_PURPLE)
+      offers.foreach { (n, label, cost) =>
+        player.displayClientMessage(
+          Component
+            .literal(s"[warp #$n] $label -> $cost gold")
+            .withStyle(s => s.withColor(ChatFormatting.LIGHT_PURPLE).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest warp $n"))),
+          false
+        )
+      }
     val taken = c.taken.toList.flatMap(Quests.byId)
     if taken.nonEmpty then
       Game.message(player, "In your log:", ChatFormatting.YELLOW)

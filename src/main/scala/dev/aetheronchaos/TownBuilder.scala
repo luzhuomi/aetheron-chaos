@@ -158,6 +158,34 @@ object TownBuilder:
   /** The starter town the newcomers spawn at (first capital, else any town). */
   private def capitalTown: Option[Town] = towns.find(_.capital).orElse(towns.headOption)
 
+  /** Where a warrier or newcomer is placed inside a hub: the plaza stone, one step in. */
+  def plazaStand(t: Town): BlockPos = atOf(t.base, t.dir)(2, 0, 1)
+
+  /** How the realm labels a hub in warp listings and announcements. */
+  def townLabel(t: Town): String =
+    if t.capital then "Hearthhome, the first town"
+    else if t.adopted then s"Village at ${t.base.getX}, ${t.base.getZ}"
+    else s"Outpost at ${t.base.getX}, ${t.base.getZ}"
+
+  def townByIndex(n: Int): Option[Town] = towns.lift(n - 1)
+
+  /** The hub whose grounds the player is standing at (nearest registered hub). */
+  def townNearest(player: ServerPlayer): Option[Town] =
+    towns.minByOption(t => player.blockPosition.distSqr(t.base))
+
+  /** Gold a wayside portal asks: one per 20 blocks folded, minimum five. */
+  def warpCost(from: Town, to: Town): Int =
+    math.max(5, (math.sqrt(from.base.distSqr(to.base)) / 20.0).floor.toInt)
+
+  /** Other hubs reachable from the board the player stands at: (index, label, gold). */
+  def warpOffers(player: ServerPlayer): List[(Int, String, Int)] =
+    townNearest(player) match
+      case None => Nil
+      case Some(here) =>
+        towns.zipWithIndex.toList.collect {
+          case (t, i) if t != here => (i + 1, townLabel(t), warpCost(here, t))
+        }
+
   // --- building -------------------------------------------------------------------
 
   /** Manual build: /quest town in front of the player. */

@@ -200,6 +200,11 @@ loop, built entirely from vanilla blocks, items and effects.
     (30%), so targets never flicker. The tank's job is to top the list and stay there; healers
     must respect who the mob is angry at; bursty DPS waits its turn. Frightened mobs (Intimidating
     Shout) stop keeping score entirely. Mobs no hero has ever fought are left to vanilla AI.
+15. **Wayside portals** — every quest board is a station on the realm's travel network. Standing at
+    a board, the menu lists every other hub with a gold toll (1 gold per 20 blocks folded, 5
+    minimum — a real sink), and `/quest warp <n>` takes you there in a swirl of portal particles,
+    arriving on the far plaza. Built hubs, the capital and adopted villages are all stations, so
+    exploring new villages pays out as a travel network the very same day you find them.
 
 ### Rules
 
@@ -216,7 +221,8 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest roles` | everyone | List the hero classes |
 | `/quest class <name>` | everyone | Choose a class (grants its gear) |
 | `/quest spell [id]` | everyone | Spellbook: list or equip a spell (mage/priest) |
-| `/quest board` | everyone | Quest-board menu (accept / turn in, clickable) |
+| `/quest board` | everyone | Quest-board menu (accept / turn in / warp, clickable) |
+| `/quest warp <n>` | everyone | Wayside portal to hub #n — stand at a board, pay the gold toll |
 | `/quest take <id>` | everyone | Accept a quest |
 | `/quest log` | everyone | Show your quest log and progress |
 | `/quest abandon <id>` | everyone | Drop a quest |

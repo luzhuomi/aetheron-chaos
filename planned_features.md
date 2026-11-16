@@ -2,14 +2,14 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~3,450 lines, 21 files, 31 commits — see README.md.
+Current state: ~3,600 lines, 21 files, 33 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Class quests at milestones** — unlock the Lv 15 spell only after a small class-flavored
-   quest; the chain machinery from quest-chains makes this mostly data now.
-2. **Teleport between towns for gold** — waypoint network at quest boards; content + gold sink
-   in one feature, and adopted villages suddenly become a travel network.
+1. **Legendary tier** — boss-hunt-only drops + shop upgrade path (rare + 100g + boss token ->
+   legendary); the loot treadmill currently stops at Epic, and rare kills deserve a crown.
+2. **Invasion nights** — occasionally hostiles besiege a town for ~5 minutes; everyone defends,
+   shared reward. Reuses the town guard, the rare scheduler and the boss bar.
 
 ## A. Make the trinity real
 
@@ -18,8 +18,8 @@ Current state: ~3,450 lines, 21 files, 31 commits — see README.md.
 
 ## B. Content that multiplies what exists
 
-- [ ] **Class quests at milestones** — unlock the Lv 15 spell only after a small class-flavored
-      quest (WoW Classic style; makes unlocks memorable).
+- [ ] **Trial rewards** — class trials currently pay XP/gold only; a small class-flavored keepsake
+      drop would make them feel like WoW dungeons-lite.
 
 ## C. Endgame
 
@@ -32,8 +32,6 @@ Current state: ~3,450 lines, 21 files, 31 commits — see README.md.
 
 ## D. Social & economy
 
-- [ ] **Teleport between towns for gold** — waypoint network at quest boards; content +
-      gold sink in one feature.
 - [ ] **Invasion nights** — occasionally hostiles besiege a town for ~5 minutes; everyone
       defends, shared reward. Reuses the town guard system.
 - [ ] **Player trading** — `/quest trade <player>` with double-confirm via chat clicks.
