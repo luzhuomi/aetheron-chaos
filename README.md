@@ -234,6 +234,13 @@ loop, built entirely from vanilla blocks, items and effects.
     quest content too: the daily rotation can post **Hold the Wall**, whose objective counts only
     hostiles driven off during a siege, and its quest compass points straight at the war band while
     one is on the ground.
+19. **Titles and the ladder** — the realm notices repetition. Sixteen titles are plain checks on
+    counters the realm already keeps: kills, rare elites slain, quests turned in, **sieges held**,
+    **captains felled**, **legends forged**, level, deaths. Earning one is announced to the hero and
+    broadcast to the realm. `/quest titles` shows what you carry and the six titles nearest to hand
+    with live progress; `/quest title <id>` carries one — it rides on your action bar next to your
+    class and beside your name in `/quest top`. No new systems, no UI: recognition layered on the
+    play you already do. Earned titles and their counters persist in the character save.
 
 ### Rules
 
@@ -266,6 +273,8 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest forge [pattern]` | everyone | Legend Forge: base gear + 100 gold + 1 sigil → legendary gear |
 | `/quest loot need <n>` / `greed <n>` | everyone | Roll on party-locked loot |
 | `/quest stats` | everyone | Your hero's stat sheet |
+| `/quest titles` | everyone | Title ladder: what you've earned and what's next, with progress |
+| `/quest title <id>` | everyone | Carry an earned title (action bar + leaderboard), `none` to set down |
 | `/quest top` | everyone | Server leaderboard |
 | `/quest town` | op (level 2) | Auto-build a quest hub in front of you |
 | `/quest clear [all]` | op (level 2) | Remove built hubs |

@@ -60,6 +60,8 @@ object Game:
   private val ThreatSweepTicks = 40L
   // village adoption scan: how often heroes' surroundings are checked for vanilla villages
   private val VillageScanIntervalTicks = 200L
+  // title ladder: how often earned titles are noticed (counters move everywhere, so we poll)
+  private val AchievementCheckTicks = 100L
 
 
   final class Character(val uuid: UUID):
@@ -85,6 +87,13 @@ object Game:
     var kills: Int = 0
     var rareKills: Int = 0
     var deaths: Int = 0
+    // what the title ladder counts (see Achievements.scala)
+    var siegesHeld: Int = 0
+    var captainsFelled: Int = 0
+    var legendsForged: Int = 0
+    // achievement ids earned, and the title currently carried
+    val titles = mutable.LinkedHashSet[String]()
+    var title: String = ""
 
   private val characters = mutable.Map[UUID, Character]()
   private val parties = mutable.Map[String, mutable.LinkedHashSet[UUID]]()
@@ -453,15 +462,19 @@ object Game:
     val c = ensure(player.getUUID)
     val hc = heroClassOf(c).map(_.name).getOrElse("Adventurer")
     val need = xpToNext(c.level)
-    s"Lv ${c.level} $hc | XP ${c.xp}/$need | kills ${c.kills} (${c.rareKills} rare) | deaths ${c.deaths} | quests in log ${c.taken.size}"
+    val carried = Achievements.byId(c.title).map(a => s" | carrying \"${a.title}\"").getOrElse("")
+    val next = Achievements.ladder(c).headOption
+      .map { (a, have, goal) => s"\nNext title: ${a.title} - $have/$goal (${a.how})" }
+      .getOrElse("\nEvery title this realm has to give is yours.")
+    s"Lv ${c.level} $hc | XP ${c.xp}/$need | kills ${c.kills} (${c.rareKills} rare) | deaths ${c.deaths} | quests in log ${c.taken.size} | titles ${c.titles.size}/${Achievements.all.size}$carried$next"
 
-  def leaderboard(server: MinecraftServer): List[(String, Int, String)] =
-    val merged = mutable.Map[UUID, (Int, String, String)]() // level, classId, saved name
+  def leaderboard(server: MinecraftServer): List[(String, Int, String, String)] =
+    val merged = mutable.Map[UUID, (Int, String, String, String)]() // level, classId, saved name, carried title
     CharacterStore.readAll(server).foreach { (uuid, tag) =>
-      merged(uuid) = (tag.getInt("level"), tag.getString("class"), tag.getString("name"))
+      merged(uuid) = (tag.getInt("level"), tag.getString("class"), tag.getString("name"), tag.getString("title"))
     }
     characters.foreach { (uuid, c) =>
-      if c.level > merged.get(uuid).map(_._1).getOrElse(0) then merged(uuid) = (c.level, c.classId, c.displayName)
+      if c.level > merged.get(uuid).map(_._1).getOrElse(0) then merged(uuid) = (c.level, c.classId, c.displayName, c.title)
     }
     merged.toList
       .map { entry =>
@@ -470,7 +483,7 @@ object Game:
         val classId = entry._2._2
         val savedName = entry._2._3
         val name = Option(server.getPlayerList.getPlayer(uuid)).map(_.getName.getString).getOrElse(savedName)
-        (name, level, HeroClasses.byId(classId).map(_.name).getOrElse("Adventurer"))
+        (name, level, HeroClasses.byId(classId).map(_.name).getOrElse("Adventurer"), entry._2._4)
       }
       .sortBy(row => -row._2)
       .take(10)
@@ -516,6 +529,8 @@ object Game:
       GameQuests.announceDailies(server) // the board's daily rotation wakes with the realm
     GameRares.tickScheduler(server)
     Invasion.tickScheduler(server)
+    if elapsedTicks % AchievementCheckTicks == 0 then
+      server.getPlayerList.getPlayers.asScala.filter(isJoined).foreach(Achievements.check)
     GameQuests.tickNavigation(server)
     server.getPlayerList.getPlayers.asScala.filter(isJoined).foreach { p =>
       Hud.update(p)
@@ -544,6 +559,11 @@ object Game:
     tag.putInt("kills", c.kills)
     tag.putInt("rareKills", c.rareKills)
     tag.putInt("deaths", c.deaths)
+    tag.putInt("sieges", c.siegesHeld)
+    tag.putInt("captains", c.captainsFelled)
+    tag.putInt("legends", c.legendsForged)
+    tag.putString("titles", c.titles.mkString(","))
+    tag.putString("title", c.title)
     tag
 
   private[aetheronchaos] def mergeFromTag(uuid: UUID, tag: CompoundTag): Unit =
@@ -568,6 +588,14 @@ object Game:
     c.kills = tag.getInt("kills")
     c.rareKills = tag.getInt("rareKills")
     c.deaths = tag.getInt("deaths")
+    // the title ladder (fields are absent in saves written before it existed)
+    c.siegesHeld = tag.getInt("sieges")
+    c.captainsFelled = tag.getInt("captains")
+    c.legendsForged = tag.getInt("legends")
+    if tag.contains("titles") && tag.getString("titles").nonEmpty then
+      c.titles ++= tag.getString("titles").split(",").toSeq
+    if tag.contains("title") then c.title = tag.getString("title")
+    if !c.titles.contains(c.title) then c.title = Achievements.earnedAll(c).headOption.map(_.id).getOrElse("")
 
   // --- helpers -----------------------------------------------------------------
 
@@ -595,6 +623,13 @@ object Game:
 
   private[aetheronchaos] def giveCoins(player: ServerPlayer, amount: Int): Unit =
     giveItem(player, Loot.coinStack(amount))
+
+  /** The title ladder counts these; Achievements.check notices them on its slow tick. */
+  private[aetheronchaos] def creditSiegeHeld(player: ServerPlayer): Unit = ensure(player.getUUID).siegesHeld += 1
+
+  private[aetheronchaos] def creditCaptainFell(player: ServerPlayer): Unit = ensure(player.getUUID).captainsFelled += 1
+
+  private[aetheronchaos] def creditLegendForged(player: ServerPlayer): Unit = ensure(player.getUUID).legendsForged += 1
 
   private[aetheronchaos] def message(player: ServerPlayer, text: String, color: ChatFormatting): Unit =
     player.displayClientMessage(Component.literal(text).withStyle(color), false)

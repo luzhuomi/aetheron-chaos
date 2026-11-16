@@ -277,6 +277,7 @@ object Invasion:
         Game.creditWarBandKill(player)
         if s.captains.remove(victim) then
           s.captainsFelled += 1
+          Game.creditCaptainFell(player)
           Game.giveCoins(player, CaptainBonusGold)
           defenders(s).foreach { h =>
             Game.message(h, s"${victim.getName.getString} falls. The war band falters - its next wave arrives thin.", ChatFormatting.LIGHT_PURPLE)
@@ -321,6 +322,7 @@ object Invasion:
       Option(server.getPlayerList.getPlayer(uuid)).filter(Game.isJoined).foreach { hero =>
         val gold = RewardBaseGold + RewardGoldPerKill * scored
         val xp = RewardBaseXp + RewardXpPerKill * scored
+        Game.creditSiegeHeld(hero)
         Game.giveCoins(hero, gold)
         Game.addXp(hero, xp.toLong)
         val proof =

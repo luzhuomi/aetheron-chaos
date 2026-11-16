@@ -84,6 +84,7 @@ object GameShop:
           Game.takeSigil(player)
           Game.takeItem(player, f.baseItem, isForgeableBase)
           Game.giveItem(player, Loot.stack(f.gear, player.level.registryAccess()))
+          Game.creditLegendForged(player)
           forgeSparks(player)
           s"${f.gear.name} is struck: ${baseName(f.baseItem)} + ${f.gold} gold + one sigil, ${gold - f.gold} gold left. ${f.flavor}"
 

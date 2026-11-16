@@ -67,6 +67,21 @@ object QuestCommand:
               )
           )
           .`then`(Commands.literal("stats").executes(ctx => withPlayer(ctx, Game.statsReport)))
+          .`then`(Commands.literal("titles").executes(ctx => withPlayer(ctx, Achievements.report)))
+          .`then`(
+            Commands.literal("title")
+              .executes(ctx => withPlayer(ctx, p => Achievements.report(p)))
+              .`then`(
+                Commands.argument("title", StringArgumentType.word())
+                  .suggests((ctx, builder) =>
+                    val earned = ctx.getSource.getEntity match
+                      case p: ServerPlayer => Game.ensure(p.getUUID).titles.toList
+                      case _ => Nil
+                    SharedSuggestionProvider.suggest(earned.asJava, builder)
+                  )
+                  .executes(ctx => withPlayer(ctx, p => Achievements.carry(p, StringArgumentType.getString(ctx, "title"))))
+              )
+          )
           .`then`(Commands.literal("top").executes(ctx => top(ctx)))
           .`then`(Commands.literal("shop").executes(ctx => withPlayerSilent(ctx, GameShop.shopMenu)))
           .`then`(
@@ -203,9 +218,10 @@ object QuestCommand:
       ctx.getSource.sendSuccess(() => Component.literal("No heroes yet. Be the first: /quest join").withStyle(ChatFormatting.GRAY), false)
     else
       ctx.getSource.sendSuccess(() => Component.literal("Heroes of the realm:").withStyle(ChatFormatting.GOLD), false)
-      rows.zipWithIndex.foreach { case ((name, level, cls), i) =>
+      rows.zipWithIndex.foreach { case ((name, level, cls, titleId), i) =>
+        val titleTag = Achievements.byId(titleId).map(t => s" \"${t.title}\"").getOrElse("")
         ctx.getSource.sendSuccess(
-          () => Component.literal(s"${i + 1}. Lv $level $cls - $name").withStyle(ChatFormatting.AQUA),
+          () => Component.literal(s"${i + 1}. Lv $level $cls$titleTag - $name").withStyle(ChatFormatting.AQUA),
           false
         )
       }
@@ -219,7 +235,7 @@ object QuestCommand:
             "Aetheron Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
               "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest track <id> (quest compass), /quest turnin <id> (at the board), " +
               "/quest warp <n> (wayside portal at any board), " +
-              "/quest party <name>, /quest shop (spend gold), /quest forge (strike legends), /quest stats, /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
+              "/quest party <name>, /quest shop (spend gold), /quest forge (strike legends), /quest stats, /quest titles (carry one with /quest title), /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
               "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."
           )
           .withStyle(ChatFormatting.YELLOW),
