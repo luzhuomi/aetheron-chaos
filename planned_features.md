@@ -2,59 +2,57 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~6,300 lines across 29 files, 54 commits, plus a unit-tested `Formulas.scala`
-(`./gradlew test`) and a host-facing `aetheron-chaos-tuning.conf` — see README.md and AGENTS.md.
+Current state: ~6,500 lines across 29 files, 60 commits, 14 unit specs (`./gradlew test`),
+a host-facing `aetheron-chaos-tuning.conf` and an ops readout (`/quest tuning`) — see
+README.md and AGENTS.md.
 
 ## Top picks (next sessions)
 
-1. **Tests over more of the math** — the pure-logic harness now exists (`Formulas.scala` +
-   munit). Next candidates: the Shop price/buy tables, the Loot rarity bands (`maxRarityFor`,
-   the tier+1 enchant bump), and the guild daily/charter numbers — each needs a small pure
-   extraction, exactly like the first one.
-2. **A guild, a little deeper** — charters, rosters and the shared daily landed. Next: a
-   rented **banner at a hub plaza** (a real banner block a guild raises for gold, like the
-   barracks did) or a guild column on `/quest top`. Both ride existing machinery.
-
-## A. Make the trinity real
-
-- [ ] **Party frames, chat-side** — the HUD shows party names; a compact `/quest party`
-      readout with everyone's HP (from the server's side) would make supporting playable.
-      No new entities; the data is all server-side already.
+1. **Banner pride** — guilds now fly real banners at hubs. Next: make sieges notice. When a
+   war band marches on a hub where a guild's banner flies, that guild's members get a named
+   bonus in the defense payout (a shared-hunt credit per siege kill, or a sigil chance).
+   Rides Invasion + Guilds; the banner becomes more than decoration.
+2. **Tests for the quest & spell tables** — quest rewards/level gates and spell cooldowns
+   are still plain vals in Quests/Spells. Extract the tables like the merchant's were
+   extracted, then pin the invariants: every quest is completable at its stated level,
+   every trial gate references a real quest id, no chain references a missing quest.
 
 ## C. Endgame
 
-- [ ] **Paragon milestones past 6** — the color ladder stops at gold. If tiers keep
-      climbing, something has to keep meaningfully changing past there (a fourth forge
-      pattern? a hearth banner?). Only worth doing once someone actually reaches 6.
+- [ ] **Paragon milestones past 6** — the color ladder stops at gold. Only worth doing once
+      someone actually reaches 6; until then any further milestone is a guess.
 
 ## D. Social & economy
 
-- [ ] **Trade post: an NPC floor** — the board now watches phrases and quotes recent sales,
-      but a lone seller can still corner a hub. An NPC that buys anything the board has
-      ignored for a day would keep the market moving on a quiet server.
+- [ ] **Trade post: courier delivery** — watchers hear about postings at any hub, but buying
+      still means walking. A courier (a gold toll like the warp's, item arrives at the buyer's
+      hub) would close the loop; the posting and owed-gold machinery is all there already.
 
 ## E. Engineering
 
-- [ ] **`/quest tuning` (admin readout)** — the conf file works and logs at load; an admin
-      command that prints the live effective values (and which came from the file) would
-      make a mis-set knob obvious without digging through console logs.
+- [ ] **`/quest tuning reload`** — the conf file is read at world load; an op command that
+      re-reads it live (and prints the diff via the existing report) would make retuning a
+      running server a one-step thing.
 
 ## Notes for future sessions
 
-- Balance is untested in live play. New numbers to watch first: the **guild daily**
-  (20 kills shared → 20 gold per member — a fresh income source; if a 3-man guild makes
-  60g/day for ~10 minutes of play, that may be generous), the **re-forge** (120g + 1 sigil
-  is the only sigil sink that doesn't consume gear — if sigils pile up, it's priced too low),
-  and the **defender's window** (×1.5 for 5s can flip a close table; if tanks feel
-  sticky, drop `threat.defender_bonus` first).
+- **Two new faucets, three new sinks.** Faucets: the guild daily (20g/member/day) and the
+  trade-post NPC floor (the merchant pays half asking out of nothing for stale postings —
+  generous if boards sit full). Sinks: charter 100g, banner 200g, re-forge 120g+sigil.
+  If gold inflates, the floor fraction (`trade.npc_floor_fraction`) is the first dial, then
+  `guild.daily_reward_gold` — both in the tuning file now.
+- The NPC floor eats postings the next dawn — a seller who posts at 23:50 and logs off may
+  find the merchant got there first. That's the design (the market clears), but if it reads
+  as harsh, raise the grace to two days rather than removing the floor.
+- Guild banners are re-raised by the mason's daily round; if a hub is removed (/quest clear),
+  the guild's `bannerAt` points at nothing and the status line says so — raising again moves
+  it. No cleanup bug, but don't be surprised by the honest "its hub is gone now" line.
 - The old watchlist still stands: Pickpocket income, Quick Shot cadence, Avatar uptime,
-  `healer.xp_per_hp`, and the sigil economy (three sources; netherite patterns, paragon
-  patterns and the re-forge are the sinks).
-- Prestige pacing is a guess; the tuning file now makes it movable (`paragon.base_xp`,
-  `paragon.step_xp`) — the defaults (2,000 + 1,500/tier) are what the tests pin.
-- The trade post's price guidance reads its own sale ledger — on a fresh world it has
-  nothing to say until items actually sell. That's honest, not a bug; don't seed it.
-- `aetheron-chaos-tuning.conf` overrides are read once at world load. A knob changed
-  mid-session will not apply until restart — say so in any admin tooling.
-- Mojmap 1.21 gotchas (including this session's: `ResourceKey.location()`,
-  `ItemEnchantments.EMPTY`, no public enchantment-conflict API) live in AGENTS.md.
+  `healer.xp_per_hp`, sigil economy (three sources; netherite/paragon patterns and the
+  re-forge are the sinks).
+- Threat temperaments and the defender's window (`threat.defender_bonus`) are flavor until
+  someone plays them; the window is the one combat knob most likely to need a trim.
+- `aetheron-chaos-tuning.conf` is read once at world load; `/quest tuning` shows what was
+  consulted, not every possible key — that's deliberate (it shows what the realm actually
+  uses). A live reload is the open item above.
+- Mojmap 1.21 gotchas live in AGENTS.md (kept current there).
