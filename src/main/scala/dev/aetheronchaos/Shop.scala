@@ -36,8 +36,10 @@ object Shop:
   /** A pattern the forger will strike: the base gear she must see (any copy of that
    *  item, even a named one), the gold, and the Sigils of the Elite proof that rare elites
    *  fell by this hero's hand. The base gear is consumed. The two-sigil patterns come out
-   *  netherite: another tier to work toward, not a bigger version of the same one. */
-  final case class Forgeable(id: String, gear: Loot.Gear, baseItem: Item, gold: Int, sigils: Int, flavor: String)
+   *  netherite: another tier to work toward, not a bigger version of the same one.
+   *  Paragon-gated patterns additionally require the hero to have ascended - the cap's
+   *  second ladder, given a gear goal. */
+  final case class Forgeable(id: String, gear: Loot.Gear, baseItem: Item, gold: Int, sigils: Int, flavor: String, paragon: Int = 0)
 
   val ForgeGold = 100
 
@@ -77,7 +79,18 @@ object Shop:
     Forgeable("hauberk-of-the-last-watch",
       Loot.Gear(Items.NETHERITE_CHESTPLATE, "Hauberk of the Last Watch", Rarity.Legendary,
         List(Enchantments.PROTECTION -> 4, Enchantments.THORNS -> 3, Enchantments.MENDING -> 1, Enchantments.UNBREAKING -> 3)),
-      Items.DIAMOND_CHESTPLATE, 260, 2, "Struck for whoever was left standing at the wall. That is you.")
+      Items.DIAMOND_CHESTPLATE, 260, 2, "Struck for whoever was left standing at the wall. That is you."),
+    // --- paragon-gated: the forger only strikes these for heroes who ascended past the cap ---
+    Forgeable("crown-of-the-first-light",
+      Loot.Gear(Items.NETHERITE_HELMET, "Crown of the First Light", Rarity.Legendary,
+        List(Enchantments.PROTECTION -> 4, Enchantments.PROJECTILE_PROTECTION -> 4, Enchantments.RESPIRATION -> 3, Enchantments.MENDING -> 1, Enchantments.UNBREAKING -> 3)),
+      Items.DIAMOND_HELMET, 320, 3, "Struck for a hero the level cap could not hold. It is heavy with more than iron.",
+      paragon = 2),
+    Forgeable("earthgrip-greaves",
+      Loot.Gear(Items.NETHERITE_LEGGINGS, "Earthgrip Greaves", Rarity.Legendary,
+        List(Enchantments.PROTECTION -> 4, Enchantments.THORNS -> 3, Enchantments.MENDING -> 1, Enchantments.UNBREAKING -> 3)),
+      Items.DIAMOND_LEGGINGS, 300, 3, "After a paragon falls, the ground is the one thing that still holds them up.",
+      paragon = 3)
   )
 
   def forgeById(id: String): Option[Forgeable] = forgeables.find(_.id == id)

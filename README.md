@@ -231,6 +231,12 @@ loop, built entirely from vanilla blocks, items and effects.
     - **two sigils, netherite** (melt diamond gear): *Dawnbreaker* (netherite sword, Sharpness V +
       Fire Aspect II + Mending), *Widowhollow* (netherite axe, Sharpness V + Efficiency IV + Mending),
       *Hauberk of the Last Watch* (netherite chestplate, Protection IV + Thorns III + Mending).
+    - **paragon-gated** (three sigils, and the forger refuses anyone who has not ascended):
+      *Crown of the First Light* (netherite helmet, Protection IV + Projectile Protection IV + Aqua
+      Affinity III + Mending — Paragon 2) and *Earthgrip Greaves* (netherite leggings, Protection IV
+      + Thorns III + Mending — Paragon 3). The cap's second
+      ladder now has a gear goal; the forge tells you plainly what you lack ("Paragon 2 — you are
+      Paragon 0 (/quest prestige)").
     The base gear and the sigils are consumed, legendaries can't be eaten by the forge, and the forge
     tells you exactly what you're still short of.
 17. **Invasion nights** — roughly every half hour a **war band marches on one of the hubs** (always

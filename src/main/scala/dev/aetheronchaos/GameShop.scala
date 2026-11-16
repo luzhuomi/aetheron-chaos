@@ -50,9 +50,11 @@ object GameShop:
       ChatFormatting.GOLD
     )
     Shop.forgeables.foreach { f =>
-      val ready = gold >= f.gold && sigils >= f.sigils && Game.hasItem(player, f.baseItem, isForgeableBase)
+      val ascended = Game.characterFor(player).paragon >= f.paragon
+      val ready = ascended && gold >= f.gold && sigils >= f.sigils && Game.hasItem(player, f.baseItem, isForgeableBase)
+      val gate = if f.paragon > 0 then s" [Paragon ${f.paragon}]" else ""
       val text = Component
-        .literal(s"[Forge ${f.gear.name}] ${f.gold} gold + ${sigilPhrase(f.sigils)} + ${baseName(f.baseItem)}")
+        .literal(s"[Forge ${f.gear.name}] ${f.gold} gold + ${sigilPhrase(f.sigils)} + ${baseName(f.baseItem)}$gate")
         .withStyle(st =>
           st.withColor(if ready then Rarity.Legendary.color else ChatFormatting.DARK_GRAY)
             .withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest forge ${f.id}")))
@@ -75,7 +77,9 @@ object GameShop:
       case Some(f) =>
         val gold = Game.countItem(player, Items.GOLD_NUGGET)
         val sigils = Game.countSigils(player)
+        val ascended = Game.characterFor(player).paragon
         val missing = List(
+          if ascended < f.paragon then Some(s"Paragon ${f.paragon} - you are Paragon $ascended (/quest prestige)") else None,
           if gold < f.gold then Some(s"${f.gold - gold} more gold") else None,
           if sigils < f.sigils then Some(s"${f.sigils - sigils} more ${if f.sigils == 1 then "sigil" else "sigils"} (rare elites, captains, sieges)") else None,
           if !Game.hasItem(player, f.baseItem, isForgeableBase) then Some(s"a ${baseName(f.baseItem)} to melt down") else None
@@ -93,7 +97,7 @@ object GameShop:
   private def forgeList(player: ServerPlayer): String =
     val sigils = Game.countSigils(player)
     (List(
-      s"The village forger strikes ${Shop.forgeables.size} legends. Payment: the base gear, gold, and Sigils of the Elite (you carry $sigils). The two-sigil patterns come out netherite:"
+      s"The village forger strikes ${Shop.forgeables.size} legends. Payment: the base gear, gold, and Sigils of the Elite (you carry $sigils). The two-sigil patterns come out netherite, and patterns marked [Paragon n] she only strikes for heroes who ascended past the cap:"
     ) ++ Shop.forgeables.map(f =>
       s"  /quest forge ${f.id} - ${f.gear.name} (${f.gold} gold + ${sigilPhrase(f.sigils)} + a ${baseName(f.baseItem)}): ${f.flavor}"))
       .mkString("\n")
