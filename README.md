@@ -241,6 +241,11 @@ loop, built entirely from vanilla blocks, items and effects.
       Paragon 0 (/quest prestige)").
     The base gear and the sigils are consumed, legendaries can't be eaten by the forge, and the forge
     tells you exactly what you're still short of.
+    - **the re-forge** (`/quest forge reroll`, 120 gold + 1 sigil): hold any legendary and she rolls
+      its **enchantment line anew** — same name, same metal, new heart. The roll is always legal for
+      the item (vanilla's own rules decide what the item can carry) and never mixes families vanilla
+      keeps apart (no Sharpness *and* Smite, no Protection *and* Fire Protection). Legend rolls come
+      out high: most lines at their ceiling. This is the sink for a legendary whose line went wrong.
 17. **Invasion nights** — roughly every half hour a **war band marches on one of the hubs** (always
     the one the heroes are nearest to, so it is reachable). For **five minutes** waves of pillagers,
     skeletons, vindicators and friends arrive just outside the town's ground — one wave every half
@@ -355,6 +360,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest sell` | everyone | Sell the item in your main hand to the merchant for gold |
 | `/quest buy <id>` | everyone | Buy gear with gold coins |
 | `/quest forge [pattern]` | everyone | Legend Forge: base gear + gold + 1–2 sigils → legendary gear |
+| `/quest forge reroll` | everyone | Re-forge the legendary in hand: 120 gold + 1 sigil, its enchantment line re-rolled |
 | `/quest loot need <n>` / `greed <n>` | everyone | Roll on party-locked loot |
 | `/quest stats` | everyone | Your hero's stat sheet |
 | `/quest prestige` | everyone | Paragon tiers past the level cap: progress, bonuses, cost |

@@ -149,6 +149,7 @@ object QuestCommand:
           .`then`(
             Commands.literal("forge")
               .executes(ctx => withPlayer(ctx, p => GameShop.forge(p, "")))
+              .`then`(Commands.literal("reroll").executes(ctx => withPlayer(ctx, p => GameShop.rerollLegend(p))))
               .`then`(
                 Commands.argument("pattern", StringArgumentType.greedyString())
                   .suggests((_, builder) => SharedSuggestionProvider.suggest(Shop.forgeables.map(_.id).asJava, builder))
