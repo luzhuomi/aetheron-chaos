@@ -2,19 +2,20 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~5,100 lines, 25 files, 41 commits — see README.md.
+Current state: ~5,200 lines, 25 files, 43 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Threat polish** — the table landed (damage/heal/taunt aggro, hysteresis retarget).
-   Next: show it (`/quest threat`), threat from party buffs, mob-specific modifiers.
-2. **A trade post at the plaza** — trading works face to face now. Next: a hub sign where
+1. **A trade post at the plaza** — trading works face to face now. Next: a hub sign where
    a hero leaves a stack and a price, and another hero buys it later (asynchronous, safe).
+2. **A barracks at the plaza** — the watch is real (companies, horn, falls, re-maning); a built
+   barracks that raises a hub's charter, and visible gear on re-manned guards, close that loop.
 
 ## A. Make the trinity real
 
-- [ ] **Threat polish** — the table landed (damage/heal/taunt aggro, hysteresis retarget).
-      Next: show it (a /quest threat readout), threat from party buffs, mob-specific modifiers.
+- [ ] **Threat, shown in the world** — `/quest threat`, buff threat and mob temperaments landed.
+      Next: a small on-HUD tell (a marker when a nearby mob's leader is not you), and taunt
+      cooldowns per class.
 
 ## B. Content that multiplies what exists
 
@@ -56,6 +57,9 @@ Current state: ~5,100 lines, 25 files, 41 commits — see README.md.
 - Prestige pacing is a guess: the first tier is 2,000 XP (`Game.paragonToNext`) and each costs 1,500
   more, with +3% XP per tier feeding itself. If max-level heroes ascend weekly, raise the base; the
   bonuses themselves (+2 hearts / +0.5 attack per tier) are deliberately small.
+- Threat temperaments (`Threat.MobThreatScale`) are flavor, not math someone checked. If witches feel
+  uncontrollable or taunts feel weak on ravagers, those maps are one line each — and creepers being
+  scale 0 means the trinity deliberately does not apply to them.
 - Mojmap 1.21 gotchas live in the project's history: `UseItemCallback` returns
   `InteractionResultHolder` (consume/pass), no `setSecondsOnFire` (use `setRemainingFireTicks`),
   mining fatigue = `DIG_SLOWDOWN`, nausea = `CONFUSION`, no `BOWS`/`SHIELDS` item tags

@@ -205,6 +205,13 @@ loop, built entirely from vanilla blocks, items and effects.
     (30%), so targets never flicker. The tank's job is to top the list and stay there; healers
     must respect who the mob is angry at; bursty DPS waits its turn. Frightened mobs (Intimidating
     Shout) stop keeping score entirely. Mobs no hero has ever fought are left to vanilla AI.
+     Now visible and textured: **`/quest threat`** reads every table within thirty blocks the way
+     the mob sees it — who it's watching, who leads its grudge ledger, where you stand and what a
+     taunt would buy you. **Party buffs earn notice**: a Protection cast on the hero a mob is angry
+     at gives the caster a share of that aggro (30%), so support play shows up on the table. And
+     **mobs keep score differently**: witches and phantoms nurse grudges (×1.4, ×1.25), ravagers dig
+     into the ground they chose (×0.6), and creepers never keep score at all — a taunt bounces off
+     and they fight purely on vanilla instinct.
 15. **Wayside portals** — every quest board is a station on the realm's travel network. Standing at
     a board, the menu lists every other hub with a gold toll (1 gold per 20 blocks folded, 5
     minimum — a real sink), and `/quest warp <n>` takes you there in a swirl of portal particles,
@@ -324,6 +331,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest guard` | everyone | The realm's watch: strength and shortfalls at every hub |
 | `/quest guard eman` | everyone | Pay 40 gold per missing guard and re-man the hub you stand at |
 | `/quest top` | everyone | Server leaderboard |
+| `/quest threat` | everyone | Every threat table within thirty blocks: who the mobs are angry at, where you stand |
 | `/quest town` | op (level 2) | Auto-build a quest hub in front of you |
 | `/quest clear [all]` | op (level 2) | Remove built hubs |
 | `/quest rare` | op (level 2) | Force-spawn a rare elite near you |
@@ -411,7 +419,7 @@ src/main/scala/dev/aetheronchaos/
   TownStore.scala        SNBT persistence of towns / quest-board registrations
   Interactions.scala     Right-click hooks: quest board, vendor barrel, town NPCs
   Combat.scala           Kill credit from damage sources, threat feed
-  Threat.scala           Per-mob threat table: damage/heal/taunt aggro with hysteresis retargeting
+  Threat.scala           Per-mob threat table: damage/heal/taunt/buff aggro, hysteresis retarget, /quest threat readout
   QuestCommand.scala     /quest command tree (Brigadier)
   Hud.scala              Action-bar HUD: level, XP bar, quest tracker, party
 ```

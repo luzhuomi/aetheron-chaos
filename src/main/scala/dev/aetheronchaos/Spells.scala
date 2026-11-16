@@ -232,6 +232,7 @@ object Spells:
   private def castProtect(caster: ServerPlayer, spell: Spell): Unit =
     forEachAlly(caster, 6.0) { ally =>
       ally.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 240, 0, true, true))
+      Threat.onAssist(caster, ally) // the one who strengthens the holder of aggro shares the notice
       ally.level match
         case sl: ServerLevel =>
           sl.sendParticles(ParticleTypes.END_ROD, ally.getX, ally.getY + 1.0, ally.getZ, 16, 0.4, 0.8, 0.4, 0.02)

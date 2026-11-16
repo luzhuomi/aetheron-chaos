@@ -84,6 +84,7 @@ object QuestCommand:
           )
           .`then`(Commands.literal("top").executes(ctx => top(ctx)))
           .`then`(Commands.literal("prestige").executes(ctx => withPlayer(ctx, p => Game.prestigeReport(p))))
+          .`then`(Commands.literal("threat").executes(ctx => withPlayer(ctx, p => Threat.readout(p))))
           .`then`(
             Commands.literal("trade")
               .executes(ctx => withPlayer(ctx, p => Trading.show(p)))
@@ -258,7 +259,7 @@ object QuestCommand:
             "Aetheron Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
               "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest track <id> (quest compass), /quest turnin <id> (at the board), " +
               "/quest warp <n> (wayside portal at any board), " +
-              "/quest party <name>, /quest trade <hero> (swap goods face to face), /quest shop (spend gold), /quest forge (strike legends), /quest guard (the realm's watch; 'guard eman' to re-man), /quest stats, /quest prestige (paragon tiers past the cap), /quest titles (carry one with /quest title), /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
+              "/quest party <name>, /quest trade <hero> (swap goods face to face), /quest threat (who the nearby mobs are angry at), /quest shop (spend gold), /quest forge (strike legends), /quest guard (the realm's watch; 'guard eman' to re-man), /quest stats, /quest prestige (paragon tiers past the cap), /quest titles (carry one with /quest title), /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
               "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."
           )
           .withStyle(ChatFormatting.YELLOW),
