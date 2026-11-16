@@ -241,6 +241,7 @@ object Game:
     val mates = partyMates(player)
     advanceQuests(player, victim)
     Loot.onKill(victim, player, mates)
+    Invasion.onKill(player, victim)
     val xp = Enemies.xpFor(victim) * (if rare then RareXpMultiplier else 1)
     addXp(player, xp)
     // party rules (WoW-style): XP sharing and shared quest progress for members in range
@@ -496,6 +497,7 @@ object Game:
       TownBuilder.repairTowns(server)
       GameQuests.announceDailies(server) // the board's daily rotation wakes with the realm
     GameRares.tickScheduler(server)
+    Invasion.tickScheduler(server)
     GameQuests.tickNavigation(server)
     server.getPlayerList.getPlayers.asScala.filter(isJoined).foreach { p =>
       Hud.update(p)

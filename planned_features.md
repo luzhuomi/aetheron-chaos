@@ -2,12 +2,13 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~3,700 lines, 21 files, 34 commits — see README.md.
+Current state: ~4,100 lines, 22 files, 36 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Invasion nights** — occasionally hostiles besiege a town for ~5 minutes; everyone defends,
-   shared reward. Reuses the town guard, the rare scheduler and the boss bar.
+1. **Siege depth** — the siege engine (scheduler, waves, tally, rewards, boss bar) is generic.
+   Next: rare-elite "war band captains" leading a wave, towns undermanned if guards were lost,
+   a defend-the-board daily quest off the back of it.
 2. **Titles/achievements** — 100 rare kills, first legend forged, a siege held; shown in
    `/quest stats`, optionally broadcast. Cheap on top of counters that already exist.
 
@@ -32,8 +33,6 @@ Current state: ~3,700 lines, 21 files, 34 commits — see README.md.
 
 ## D. Social & economy
 
-- [ ] **Invasion nights** — occasionally hostiles besiege a town for ~5 minutes; everyone
-      defends, shared reward. Reuses the town guard system.
 - [ ] **Player trading** — `/quest trade <player>` with double-confirm via chat clicks.
       Keep small; no UI available server-side.
 

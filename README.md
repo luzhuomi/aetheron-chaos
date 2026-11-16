@@ -215,6 +215,16 @@ loop, built entirely from vanilla blocks, items and effects.
     or *Crown of the Steady Light* (iron helmet, Protection IV + Projectile Protection IV). The base
     gear and the sigil are consumed, legendaries can't be eaten by the forge, and the forge tells you
     exactly what you're still short of.
+17. **Invasion nights** — roughly every half hour a **war band marches on one of the hubs** (always
+    the one the heroes are nearest to, so it is reachable). For **five minutes** waves of pillagers,
+    skeletons, vindicators and friends arrive just outside the town's ground — one wave every half
+    minute, each a little tougher than the last. A red **siege bar** names the town, counts the
+    hostiles driven off and counts the minutes down. Every kill pays 2 gold on the spot; when the
+    horns blow, the heroes who stood are paid again in gold and XP scaled by what they drove off, and
+    anyone who scored 5+ earns a **Sigil of the Elite** — the forger notices a siege held. Nobody
+    defending is its own ending (the town keeps its sheep, and its grudges), and heroes who loitered
+    away from the walls are named. The town guard still escorts off any hostile nobody is fighting, so
+    the fight happens at the walls where a siege belongs. Ops can call one with `/quest invade [hub]`.
 
 ### Rules
 
@@ -251,6 +261,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest town` | op (level 2) | Auto-build a quest hub in front of you |
 | `/quest clear [all]` | op (level 2) | Remove built hubs |
 | `/quest rare` | op (level 2) | Force-spawn a rare elite near you |
+| `/quest invade [hub]` | op (level 2) | Call a war band down on a hub (nearest by default) |
 | `/quest reset [player]` | everyone / op | Reset a hero to level 1 |
 
 ## Building

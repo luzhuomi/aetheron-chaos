@@ -112,6 +112,15 @@ object QuestCommand:
               .executes(ctx => withPlayer(ctx, p => GameRares.spawnRare(p, None)))
           )
           .`then`(
+            Commands.literal("invade")
+              .requires(src => src.hasPermission(2))
+              .executes(ctx => invade(ctx, 0))
+              .`then`(
+                Commands.argument("hub", IntegerArgumentType.integer())
+                  .executes(ctx => invade(ctx, IntegerArgumentType.getInteger(ctx, "hub")))
+              )
+          )
+          .`then`(
             Commands.literal("reset")
               .executes(ctx => withPlayer(ctx, Game.reset))
               .`then`(
@@ -212,12 +221,20 @@ object QuestCommand:
             "Aetheron Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
               "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest track <id> (quest compass), /quest turnin <id> (at the board), " +
               "/quest warp <n> (wayside portal at any board), " +
-              "/quest party <name>, /quest shop (spend gold), /quest forge (strike legends), /quest stats, /quest top. Ops: /quest town, /quest clear, /quest rare. " +
+              "/quest party <name>, /quest shop (spend gold), /quest forge (strike legends), /quest stats, /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
               "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."
           )
           .withStyle(ChatFormatting.YELLOW),
       false
     )
+    1
+
+  /** `/quest invade` answers from the console too - a server host can call their own siege. */
+  private def invade(ctx: CommandContext[CommandSourceStack], hub: Int): Int =
+    val msg = ctx.getSource.getEntity match
+      case p: ServerPlayer => Invasion.summon(p, hub)
+      case _ => Invasion.summonAt(ctx.getSource.getServer, hub)
+    ctx.getSource.sendSuccess(() => Component.literal(msg), false)
     1
 
   private def withPlayer(ctx: CommandContext[CommandSourceStack], f: ServerPlayer => String): Int =

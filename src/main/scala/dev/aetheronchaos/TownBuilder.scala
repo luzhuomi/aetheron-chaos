@@ -169,6 +169,9 @@ object TownBuilder:
 
   def townByIndex(n: Int): Option[Town] = towns.lift(n - 1)
 
+  /** Every hub the realm knows about, in the order they were raised. */
+  private[aetheronchaos] def allTowns: List[Town] = towns.toList
+
   /** The hub whose grounds the player is standing at (nearest registered hub). */
   def townNearest(player: ServerPlayer): Option[Town] =
     towns.minByOption(t => player.blockPosition.distSqr(t.base))
