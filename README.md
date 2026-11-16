@@ -316,6 +316,15 @@ loop, built entirely from vanilla blocks, items and effects.
     real item frame) and the hub's banner-of-arms persists in the town save — old town files simply
     read as "no barracks yet". `/quest barracks` reads which hubs hold one; `/quest barracks build`
     raises it at the hub you stand at, and the realm hears about it.
+25. **A guild, lightly** — the social rung above parties: for a **100-gold charter** a hero founds a
+    named guild (`/quest guild create <name>`). Any member can `invite <hero>`; the invited answer
+    with `accept` or `decline`. `/quest guild` reads the **roster in chat** — who's in, who's online,
+    who founded it — and a member's join broadcast carries their `[Guild]` tag. Each day the guild
+    shares **one hunt**: 20 monsters felled by *any* member combined (every kill counts, whoever made
+    it); when it's done the realm hears about it, and every member claims their 20 gold at
+    `/quest guild claim` — online or not, the share waits. The count resets at dawn, same as the
+    board's dailies. Charters and rosters persist in the world folder; a guild whose last member
+    leaves folds its banner, and a founder who leaves hands the charter to the next in line.
 
 ### Rules
 
@@ -358,6 +367,10 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest post coin` | everyone | Collect gold your past sales have earned |
 | `/quest barracks` | everyone | Which hubs keep a barracks (and what one costs) |
 | `/quest barracks build` | everyone | Raise a barracks at the hub you stand at (150 gold) |
+| `/quest guild` | everyone | Your guild's roster and today's hunt — or the charters on record |
+| `/quest guild create <name>` | everyone | Found a guild (100 gold charter) |
+| `/quest guild invite <hero>` / `accept` / `decline` | everyone | Invite a hero; answer an invitation |
+| `/quest guild leave` / `claim` | everyone | Leave the guild; take your share of a finished hunt |
 | `/quest titles` | everyone | Title ladder: what you've earned and what's next, with progress |
 | `/quest title <id>` | everyone | Carry an earned title (action bar + leaderboard), `none` to set down |
 | `/quest guard` | everyone | The realm's watch: strength and shortfalls at every hub |
@@ -451,6 +464,7 @@ src/main/scala/dev/aetheronchaos/
   TownStore.scala        SNBT persistence of towns / quest-board registrations
   Trading.scala          Face-to-face player trading: invite, offers, double-confirm, safe swap
   TradePost.scala        Hub market signs: posted stacks with prices, sale gold waiting at the post
+  Guilds.scala           Named guilds: charters, chat rosters, one shared daily hunt per day
   Interactions.scala     Right-click hooks: quest board, vendor barrel, town NPCs
   Combat.scala           Kill credit from damage sources, threat feed
   Threat.scala           Per-mob threat table: damage/heal/taunt/buff aggro, hysteresis retarget, /quest threat readout

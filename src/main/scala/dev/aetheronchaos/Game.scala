@@ -155,7 +155,7 @@ object Game:
       broadcast(
         server,
         Component
-          .literal(s"${c.displayName} (Lv ${c.level} ${heroClassOf(c).map(_.name).getOrElse("Adventurer")}) has entered the realm.")
+          .literal(s"${c.displayName}${Guilds.tagOf(player)} (Lv ${c.level} ${heroClassOf(c).map(_.name).getOrElse("Adventurer")}) has entered the realm.")
           .withStyle(ChatFormatting.LIGHT_PURPLE)
       )
     TradePost.settleOnJoin(player) // whatever sold at the posts while this hero was away pays out
@@ -259,6 +259,7 @@ object Game:
       return
     val rare = victim.hasCustomName
     c.kills += 1
+    Guilds.onKill(player) // every kill by a member feeds the guild's shared hunt
     if rare then
       c.rareKills += 1
       GameRares.forget(victim)
@@ -569,6 +570,7 @@ object Game:
     c.rareKills = 0
     c.deaths = 0
     leaveParty(player)
+    Guilds.leave(player) // a reset hero's banner comes down too
     applyBonuses(player)
     "Your hero was reset to a level 1 Adventurer."
 

@@ -60,6 +60,18 @@ object QuestCommand:
               )
           )
           .`then`(
+            Commands.literal("guild")
+              .executes(ctx => withPlayer(ctx, p => Guilds.status(p)))
+              .`then`(Commands.literal("create").`then`(Commands.argument("name", StringArgumentType.word())
+                .executes(ctx => withPlayer(ctx, p => Guilds.create(p, StringArgumentType.getString(ctx, "name"))))))
+              .`then`(Commands.literal("invite").`then`(Commands.argument("hero", StringArgumentType.word())
+                .executes(ctx => withPlayer(ctx, p => Guilds.invite(p, StringArgumentType.getString(ctx, "hero"))))))
+              .`then`(Commands.literal("accept").executes(ctx => withPlayer(ctx, p => Guilds.accept(p))))
+              .`then`(Commands.literal("decline").executes(ctx => withPlayer(ctx, p => Guilds.decline(p))))
+              .`then`(Commands.literal("leave").executes(ctx => withPlayer(ctx, p => Guilds.leave(p))))
+              .`then`(Commands.literal("claim").executes(ctx => withPlayer(ctx, p => Guilds.claim(p))))
+          )
+          .`then`(
             Commands.literal("warp")
               .`then`(
                 Commands.argument("hub", IntegerArgumentType.integer())
@@ -283,7 +295,7 @@ object QuestCommand:
             "Aetheron Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
               "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest track <id> (quest compass), /quest turnin <id> (at the board), " +
               "/quest warp <n> (wayside portal at any board), " +
-              "/quest party <name>, /quest trade <hero> (swap goods face to face), /quest post (the hub market: sell/buy/coin), /quest threat (who the nearby mobs are angry at), /quest shop (spend gold), /quest forge (strike legends), /quest guard (the realm's watch; 'guard eman' to re-man), /quest stats, /quest prestige (paragon tiers past the cap), /quest titles (carry one with /quest title), /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
+              "/quest party <name>, /quest guild (charters: create/invite/accept/claim - one shared hunt a day), /quest trade <hero> (swap goods face to face), /quest post (the hub market: sell/buy/coin), /quest threat (who the nearby mobs are angry at), /quest shop (spend gold), /quest forge (strike legends), /quest guard (the realm's watch; 'guard eman' to re-man), /quest stats, /quest prestige (paragon tiers past the cap), /quest titles (carry one with /quest title), /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
               "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."
           )
           .withStyle(ChatFormatting.YELLOW),
