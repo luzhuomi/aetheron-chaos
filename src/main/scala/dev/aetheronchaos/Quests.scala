@@ -12,7 +12,8 @@ enum Objective:
   case Collect(item: Item, count: Int)
 
 /** A quest posted on the town quest board. requires: id of a quest that must be
- *  completed first - that's what makes chains ("finish A and B appears on the board"). */
+ *  completed first - that's what makes chains ("finish A and B appears on the board").
+ *  daily: part of the rotating pool - three of them are posted realm-wide each day. */
 final case class Quest(
     id: String,
     name: String,
@@ -23,7 +24,8 @@ final case class Quest(
     coins: Int,
     reward: scala.Option[Loot.Gear],
     partyOnly: Boolean = false,
-    requires: String = ""
+    requires: String = "",
+    daily: Boolean = false
 )
 
 object Quests:
@@ -118,8 +120,65 @@ object Quests:
       Objective.Kill(EntityType.WARDEN, 1, "the warden"), 3000, 50,
       Some(Gear(Items.IRON_SWORD, "Deepbrand, Bane of the Dark", Rarity.Epic, List(Enchantments.SHARPNESS -> 4, Enchantments.UNBREAKING -> 3))),
       partyOnly = true
+    ),
+    // --- the daily rotation pool: three of these are posted realm-wide each day -----
+    Quest(
+      "daily-undead-cull", "Dawn Watch: Undead Cull", 1,
+      "Six shamblers short of a quiet road. Any graveyard field will do.",
+      Objective.Kill(EntityType.ZOMBIE, 6, "zombies"), 150, 4, None, daily = true
+    ),
+    Quest(
+      "daily-bone-drive", "The Bone Drive", 1,
+      "The hearth kiln needs bones - six will earn your keep today.",
+      Objective.Collect(Items.BONE, 6), 140, 4, None, daily = true
+    ),
+    Quest(
+      "daily-flesh-rations", "Rations for the Hearth", 1,
+      "Hearthkeeper Finn cooks, you gather. Rotten flesh, surprisingly edible.",
+      Objective.Collect(Items.ROTTEN_FLESH, 8), 130, 5, None, daily = true
+    ),
+    Quest(
+      "daily-spider-sweep", "Cellar Sweep", 2,
+      "Spiders in the cellars and mines again - clear six of them.",
+      Objective.Kill(EntityType.SPIDER, 6, "spiders"), 220, 5, None, daily = true
+    ),
+    Quest(
+      "daily-skeleton-drill", "Bone Drill", 2,
+      "The watch trains on skeletons: steady aim, eight down.",
+      Objective.Kill(EntityType.SKELETON, 8, "skeletons"), 260, 5, None, daily = true
+    ),
+    Quest(
+      "daily-creeper-warden", "Creeper Warden", 3,
+      "Four creepers away from the palisade - hear them hiss, find them first.",
+      Objective.Kill(EntityType.CREEPER, 4, "creepers"), 280, 6, None, daily = true
+    ),
+    Quest(
+      "daily-pillager-scouts", "Count the Scouts", 3,
+      "Six pillager scouts report to their captain. Make one of the reports final.",
+      Objective.Kill(EntityType.PILLAGER, 6, "pillager scouts"), 300, 6, None, daily = true
+    ),
+    Quest(
+      "daily-witch-watch", "Hex on the Watch", 4,
+      "Three witches circling the outskirts - their potions are running out.",
+      Objective.Kill(EntityType.WITCH, 3, "witches"), 320, 7, None, daily = true
+    ),
+    Quest(
+      "daily-phantom-dusk", "Dusk Patrol", 4,
+      "Phantoms gather where the sleepless walk. Four fewer by morning.",
+      Objective.Kill(EntityType.PHANTOM, 4, "phantoms"), 340, 7, None, daily = true
     )
   )
+
+  /** The daily rotation pool. */
+  val dailyPool: List[Quest] = all.filter(_.daily)
+
+  /** How many dailies are posted per day. */
+  val DailySlots = 3
+
+  /** The realm's dailies for one real-world day - same three for every hero,
+   *  decided by the date alone (no state to corrupt, no sync to do). */
+  def dailiesOfTheDay(epochDay: Long): List[Quest] =
+    scala.util.Random(epochDay * 7919L).shuffle(dailyPool).take(DailySlots)
 
   def byId(id: String): Option[Quest] = all.find(_.id == id)
 

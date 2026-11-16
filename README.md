@@ -132,6 +132,10 @@ loop, built entirely from vanilla blocks, items and effects.
    with a purple announcement. The *Pillager Road* chain runs *Road Patrol → Warband of the Pillager
    → Ravager Rampage*; the void line links *Void Walkers → Pocketful of Pearls*. Locked chapters
    stay off the board until you earn them (your completed-quest history is saved with your hero).
+   **Daily tasks**: every real-world day the realm posts the **same three dailies** at every board
+   (chosen from a pool of nine by the date alone — no state to corrupt). Modest XP and gold,
+   one shot per day each, and at dawn the server announces the new set. They rotate on the same
+   rhythm as Finn's ration and the mason's pass: log in, do your three, reap the rewards.
    *Tip: chat lines are only clickable while the chat screen is open — press `T` first (it frees the
    mouse from the crosshair), then click, and `Esc` to return. `/quest take <id>` with Tab-completion
    works without opening chat.*
@@ -286,7 +290,7 @@ src/main/scala/dev/aetheronchaos/
   GameQuests.scala       Quest log, tracker compass, turn-in, board menu
   HeroClasses.scala      Class/role definitions (attribute bonuses + starting gear)
   Spells.scala           Spellbooks: mage elemental bolts/novas + priest holy heal/purify/protect
-  Quests.scala           Quest definitions (kill / collect / boss objectives, [GROUP] flag, chains)
+  Quests.scala           Quest definitions (kill / collect / boss objectives, [GROUP], chains, dailies)
   Enemies.scala          Kill-XP table, loot tiers, rare-elite spawn table
   Loot.scala             Rarity-colored gear, signature mob drops, gold coins, tier-scaled rolls
   PartyLoot.scala        Party loot lock: need/greed rolls with timed resolution

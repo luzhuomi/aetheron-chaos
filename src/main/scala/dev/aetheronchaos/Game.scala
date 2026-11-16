@@ -70,6 +70,9 @@ object Game:
     var spell: String = "fire-bolt"
     // last day Hearthkeeper Finn handed out free food (ISO date), so it's once per real day
     var fedOnDay: String = ""
+    // daily quest rotation: the day these dailies belong to + which were finished that day
+    var dailyDay: String = ""
+    val dailyDone = mutable.LinkedHashSet[String]()
     val taken = mutable.LinkedHashSet[String]()
     // which of the taken quests the action-bar tracker follows (max MaxTrackedQuests)
     val tracked = mutable.LinkedHashSet[String]()
@@ -417,6 +420,8 @@ object Game:
     c.tracked.clear()
     c.done.clear()
     c.progress.clear()
+    c.dailyDay = ""
+    c.dailyDone.clear()
     c.kills = 0
     c.rareKills = 0
     c.deaths = 0
@@ -443,6 +448,7 @@ object Game:
     if today != lastTownRepairDay then
       lastTownRepairDay = today
       TownBuilder.repairTowns(server)
+      GameQuests.announceDailies(server) // the board's daily rotation wakes with the realm
     GameRares.tickScheduler(server)
     GameQuests.tickNavigation(server)
     server.getPlayerList.getPlayers.asScala.filter(isJoined).foreach { p =>
@@ -459,6 +465,8 @@ object Game:
     tag.putString("class", c.classId)
     tag.putString("spell", c.spell)
     tag.putString("fedOn", c.fedOnDay)
+    tag.putString("dailyDay", c.dailyDay)
+    tag.putString("dailyDone", c.dailyDone.mkString(","))
     tag.putInt("level", c.level)
     tag.putLong("xp", c.xp)
     tag.putString("taken", c.taken.mkString(","))
@@ -478,6 +486,9 @@ object Game:
     c.classId = tag.getString("class")
     if Spells.byId(tag.getString("spell")).nonEmpty then c.spell = tag.getString("spell")
     c.fedOnDay = tag.getString("fedOn")
+    if tag.contains("dailyDay") then c.dailyDay = tag.getString("dailyDay")
+    if tag.contains("dailyDone") && tag.getString("dailyDone").nonEmpty then
+      c.dailyDone ++= tag.getString("dailyDone").split(",").toSeq
     c.level = math.max(1, tag.getInt("level"))
     c.xp = tag.getLong("xp")
     if tag.getString("taken").nonEmpty then c.taken ++= tag.getString("taken").split(",").toSeq

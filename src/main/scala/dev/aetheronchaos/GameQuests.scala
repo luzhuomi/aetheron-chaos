@@ -37,15 +37,44 @@ object GameQuests:
     if Game.now % NavRefreshTicks == 0 then
       server.getPlayerList.getPlayers.asScala.filter(Game.isJoined).foreach(refreshNav)
 
+  // --- daily rotation -----------------------------------------------------------
+
+  private def today: String = java.time.LocalDate.now().toString
+
+  private def todaysDailies: List[Quest] =
+    Quests.dailiesOfTheDay(java.time.LocalDate.now().toEpochDay)
+
+  /** A hero's daily bookkeeping belongs to one day: on the first contact with a new
+   *  day (board, take, turn-in) yesterday's marks are wiped. Mirrors Hearthkeeper
+   *  Finn's ration and the mason's pass - the realm wakes up fresh every day. */
+  private def rolloverDailies(c: Game.Character): Unit =
+    if c.dailyDay != today then
+      c.dailyDay = today
+      c.dailyDone.clear()
+
+  /** Dawn broadcast: the day's three tasks are posted realm-wide. */
+  private[aetheronchaos] def announceDailies(server: MinecraftServer): Unit =
+    val posted = todaysDailies
+    if posted.nonEmpty then
+      Game.broadcast(
+        server,
+        Component
+          .literal("Today's daily tasks are posted at every quest board: " + posted.map(q => s"'${q.name}'").mkString(", ") + ". They rotate at dawn.")
+          .withStyle(ChatFormatting.YELLOW)
+      )
+
   def takeQuest(player: ServerPlayer, id: String): String =
     val c = Game.ensure(player.getUUID)
     if !c.joined then return "Join the realm first: /quest join"
+    rolloverDailies(c)
     Quests.byId(id) match
       case None =>
         val hint = didYouMean(id).map(s => s" Did you mean /quest take $s?").getOrElse("")
         s"Unknown quest '$id'.$hint See the board: /quest board"
       case Some(q) =>
         if c.taken.contains(q.id) then "That quest is already in your log."
+        else if q.daily && c.dailyDone.contains(q.id) then
+          s"You already finished '${q.name}' today - the board posts fresh tasks at dawn."
         else if c.level < q.minLevel then s"You must be level ${q.minLevel} for '${q.name}'. Current level: ${c.level}."
         else if !Quests.isUnlocked(q, c.done.toSet) then
           s"That chapter has not reached you yet - complete '${Quests.prereqName(q)}' first."
@@ -151,6 +180,7 @@ object GameQuests:
 
   def turnIn(player: ServerPlayer, id: String): String =
     val c = Game.ensure(player.getUUID)
+    rolloverDailies(c)
     if !c.taken.contains(id) then
       return s"'$id' is not in your log, so there is nothing to turn in. To ACCEPT a quest: /quest board then LEFT-click its blue line, or type /quest take $id (Tab completes ids)."
     Quests.byId(id) match
@@ -197,6 +227,7 @@ object GameQuests:
     mc.tracked -= q.id
     mc.progress -= q.id
     mc.done += q.id // the history that unlocks the next chapter
+    if q.daily then mc.dailyDone += q.id // today's mark: no double-dipping before dawn
     q.objective match
       case Objective.Collect(item, count) => Game.removeItems(member, item, count)
       case _ => ()
@@ -212,6 +243,7 @@ object GameQuests:
     if !c.joined then
       Game.message(player, Game.join(player), ChatFormatting.GOLD)
       return
+    rolloverDailies(c)
     Game.message(player, "--- Quest Board ---", ChatFormatting.GOLD)
     val ready = c.taken.toList.flatMap(Quests.byId).filter(q => objectiveMet(player, q))
     if ready.nonEmpty then
@@ -224,7 +256,7 @@ object GameQuests:
           false
         )
       )
-    val available = Quests.all.filter(q => !c.taken.contains(q.id) && q.minLevel <= c.level && Quests.isUnlocked(q, c.done.toSet))
+    val available = Quests.all.filter(q => !q.daily && !c.taken.contains(q.id) && q.minLevel <= c.level && Quests.isUnlocked(q, c.done.toSet))
     if available.nonEmpty then
       Game.message(player, "LEFT-click a line to accept (press T first to free the mouse). GROUP quests share progress and rewards with your party:", ChatFormatting.AQUA)
       available.foreach(q =>
@@ -236,6 +268,21 @@ object GameQuests:
           false
         )
       )
+    // today's rotation: same three tasks realm-wide, fresh every dawn
+    val posted = todaysDailies.filter(q => q.minLevel <= c.level)
+    if posted.nonEmpty then
+      Game.message(player, "TODAY'S DAILY TASKS (posted at every board, they rotate at dawn):", ChatFormatting.YELLOW)
+      posted.foreach(q =>
+        if c.dailyDone.contains(q.id) then
+          Game.message(player, s"[done today] ${q.name} - ${Quests.objectiveText(q)}", ChatFormatting.DARK_GRAY)
+        else
+          player.displayClientMessage(
+            Component
+              .literal(s"[DAILY] [${q.name}] ${Quests.objectiveText(q)} -> ${q.xp} XP, ${q.coins} gold")
+              .withStyle(s => s.withColor(ChatFormatting.YELLOW).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest take ${q.id}"))),
+            false
+          )
+      )
     val taken = c.taken.toList.flatMap(Quests.byId)
     if taken.nonEmpty then
       Game.message(player, "In your log:", ChatFormatting.YELLOW)
@@ -246,7 +293,7 @@ object GameQuests:
           case Objective.Collect(_, n) => n
         Game.message(player, s"${q.name}: $have/$goal - ${Quests.objectiveText(q)}", ChatFormatting.YELLOW)
       )
-    if available.isEmpty && taken.isEmpty && ready.isEmpty then Game.message(player, "Nothing for you today, adventurer.", ChatFormatting.GRAY)
+    if available.isEmpty && taken.isEmpty && ready.isEmpty && posted.isEmpty then Game.message(player, "Nothing for you today, adventurer.", ChatFormatting.GRAY)
 
   /** Typo help: the closest quest id within edit distance 3, e.g. bone-copllection -> bone-collection. */
   private def didYouMean(input: String): Option[String] =

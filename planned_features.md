@@ -2,14 +2,14 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~3,250 lines, 20 files, 28 commits — see README.md.
+Current state: ~3,350 lines, 20 files, 29 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Daily quests** — 3 rotating slots per day from a pool; reinforces the existing daily motif
-   (hearth ration, mason pass, rare timer). A reason to log in daily.
-2. **Party-scaled rares** — HP × (1 + 0.5 per extra member), announced at spawn; the natural
+1. **Party-scaled rares** — HP × (1 + 0.5 per extra member), announced at spawn; the natural
    follow-up to the boss bar (the bar makes rares visible, scaling makes them fair).
+2. **Threat table** — taunt forces targets and heals now pay healers; a real per-mob threat
+   list (heal = aggro, sustained damage = aggro) would complete the tactical trinity.
 
 ## A. Make the trinity real
 
@@ -20,8 +20,6 @@ Current state: ~3,250 lines, 20 files, 28 commits — see README.md.
 
 ## B. Content that multiplies what exists
 
-- [ ] **Daily quests** — 3 rotating slots per day from a pool; reinforces the existing daily
-      motif (hearth ration, mason pass, rare timer). A reason to log in daily.
 - [ ] **Class quests at milestones** — unlock the Lv 15 spell only after a small class-flavored
       quest (WoW Classic style; makes unlocks memorable).
 
