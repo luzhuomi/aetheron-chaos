@@ -8,7 +8,7 @@ import net.minecraft.sounds.SoundSource
 
 /** What an achievement counts. Everything here is a counter the realm already keeps. */
 enum Metric:
-  case Kills, RareKills, QuestsDone, SiegesHeld, CaptainsFelled, LegendsForged, Level, Deaths
+  case Kills, RareKills, QuestsDone, SiegesHeld, CaptainsFelled, LegendsForged, Level, Paragon, Deaths
 
 /** A title for doing the same thing often. */
 final case class Achievement(id: String, title: String, metric: Metric, goal: Int, how: String)
@@ -36,6 +36,9 @@ object Achievements:
     Achievement("veteran", "Veteran", Metric.Level, 10, "level ten - the realm stops being surprised by you"),
     Achievement("warden", "Warden", Metric.Level, 25, "level twenty-five of forty"),
     Achievement("the-ascendant", "the Ascendant", Metric.Level, 40, "the level cap, and everything past the map"),
+    Achievement("the-reborn", "the Reborn", Metric.Paragon, 1, "the cap was a door, and you walked through it"),
+    Achievement("the-everwalking", "the Everwalking", Metric.Paragon, 3, "three paragon tiers - the road has little left to teach you"),
+    Achievement("the-undying", "the Undying", Metric.Paragon, 7, "seven paragon tiers deep"),
     Achievement("un-killable", "the Un-Killable", Metric.Deaths, 20, "twenty deaths and still logging in")
   )
 
@@ -51,6 +54,7 @@ object Achievements:
       case Metric.CaptainsFelled => c.captainsFelled
       case Metric.LegendsForged => c.legendsForged
       case Metric.Level => c.level
+      case Metric.Paragon => c.paragon
       case Metric.Deaths => c.deaths
 
   def earned(c: Game.Character, a: Achievement): Boolean = progress(c, a) >= a.goal

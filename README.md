@@ -259,12 +259,22 @@ loop, built entirely from vanilla blocks, items and effects.
     or wait for the mason's daily round, which re-forms every watch for free. The company is the
     world, not a table: the golems are ordinary entities, so they survive restarts and are re-adopted
     onto the roll (up to the hub's charter), and hitting one of your own guards is no kill at all.
+21. **Prestige tiers** — the level cap is a door, not a wall. At level 40 the XP bar does not go
+    dead: every point past the cap feeds a **paragon tier** (the first costs 2,000 XP, each one more
+    than the last). Each tier is small and permanent — **+2 hearts, +0.5 attack, +3% experience
+    earned** (to +50%) — applied through the same attribute-modifier path as class and level bonuses,
+    so they survive logouts, restarts and class changes. Paragon heroes wear a **★ tier** on the HUD
+    (the bar becomes a paragon-progress bar at the cap) and on `/quest top`, ascending is broadcast
+    to the realm with a title screen, and three new titles hang on the ladder (*the Reborn*,
+    *the Everwalking*, *the Undying*). `/quest prestige` reads the whole thing out: your tier, the
+    progress to the next, and what it grants. The tier persists in the character save; old saves
+    simply read as tier 0.
 
 ### Rules
 
 - Death costs 10% of your stored XP — soft, like MMO resilience, no item loss.
 - Quest turn-ins require standing at a registered quest board (until any board exists, anywhere works).
-- Max level 40; `/quest top` ranks the realm's heroes.
+- Max level 40; past the cap, experience feeds paragon tiers (`/quest prestige`). `/quest top` ranks the realm's heroes.
 
 ### Commands
 
@@ -291,6 +301,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest forge [pattern]` | everyone | Legend Forge: base gear + gold + 1–2 sigils → legendary gear |
 | `/quest loot need <n>` / `greed <n>` | everyone | Roll on party-locked loot |
 | `/quest stats` | everyone | Your hero's stat sheet |
+| `/quest prestige` | everyone | Paragon tiers past the level cap: progress, bonuses, cost |
 | `/quest titles` | everyone | Title ladder: what you've earned and what's next, with progress |
 | `/quest title <id>` | everyone | Carry an earned title (action bar + leaderboard), `none` to set down |
 | `/quest guard` | everyone | The realm's watch: strength and shortfalls at every hub |

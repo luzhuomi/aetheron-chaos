@@ -83,6 +83,7 @@ object QuestCommand:
               )
           )
           .`then`(Commands.literal("top").executes(ctx => top(ctx)))
+          .`then`(Commands.literal("prestige").executes(ctx => withPlayer(ctx, p => Game.prestigeReport(p))))
           .`then`(Commands.literal("shop").executes(ctx => withPlayerSilent(ctx, GameShop.shopMenu)))
           .`then`(
             Commands.literal("sell")
@@ -227,10 +228,11 @@ object QuestCommand:
       ctx.getSource.sendSuccess(() => Component.literal("No heroes yet. Be the first: /quest join").withStyle(ChatFormatting.GRAY), false)
     else
       ctx.getSource.sendSuccess(() => Component.literal("Heroes of the realm:").withStyle(ChatFormatting.GOLD), false)
-      rows.zipWithIndex.foreach { case ((name, level, cls, titleId), i) =>
+      rows.zipWithIndex.foreach { case ((name, level, paragon, cls, titleId), i) =>
         val titleTag = Achievements.byId(titleId).map(t => s" \"${t.title}\"").getOrElse("")
+        val star = if paragon > 0 then s" ★$paragon" else ""
         ctx.getSource.sendSuccess(
-          () => Component.literal(s"${i + 1}. Lv $level $cls$titleTag - $name").withStyle(ChatFormatting.AQUA),
+          () => Component.literal(s"${i + 1}. Lv $level$star $cls$titleTag - $name").withStyle(ChatFormatting.AQUA),
           false
         )
       }
@@ -244,7 +246,7 @@ object QuestCommand:
             "Aetheron Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
               "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest track <id> (quest compass), /quest turnin <id> (at the board), " +
               "/quest warp <n> (wayside portal at any board), " +
-              "/quest party <name>, /quest shop (spend gold), /quest forge (strike legends), /quest guard (the realm's watch; 'guard eman' to re-man), /quest stats, /quest titles (carry one with /quest title), /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
+              "/quest party <name>, /quest shop (spend gold), /quest forge (strike legends), /quest guard (the realm's watch; 'guard eman' to re-man), /quest stats, /quest prestige (paragon tiers past the cap), /quest titles (carry one with /quest title), /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
               "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."
           )
           .withStyle(ChatFormatting.YELLOW),

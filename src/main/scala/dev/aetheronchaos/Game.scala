@@ -87,6 +87,8 @@ object Game:
     var kills: Int = 0
     var rareKills: Int = 0
     var deaths: Int = 0
+    // paragon tiers past the level cap (see addXp): `xp` becomes the pool that feeds them
+    var paragon: Int = 0
     // what the title ladder counts (see Achievements.scala)
     var siegesHeld: Int = 0
     var captainsFelled: Int = 0
@@ -106,6 +108,15 @@ object Game:
   private[aetheronchaos] def now: Long = elapsedTicks
 
   def xpToNext(level: Int): Long = 100L + 60L * level + 35L * level * level
+
+  /** Past the cap, experience feeds paragon tiers, and each tier costs a little more. */
+  def paragonToNext(tier: Int): Long = 2000L + 1500L * tier
+
+  /** What the hero's current xp pool is actually filling: a level, or a paragon tier at the cap. */
+  def xpNeed(c: Character): Long = if c.level >= MaxLevel then paragonToNext(c.paragon) else xpToNext(c.level)
+
+  /** Paragon tiers sharpen the hero's craft: +3% XP earned per tier, to a ceiling. */
+  private def paragonXpRate(c: Character): Double = math.min(1.5, 1.0 + 0.03 * c.paragon)
 
   def isJoined(player: ServerPlayer): Boolean = characters.get(player.getUUID).exists(_.joined)
 
@@ -218,6 +229,9 @@ object Game:
     val classSpeed = hc.map(_.speedBonus).getOrElse(0.0)
     val levelHealth = 2.0 * (c.level - 1)
     val levelDamage = 0.5 * ((c.level - 1) / 4)
+    // paragon tiers: small, permanent, and the only thing that still grows past the cap
+    val paragonHealth = 4.0 * c.paragon
+    val paragonDamage = 0.5 * c.paragon
 
     def add(holder: Holder[net.minecraft.world.entity.ai.attributes.Attribute], name: String, amount: Double, op: Operation): Unit =
       if amount != 0.0 then
@@ -225,8 +239,8 @@ object Game:
           _.addTransientModifier(AttributeModifier(HeroClasses.modifierId(name), amount, op))
         )
 
-    add(Attributes.MAX_HEALTH, "health", classHealth + levelHealth, Operation.ADD_VALUE)
-    add(Attributes.ATTACK_DAMAGE, "damage", classDamage + levelDamage, Operation.ADD_VALUE)
+    add(Attributes.MAX_HEALTH, "health", classHealth + levelHealth + paragonHealth, Operation.ADD_VALUE)
+    add(Attributes.ATTACK_DAMAGE, "damage", classDamage + levelDamage + paragonDamage, Operation.ADD_VALUE)
     add(Attributes.MOVEMENT_SPEED, "speed", classSpeed, Operation.ADD_MULTIPLIED_TOTAL)
     hc.foreach(_.passive.foreach(effect => player.addEffect(MobEffectInstance(effect, -1, 0, false, true))))
     if player.getHealth > player.getMaxHealth then player.setHealth(player.getMaxHealth)
@@ -324,25 +338,48 @@ object Game:
 
   private[aetheronchaos] def addXp(player: ServerPlayer, amount: Long): Unit =
     val c = ensure(player.getUUID)
-    c.xp += amount
+    c.xp += math.round(amount * paragonXpRate(c))
     val fromLevel = c.level
     var leveled = false
     while c.level < MaxLevel && c.xp >= xpToNext(c.level) do
       c.xp -= xpToNext(c.level)
       c.level += 1
       leveled = true
+    // at the cap the pool keeps filling: it is a paragon tier now, not a wasted bar
+    var ascended = false
+    while c.level >= MaxLevel && c.xp >= paragonToNext(c.paragon) do
+      c.xp -= paragonToNext(c.paragon)
+      c.paragon += 1
+      ascended = true
     if leveled then
       applyBonuses(player)
       player.setHealth(player.getMaxHealth)
+      val capNote =
+        if c.level == MaxLevel then " You stand at the level cap - from here, experience feeds paragon tiers (/quest prestige)." else ""
       broadcast(
         player.server,
-        Component.literal(s"${c.displayName} reached level ${c.level}!").withStyle(ChatFormatting.GOLD)
+        Component.literal(s"${c.displayName} reached level ${c.level}!$capNote").withStyle(ChatFormatting.GOLD)
       )
       player.playNotifySound(SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0f, 1.0f)
       player.connection.send(ClientboundSetTitlesAnimationPacket(10, 70, 20))
       player.connection.send(ClientboundSetTitleTextPacket(Component.literal(s"Level ${c.level}!").withStyle(ChatFormatting.GOLD)))
       player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal(heroClassOf(c).map(_.name).getOrElse("Adventurer"))))
       GameSpells.announceNewSpells(player, c, fromLevel)
+    if ascended then
+      applyBonuses(player)
+      player.setHealth(player.getMaxHealth)
+      broadcast(
+        player.server,
+        Component
+          .literal(
+            s"${c.displayName} has ascended to Paragon ${c.paragon}! +2 hearts, +0.5 attack, +${3 * c.paragon}% experience."
+          )
+          .withStyle(ChatFormatting.AQUA)
+      )
+      player.playNotifySound(SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0f, 0.7f)
+      player.connection.send(ClientboundSetTitlesAnimationPacket(10, 70, 20))
+      player.connection.send(ClientboundSetTitleTextPacket(Component.literal(s"Paragon ${c.paragon}!").withStyle(ChatFormatting.AQUA)))
+      player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("the level cap was the door, not the wall")))
 
   private[aetheronchaos] def countItem(player: ServerPlayer, item: Item): Int =
     val inv = player.getInventory
@@ -465,31 +502,52 @@ object Game:
   def statsReport(player: ServerPlayer): String =
     val c = ensure(player.getUUID)
     val hc = heroClassOf(c).map(_.name).getOrElse("Adventurer")
-    val need = xpToNext(c.level)
+    val need = xpNeed(c)
+    val pool = if c.level >= MaxLevel then s"PAR ${c.paragon} XP ${c.xp}/$need" else s"XP ${c.xp}/$need"
     val carried = Achievements.byId(c.title).map(a => s" | carrying \"${a.title}\"").getOrElse("")
     val next = Achievements.ladder(c).headOption
       .map { (a, have, goal) => s"\nNext title: ${a.title} - $have/$goal (${a.how})" }
       .getOrElse("\nEvery title this realm has to give is yours.")
-    s"Lv ${c.level} $hc | XP ${c.xp}/$need | kills ${c.kills} (${c.rareKills} rare) | deaths ${c.deaths} | quests in log ${c.taken.size} | titles ${c.titles.size}/${Achievements.all.size}$carried$next"
+    s"Lv ${c.level} $hc | $pool | kills ${c.kills} (${c.rareKills} rare) | deaths ${c.deaths} | quests in log ${c.taken.size} | titles ${c.titles.size}/${Achievements.all.size}$carried$next"
 
-  def leaderboard(server: MinecraftServer): List[(String, Int, String, String)] =
-    val merged = mutable.Map[UUID, (Int, String, String, String)]() // level, classId, saved name, carried title
+  /** The prestige readout: where a hero stands past the cap, or what awaits them there. */
+  def prestigeReport(player: ServerPlayer): String =
+    val c = ensure(player.getUUID)
+    val bonus =
+      s"Each paragon tier: +2 hearts, +0.5 attack, +3% experience earned (to +50%), and a star on the realm's leaderboard."
+    if c.level < MaxLevel then
+      val need = xpToNext(c.level)
+      s"Prestige begins at the level cap ($MaxLevel), where experience stops being wasted and starts feeding paragon tiers. You are Lv ${c.level} - $need XP to the next level. $bonus"
+    else
+      val need = paragonToNext(c.paragon)
+      val held =
+        s"Held now: +${2 * c.paragon} hearts, +${fmt1(0.5 * c.paragon)} attack, +${3 * c.paragon}% experience."
+      val next = if 3 * c.paragon >= 50 then "The experience bonus has reached its ceiling; health and attack keep growing."
+        else "The next tier costs more than the last."
+      s"Paragon ${c.paragon} - ${c.xp}/$need XP toward tier ${c.paragon + 1}. $held $next $bonus"
+
+  private def fmt1(x: Double): String = if x == x.round.toDouble then x.round.toString else f"$x%.1f"
+
+  def leaderboard(server: MinecraftServer): List[(String, Int, Int, String, String)] =
+    val merged = mutable.Map[UUID, (Int, Int, String, String, String)]() // level, paragon, classId, saved name, carried title
     CharacterStore.readAll(server).foreach { (uuid, tag) =>
-      merged(uuid) = (tag.getInt("level"), tag.getString("class"), tag.getString("name"), tag.getString("title"))
+      merged(uuid) = (tag.getInt("level"), tag.getInt("paragon"), tag.getString("class"), tag.getString("name"), tag.getString("title"))
     }
     characters.foreach { (uuid, c) =>
-      if c.level > merged.get(uuid).map(_._1).getOrElse(0) then merged(uuid) = (c.level, c.classId, c.displayName, c.title)
+      val atLeast = merged.get(uuid).forall(lv => c.level > lv._1 || (c.level == lv._1 && c.paragon >= lv._2))
+      if atLeast then merged(uuid) = (c.level, c.paragon, c.classId, c.displayName, c.title)
     }
     merged.toList
       .map { entry =>
         val uuid = entry._1
         val level = entry._2._1
-        val classId = entry._2._2
-        val savedName = entry._2._3
+        val paragon = entry._2._2
+        val classId = entry._2._3
+        val savedName = entry._2._4
         val name = Option(server.getPlayerList.getPlayer(uuid)).map(_.getName.getString).getOrElse(savedName)
-        (name, level, HeroClasses.byId(classId).map(_.name).getOrElse("Adventurer"), entry._2._4)
+        (name, level, paragon, HeroClasses.byId(classId).map(_.name).getOrElse("Adventurer"), entry._2._5)
       }
-      .sortBy(row => -row._2)
+      .sortBy(row => (-row._2, -row._3))
       .take(10)
 
   def reset(player: ServerPlayer): String =
@@ -497,6 +555,7 @@ object Game:
     c.classId = ""
     c.level = 1
     c.xp = 0L
+    c.paragon = 0
     c.taken.clear()
     c.tracked.clear()
     c.done.clear()
@@ -556,6 +615,7 @@ object Game:
     tag.putString("dailyDone", c.dailyDone.mkString(","))
     tag.putInt("level", c.level)
     tag.putLong("xp", c.xp)
+    tag.putInt("paragon", c.paragon)
     tag.putString("taken", c.taken.mkString(","))
     tag.putString("tracked", c.tracked.mkString(","))
     tag.putString("done", c.done.mkString(","))
@@ -583,6 +643,7 @@ object Game:
       c.dailyDone ++= tag.getString("dailyDone").split(",").toSeq
     c.level = math.max(1, tag.getInt("level"))
     c.xp = tag.getLong("xp")
+    c.paragon = math.max(0, tag.getInt("paragon")) // absent in saves written before prestige existed
     if tag.getString("taken").nonEmpty then c.taken ++= tag.getString("taken").split(",").toSeq
     if tag.contains("tracked") && tag.getString("tracked").nonEmpty then
       tag.getString("tracked").split(",").toSeq.filter(c.taken.contains).foreach(c.tracked += _)

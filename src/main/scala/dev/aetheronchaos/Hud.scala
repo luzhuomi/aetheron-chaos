@@ -14,17 +14,20 @@ object Hud:
   private def bar(player: ServerPlayer): Component =
     val c = Game.characterFor(player)
     val className = HeroClasses.byId(c.classId).map(_.name).getOrElse("Adventurer")
-    val need = Game.xpToNext(c.level)
-    val pct = if c.level >= Game.MaxLevel then 100 else ((c.xp * 100) / math.max(1L, need)).toInt
+    val atCap = c.level >= Game.MaxLevel
+    val need = Game.xpNeed(c)
+    val pct = ((c.xp * 100) / math.max(1L, need)).toInt
     val filled = (pct / 10).toInt
     val xpBar = ("█" * filled) + ("░" * (10 - filled))
     val hp = f"${player.getHealth.toFloat}%.0f/${player.getMaxHealth.toFloat}%.0f"
 
     val spellTag = if Spells.schoolFor(c.classId).nonEmpty then s"  ✦ ${GameSpells.equippedSpell(c).name}" else ""
+    val paragonTag = if c.paragon > 0 then s" ★${c.paragon}" else ""
     val titleTag = Achievements.byId(c.title).map(a => s" \"${a.title}\"").getOrElse("")
+    val pool = if atCap then s"PAR $pct%" else s"XP $pct%"
     val head = Component
-      .literal(s"Lv ${c.level} $className$titleTag  XP $pct% $xpBar  HP $hp$spellTag")
-      .withStyle(ChatFormatting.GOLD)
+      .literal(s"Lv ${c.level}$paragonTag $className$titleTag  $pool $xpBar  HP $hp$spellTag")
+      .withStyle(if atCap then ChatFormatting.AQUA else ChatFormatting.GOLD)
 
     // tracked quests with a live compass to the next objective (or the board when done)
     val compass = GameQuests.trackerCompass(player).toMap

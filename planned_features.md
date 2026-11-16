@@ -6,10 +6,10 @@ Current state: ~4,750 lines, 24 files, 39 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Prestige tiers** — at max level, XP converts to a paragon counter with small bonuses
-   and a title prefix; the title machinery (Achievements.scala) is already there to hang it on.
-2. **Player trading** — `/quest trade <player>` with double-confirm via chat clicks. Legends,
+1. **Player trading** — `/quest trade <player>` with double-confirm via chat clicks. Legends,
    sigils and re-maning all make a tradable surplus worth having.
+2. **Trial rewards** — class trials pay XP/gold only; a small class-flavored keepsake drop
+   would make them feel like WoW dungeons-lite, and give paragon heroes something to grind.
 
 ## A. Make the trinity real
 
@@ -26,8 +26,8 @@ Current state: ~4,750 lines, 24 files, 39 commits — see README.md.
 
 ## C. Endgame
 
-- [ ] **Prestige tiers** — at max level, XP converts to a paragon counter with small bonuses
-      and a title prefix in chat.
+- [ ] **Paragon-gated patterns** — prestige tiers exist now. Next: one or two forge patterns that
+      require a paragon tier as well as sigils, so the cap has a gear goal as well as a number.
 - [ ] **A forge that improves** — nine patterns is enough for now. If it grows: seasonal patterns,
       or one that takes a legendary back and re-rolls its enchantment line (a familiar MMO sink).
 
@@ -53,6 +53,9 @@ Current state: ~4,750 lines, 24 files, 39 commits — see README.md.
   and the two-sigil netherite patterns are the big sink) first when tuning.
 - The watch is a combat surface too: golem companies at 60% health / 70% damage were chosen so they
   help without taking the fight over. If they clear war bands unaided, drop `GuardWatch.GuardHealthScale`.
+- Prestige pacing is a guess: the first tier is 2,000 XP (`Game.paragonToNext`) and each costs 1,500
+  more, with +3% XP per tier feeding itself. If max-level heroes ascend weekly, raise the base; the
+  bonuses themselves (+2 hearts / +0.5 attack per tier) are deliberately small.
 - Mojmap 1.21 gotchas live in the project's history: `UseItemCallback` returns
   `InteractionResultHolder` (consume/pass), no `setSecondsOnFire` (use `setRemainingFireTicks`),
   mining fatigue = `DIG_SLOWDOWN`, nausea = `CONFUSION`, no `BOWS`/`SHIELDS` item tags
