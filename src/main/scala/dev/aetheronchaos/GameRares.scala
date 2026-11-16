@@ -73,13 +73,22 @@ object GameRares:
         Option(factory.create(serverLevel)) match
           case None => "The rare refused to appear here."
           case Some(m) =>
+            // a warband draws a mightier prey: the rare's health scales with the party it lands on
+            val c = Game.ensure(player.getUUID)
+            val warband = 1 + (c.party match
+              case Some(p) => Game.partyMembers(p).count { u =>
+                u != c.uuid && Option(player.server.getPlayerList.getPlayer(u)).exists(Game.isJoined)
+              }
+              case None => 0
+            )
+            val scale = 1.0 + 0.5 * (warband - 1)
             val ang = rng.nextDouble() * 2 * Math.PI
             val dist = 14 + rng.nextInt(10)
             m.setPos(player.getX + math.cos(ang) * dist, player.getY + 2, player.getZ + math.sin(ang) * dist)
             m.setCustomName(Component.literal(chosen.name))
             m.setCustomNameVisible(true)
             Option(m.getAttribute(Attributes.MAX_HEALTH)).foreach { a =>
-              a.setBaseValue(a.getBaseValue * chosen.healthMult)
+              a.setBaseValue(a.getBaseValue * chosen.healthMult * scale)
               m.setHealth(a.getValue.toFloat)
             }
             Option(m.getAttribute(Attributes.ATTACK_DAMAGE)).foreach(a => a.setBaseValue(a.getBaseValue * chosen.attackMult))
@@ -93,10 +102,13 @@ object GameRares:
             bar.setProgress(1.0f)
             serverLevel.players().forEach(bar.addPlayer) // everyone online sees the fight start
             rareBars += m -> bar
+            val scaleNote =
+              if scale > 1.0 then s" It swells to face ${warband} heroes - health x${"%.1f".format(scale)}."
+              else ""
             Game.broadcast(
               player.server,
               Component
-                .literal(s"A RARE ELITE has appeared: ${chosen.name}, near ${player.getName.getString}! Slay it for 10x XP and guaranteed loot.")
+                .literal(s"A RARE ELITE has appeared: ${chosen.name}, near ${player.getName.getString}! Slay it for 10x XP and guaranteed loot.$scaleNote")
                 .withStyle(ChatFormatting.LIGHT_PURPLE)
             )
             player.playNotifySound(SoundEvents.ENDER_DRAGON_AMBIENT, SoundSource.HOSTILE, 1.0f, 0.9f)

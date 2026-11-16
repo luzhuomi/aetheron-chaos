@@ -175,7 +175,9 @@ loop, built entirely from vanilla blocks, items and effects.
 12. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
     *Silithis the Broodmother*) spawns near a random hero with a server announcement: **10x XP and
     guaranteed loot**. A **boss bar** with its name and live HP appears at the top of every hero's
-    screen while it lives (vanilla boss-event packet — no client mods). Ops can trigger one with
+    screen while it lives (vanilla boss-event packet — no client mods). **Warbands draw mightier
+    prey**: if the hero it lands on is in a party, the rare's health scales +50% per extra member
+    and the announcement says so — group fights stay epic without becoming free for one hero. Ops can trigger one with
     `/quest rare`. Fair fight rule: if the whole party (or a solo hero) dies while engaged with the
     rare, it fades away — no respawn-grinding it down.
 13. **Hold the line** — warrior *Taunt* (aimed) and paladin *Challenge* (war-horn, 5 blocks) force
