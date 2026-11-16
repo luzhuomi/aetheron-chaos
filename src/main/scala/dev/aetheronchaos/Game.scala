@@ -99,6 +99,7 @@ object Game:
 
   private val characters = mutable.Map[UUID, Character]()
   private val parties = mutable.Map[String, mutable.LinkedHashSet[UUID]]()
+  private val partyNames = mutable.Map[UUID, String]() // so the party readout can name away members
   private var elapsedTicks = 0L
   private var nextAutosaveTick = AutosaveIntervalTicks
   // date of the last town mason pass, so towns repair once per real-world day (and on boot)
@@ -462,7 +463,8 @@ object Game:
       return s"The party '$name' is full ($PartyMaxSize maximum)."
     members += c.uuid
     c.party = Some(name.toLowerCase)
-    s"Joined party '$name' (${members.size}/$PartyMaxSize). Party members within $PartyShareRangeBlocks blocks share 50% of kill XP."
+    partyNames(c.uuid) = player.getName.getString
+    s"Joined party '$name' (${members.size}/$PartyMaxSize). Party members within $PartyShareRangeBlocks blocks share 50% of kill XP. /quest party reads everyone's state."
 
   def leaveParty(player: ServerPlayer): String =
     val c = ensure(player.getUUID)
@@ -493,8 +495,22 @@ object Game:
     c.party match
       case None => "You are not in a party. Join one: /quest party <name>"
       case Some(p) =>
-        val names = parties.getOrElse(p, mutable.LinkedHashSet[UUID]()).flatMap(u => Option(player.server.getPlayerList.getPlayer(u)).map(_.getName.getString))
-        s"Party '$p': ${names.mkString(", ")}"
+        val members = parties.getOrElse(p, mutable.LinkedHashSet[UUID]())
+        // chat-side party frames: everyone's state as the server sees it
+        val rows = members.toList.map { u =>
+          val who = partyNames.getOrElse(u, "a hero")
+          Option(player.server.getPlayerList.getPlayer(u)) match
+            case None => s"  $who - away"
+            case Some(m) =>
+              val mc = ensure(u)
+              val cls = HeroClasses.byId(mc.classId).map(_.name).getOrElse("Adventurer")
+              val star = if mc.paragon > 0 then s" ★${mc.paragon}" else ""
+              val me = if u == c.uuid then " (you)" else ""
+              s"  $who$me - Lv ${mc.level}$star $cls - HP ${m.getHealth.round}/${m.getMaxHealth.round}"
+        }
+        (List(s"Party '$p' (${members.size}/$PartyMaxSize):") ::: rows :::
+          List("The party shares kill XP and quest progress within range."))
+          .mkString("\n")
 
   // --- the hearth ---------------------------------------------------------------
 

@@ -160,7 +160,9 @@ loop, built entirely from vanilla blocks, items and effects.
 
 6. **Party up** — `/quest party <name>` groups up to 5 heroes (WoW party size). Party members within
    40 blocks share 50% of kill XP **and quest progress**: any member's kill counts toward the same
-   kill-quest for everyone holding it. Your party shows in the action bar.
+   kill-quest for everyone holding it. Your party shows in the action bar, and `/quest party` reads
+   **chat-side party frames**: every member's level, class, paragon star and current HP as the
+   server sees it — who's hurt, who's away — so supporting is playable from chat alone.
 
 7. **Group quests** — quests marked **[GROUP]** on the board (Ravager Rampage, The Deep Duke,
    The Warden Below) are boss hunts: every ready party member at the quest board turns in together
@@ -374,6 +376,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest untrack <id>` | everyone | Unpin a quest from the action bar |
 | `/quest turnin <id>` | everyone | Turn a completed quest in (at the board) |
 | `/quest party <name>` | everyone | Join/create a party (max 5, shared XP + quest progress) |
+| `/quest party` | everyone | Chat-side party frames: level, class, HP of every member |
 | `/quest party leave` | everyone | Leave your party |
 | `/quest shop` | everyone | Vendor catalog (also right-click the town vendor barrel) |
 | `/quest sell` | everyone | Sell the item in your main hand to the merchant for gold |
