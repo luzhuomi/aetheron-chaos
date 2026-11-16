@@ -106,6 +106,21 @@ object Threat:
       val footer = "Taunts slam you to the top; healing a hero who holds aggro pulls notice too; ravagers dig in and creepers never keep score."
       (List(header) ::: rows ::: List(footer)).mkString("\n")
 
+  /** The on-HUD tell: a mob near this hero that they were holding has turned away.
+   *  Not "every mob with a table" (that would be a wall of noise) - only *lost* aggro. */
+  def lostAggroTo(player: ServerPlayer): Option[String] =
+    tables.iterator
+      .filter { (mob, table) => mob.isAlive && !mob.isRemoved && table.contains(player.getUUID) && mob.distanceToSqr(player) <= 20.0 * 20.0 }
+      .flatMap { (mob, table) =>
+        val holding = heroIdentity(mob.getTarget).contains(player.getUUID)
+        val leading = table.maxBy((_, v) => v)._1
+        if !holding && leading != player.getUUID then Some(s"${mob.getName.getString}->${nameOf(player, leading)}")
+        else None
+      }
+      .toSeq
+      .sortBy(_.length)
+      .headOption
+
   private def fmt(v: Double): String = if v >= 10.0 then v.toInt.toString else f"$v%.1f"
 
   private def nameOf(player: ServerPlayer, uuid: UUID): String =

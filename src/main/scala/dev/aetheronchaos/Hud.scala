@@ -41,6 +41,11 @@ object Hud:
     if quests.nonEmpty then head.append(Component.literal(s"   ${quests.mkString("  |  ")}").withStyle(ChatFormatting.AQUA))
     else head.append(Component.literal("   /quest track <id> for a compass").withStyle(ChatFormatting.DARK_GRAY))
 
+    // the trinity's tell: only when you *lost* something, never a wall of noise
+    Threat.lostAggroTo(player).foreach { gone =>
+      head.append(Component.literal(s"  \u26a0 aggro: $gone (/quest threat)").withStyle(ChatFormatting.RED))
+    }
+
     c.party.foreach { pname =>
       val mates = Game.partiesOf(player, pname)
       if mates.nonEmpty then head.append(Component.literal(s"   Party: ${mates.mkString(", ")}").withStyle(ChatFormatting.LIGHT_PURPLE))
