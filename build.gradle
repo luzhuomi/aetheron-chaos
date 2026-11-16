@@ -25,6 +25,14 @@ dependencies {
 	// Scala stdlib: compiled against, and bundled into the mod jar as a jar-in-jar.
 	implementation "org.scala-lang:scala3-library_3:${project.scala_version}"
 	include "org.scala-lang:scala3-library_3:${project.scala_version}"
+
+	// Pure-logic tests (Formulas): no Minecraft runtime needed.
+	testImplementation "org.scalameta:munit_3:1.0.4"
+}
+
+test {
+	useJUnit()
+	testLogging { events "failed", "passed" }
 }
 
 processResources {

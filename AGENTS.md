@@ -8,7 +8,8 @@ constraint is the design.
 
 | Task | Command |
 |---|---|
-| Build | `./gradlew build` (~10 s; jar lands in `build/libs/`) |
+| Build | `./gradlew build` (~10 s; jar lands in `build/libs/`; runs the tests too) |
+| Pure-logic tests | `./gradlew test` — munit over `Formulas.scala` (no Minecraft runtime) |
 | Smoke-run the dedicated server | `{ sleep 40; echo stop; } \| ./gradlew runServer` — the `echo stop` is required, `runServer` never exits by itself |
 | Leftover smoke servers | `ps aux \| grep "[f]abric.dli.config"`, then `pkill -f "fabric.dli.config"` if any are stuck |
 

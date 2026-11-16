@@ -38,8 +38,7 @@ object GuardWatch:
 
   private val GuardHealthScale = 0.6 // the town's watch is sturdy, not a raid boss
   private val GuardAttackScale = 0.7
-  private val CharterCapital = 3
-  private val CharterHub = 2
+  // charter sizes live in Formulas.guardCharter (capital 3 / hub 2 / +1 with a barracks)
   private val LeashBlocks = 55.0 // a guard who wanders this far is walked home
   private val MusterIntervalTicks = 200L
 
@@ -50,8 +49,7 @@ object GuardWatch:
   private var rollPending = true
 
   /** How many guards a hub is entitled to keep. A barracks raises the charter by one. */
-  def charterFor(hub: TownBuilder.Town): Int =
-    (if hub.capital then CharterCapital else CharterHub) + (if hub.barracks then 1 else 0)
+  def charterFor(hub: TownBuilder.Town): Int = Formulas.guardCharter(hub.capital, hub.barracks)
 
   /** Fill a hub's watch up to its charter at no cost (a barracks raise, a mason's gift). */
   private[aetheronchaos] def raiseToCharter(server: MinecraftServer, hubIndex: Int): Int =

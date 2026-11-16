@@ -249,8 +249,7 @@ object TownBuilder:
     towns.minByOption(t => player.blockPosition.distSqr(t.base))
 
   /** Gold a wayside portal asks: one per 20 blocks folded, minimum five. */
-  def warpCost(from: Town, to: Town): Int =
-    math.max(5, (math.sqrt(from.base.distSqr(to.base)) / 20.0).floor.toInt)
+  def warpCost(from: Town, to: Town): Int = Formulas.warpToll(math.sqrt(from.base.distSqr(to.base)))
 
   /** Other hubs reachable from the board the player stands at: (index, label, gold). */
   def warpOffers(player: ServerPlayer): List[(Int, String, Int)] =

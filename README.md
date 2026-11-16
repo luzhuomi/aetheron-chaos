@@ -418,6 +418,16 @@ Java 21 bytecode for Minecraft 1.21). Point Gradle at it via `org.gradle.java.ho
 The mod jar is produced at `build/libs/aetheron-chaos-1.0.0.jar` (already remapped to intermediary
 names, with the Scala stdlib bundled as a jar-in-jar — no Scala plugin needed on the server).
 
+### Test the pure logic
+
+```bash
+./gradlew test
+```
+
+The XP/paragon curves, warp tolls, guard charters and typo distance live in one
+Minecraft-free object (`Formulas.scala`) and are covered by munit tests under `src/test` —
+they run without a world, and `./gradlew build` runs them too.
+
 ### Run a test server
 
 ```bash
@@ -469,6 +479,7 @@ Feature roadmap lives in [planned_features.md](planned_features.md).
 src/main/scala/dev/aetheronchaos/
   AetheronChaosMod.scala  Fabric entrypoint, event wiring
   Game.scala             Realm state core: characters, XP/levels, parties, kill credit, tick
+  Formulas.scala         Pure arithmetic (XP/paragon curves, tolls, charters, edit distance) - unit-tested
   GameSpells.scala       Spellbook state: equip, cast, cooldowns, spell menu
   GameShop.scala         Vendor flows: shop menu, buy, sell
   GameRares.scala        Rare-elite scheduler, live registry, spawn

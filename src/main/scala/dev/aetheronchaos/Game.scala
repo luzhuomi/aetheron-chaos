@@ -107,16 +107,16 @@ object Game:
   /** Realm time in ticks; spell and navigation schedulers schedule against this. */
   private[aetheronchaos] def now: Long = elapsedTicks
 
-  def xpToNext(level: Int): Long = 100L + 60L * level + 35L * level * level
+  def xpToNext(level: Int): Long = Formulas.xpToNext(level)
 
   /** Past the cap, experience feeds paragon tiers, and each tier costs a little more. */
-  def paragonToNext(tier: Int): Long = 2000L + 1500L * tier
+  def paragonToNext(tier: Int): Long = Formulas.paragonToNext(tier)
 
   /** What the hero's current xp pool is actually filling: a level, or a paragon tier at the cap. */
   def xpNeed(c: Character): Long = if c.level >= MaxLevel then paragonToNext(c.paragon) else xpToNext(c.level)
 
   /** Paragon tiers sharpen the hero's craft: +3% XP earned per tier, to a ceiling. */
-  private def paragonXpRate(c: Character): Double = math.min(1.5, 1.0 + 0.03 * c.paragon)
+  private def paragonXpRate(c: Character): Double = Formulas.paragonXpRate(c.paragon)
 
   /** The visible rank of ascension: a hero's star and carried title burn a different
    *  color past each milestone. Pure chat formatting - every client sees it. */
@@ -693,16 +693,7 @@ object Game:
         stack.set(DataComponents.ITEM_NAME, Loot.coinName)
     }
 
-  private[aetheronchaos] def editDistance(a: String, b: String): Int =
-    var prev = Array.tabulate(b.length + 1)(identity)
-    for i <- 1 to a.length do
-      val cur = Array.ofDim[Int](b.length + 1)
-      cur(0) = i
-      for j <- 1 to b.length do
-        val sub = prev(j - 1) + (if a(i - 1) == b(j - 1) then 0 else 1)
-        cur(j) = math.min(math.min(prev(j) + 1, cur(j - 1) + 1), sub)
-      prev = cur
-    prev(b.length)
+  private[aetheronchaos] def editDistance(a: String, b: String): Int = Formulas.editDistance(a, b)
 
   private[aetheronchaos] def giveItem(player: ServerPlayer, stack: net.minecraft.world.item.ItemStack): Unit =
     if !player.getInventory.add(stack) then player.drop(stack, false)
