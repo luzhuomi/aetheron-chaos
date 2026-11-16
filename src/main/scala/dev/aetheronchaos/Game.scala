@@ -54,6 +54,8 @@ object Game:
   val AutosaveIntervalTicks = 5L * 60L * 20L
   // town guard sweep: how often hostile strays inside town land get escorted out
   private val TownGuardIntervalTicks = 40L
+  // village adoption scan: how often heroes' surroundings are checked for vanilla villages
+  private val VillageScanIntervalTicks = 200L
 
 
   final class Character(val uuid: UUID):
@@ -429,6 +431,7 @@ object Game:
       nextAutosaveTick = elapsedTicks + AutosaveIntervalTicks
       CharacterStore.save(server) // crash safety net between disconnect saves
     if elapsedTicks % TownGuardIntervalTicks == 0 then TownBuilder.expelHostileMobs(server)
+    if elapsedTicks % VillageScanIntervalTicks == 0 then TownBuilder.adoptNearbyVillages(server)
     // the mason's daily round: patch creeper scars and missing town blocks
     val today = java.time.LocalDate.now().toString
     if today != lastTownRepairDay then

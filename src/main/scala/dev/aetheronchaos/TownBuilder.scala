@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.tags.StructureTags
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.monster.Creeper
@@ -21,6 +22,7 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.entity.SignBlockEntity
+import net.minecraft.world.level.levelgen.structure.BoundingBox
 import net.minecraft.world.phys.AABB
 
 /**
@@ -35,8 +37,10 @@ import net.minecraft.world.phys.AABB
  */
 object TownBuilder:
   type Region = (Int, Int, Int, Int, Int, Int)
-  /** A built town: anchor block, facing, footprint and whether it is the realm's starter town. */
-  final case class Town(base: BlockPos, dir: Direction, region: Region, capital: Boolean)
+  /** A built town: anchor block, facing, footprint, whether it is the realm's starter town,
+   *  and whether it was adopted from a vanilla village (its plaza stands at the village
+   *  meeting point; the surrounding village is the villagers' own business). */
+  final case class Town(base: BlockPos, dir: Direction, region: Region, capital: Boolean, adopted: Boolean = false)
 
   // town NPCs (named nitwit villagers). The questmaster and merchant double as
   // clickable quest board / vendor; guards hand out hints.
@@ -51,6 +55,8 @@ object TownBuilder:
   private val boards = mutable.Set[Long]()
   // positions of registered vendor barrels (BlockPos.asLong)
   private val vendors = mutable.Set[Long]()
+  // village centers looked at already (adopted or declined), so the scan never retries
+  private val lookedAtVillages = mutable.Set[Long]()
 
   def boardCount: Int = boards.size
 
@@ -187,14 +193,62 @@ object TownBuilder:
       Game.message(player, "Welcome to your new town! Talk to Questmaster Boralus or right-click the loom board to take quests.", net.minecraft.ChatFormatting.GOLD)
     }
 
+  // --- adopting vanilla villages --------------------------------------------------
+
+  /**
+   * Heroes wandering into a vanilla village bring the realm with them: a quest hub
+   * (board, vendor, hearth, guards) is grafted onto the village meeting point, which
+   * is already an open plaza. The rest of the village is left exactly as the
+   * villagers built it. Each village is considered once per session; adopted hubs
+   * persist like built towns (repair, guard and turn-in rules all apply).
+   */
+  def adoptNearbyVillages(server: MinecraftServer): Unit =
+    val level = server.overworld()
+    if level == null then return
+    server.getPlayerList.getPlayers.asScala.foreach { p =>
+      if Game.isJoined(p) then
+        val start = level.structureManager().getStructureWithPieceAt(p.blockPosition(), StructureTags.VILLAGE)
+        if start.isValid then
+          val bb = start.getBoundingBox
+          val cx = (bb.minX + bb.maxX) / 2
+          val cz = (bb.minZ + bb.maxZ) / 2
+          val key = new BlockPos(cx, 0, cz).asLong
+          if !lookedAtVillages.contains(key) then
+            lookedAtVillages += key
+            adoptAtMeetingPoint(level, cx, cz, bb, p)
+    }
+
+  /** Grafts a hub at the meeting point of one village, if there is ground and no hub already. */
+  private def adoptAtMeetingPoint(level: ServerLevel, cx: Int, cz: Int, bb: BoundingBox, seeker: ServerPlayer): Unit =
+    val covered = towns.exists { t =>
+      val (x1, _, z1, x2, _, z2) = t.region
+      cx >= x1 - 16 && cx <= x2 + 16 && cz >= z1 - 16 && cz <= z2 + 16
+    }
+    if covered then return
+    // find the meeting-point ground: scan down from the village roof
+    var y = bb.maxY + 1
+    while y > bb.minY - 16 && level.getBlockState(new BlockPos(cx, y, cz)).isAir do y -= 1
+    if y <= bb.minY - 16 then return
+    val dir = Direction.NORTH
+    val base = new BlockPos(cx, y, cz + 5) // plaza spans 0..10 forward, -5..5 lateral -> centered on (cx, cz)
+    val placed = buildAt(level, base, dir, capital = false, adopted = true)
+    TownStore.save(seeker.server)
+    Game.broadcast(
+      seeker.server,
+      Component
+        .literal(s"A vanilla village near ${seeker.getName.getString} has joined the realm! A quest board now stands at its meeting point (${cx}, ${cz}).")
+        .withStyle(net.minecraft.ChatFormatting.GOLD)
+    )
+    System.out.println(s"[aetheron-chaos] adopted village at ($cx, $cz) as a quest hub ($placed blocks)")
+
   /** Places one quest hub (board, vendor, hearth, fences, signs, NPCs) and registers it. */
-  private def buildAt(level: ServerLevel, base: BlockPos, dir: Direction, capital: Boolean): Int =
+  private def buildAt(level: ServerLevel, base: BlockPos, dir: Direction, capital: Boolean, adopted: Boolean = false): Int =
     val placed = layout(level, base, dir, repair = false)
     spawnNpc(level, atOf(base, dir)(7, 0, 1), QuestNpcName)
     spawnNpc(level, atOf(base, dir)(4, 4, 1), VendorNpcName)
     spawnNpc(level, atOf(base, dir)(1, -4, 1), GuardNpcName)
     spawnNpc(level, atOf(base, dir)(4, -3, 1), HearthNpcName)
-    towns += Town(base, dir, regionOf(base, dir), capital)
+    towns += Town(base, dir, regionOf(base, dir), capital, adopted)
     registerBoardAndVendor(towns.last)
     placed
 

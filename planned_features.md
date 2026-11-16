@@ -2,14 +2,15 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~3,100 lines, 20 files, 24 commits — see README.md.
+Current state: ~3,200 lines, 20 files, 25 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Adopt vanilla villages as towns** — detect village structures, graft in a board/vendor/NPCs.
-   Biggest content multiplier relative to systems that already exist.
-2. **Quest chains** — finishing A unlocks B; turns one-step quests into story and gives the
-   adopted villages something to say.
+1. **Quest chains** — a `chain` field on `Quest`: finishing A unlocks B
+   (*Road Patrol → Clean the Roads → Slay the Roadbreaker*). Data-only change, big story feel;
+   gives newly adopted villages something to say.
+2. **Healer XP from healing** — small XP per HP restored on allies; with taunt and boss bars in,
+   the support role is now visible but still unrewarded.
 
 ## A. Make the trinity real
 
@@ -21,8 +22,6 @@ Current state: ~3,100 lines, 20 files, 24 commits — see README.md.
 
 ## B. Content that multiplies what exists
 
-- [ ] **Adopt vanilla villages as towns** — detect the structure, graft board/vendor/NPCs;
-      quest hubs everywhere, exploration gains meaning.
 - [ ] **Quest chains** — a `chain` field on `Quest`: finishing A unlocks B
       (*Road Patrol → Clean the Roads → Slay the Roadbreaker*). Data-only change, big story feel.
 - [ ] **Daily quests** — 3 rotating slots per day from a pool; reinforces the existing daily

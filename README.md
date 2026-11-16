@@ -25,6 +25,10 @@ loop, built entirely from vanilla blocks, items and effects.
    on server start), missing town blocks are auto-restored from the stored layout — holes only,
    your own builds and changes are never touched. Every new hero is teleported into the plaza and
    respawns there. Ops can raise more hubs anywhere with `/quest town`; towns and boards persist across restarts.
+   **Village adoption**: when a hero wanders into a vanilla village, the realm adopts it — a quest
+   hub (board, vendor, hearth, guards) is grafted onto the village **meeting point**, which is
+   already an open plaza, so the villagers' own buildings are never touched. Adopted hubs get the
+   same guard, repair and turn-in rules as built towns, and each village is adopted only once.
 
 2. **Create your hero** — `/quest join`, then choose a class (WoW-style roles):
 
@@ -282,7 +286,7 @@ src/main/scala/dev/aetheronchaos/
   PartyLoot.scala        Party loot lock: need/greed rolls with timed resolution
   Shop.scala             Vendor stock (gold sink for gear)
   CharacterStore.scala   SNBT persistence of heroes in the world folder
-  TownBuilder.scala      Starter town on first join, /quest town hubs, town NPCs
+  TownBuilder.scala      Starter town on first join, /quest town hubs, town NPCs, village adoption
   TownStore.scala        SNBT persistence of towns / quest-board registrations
   Interactions.scala     Right-click hooks: quest board, vendor barrel, town NPCs
   Combat.scala           Kill credit from damage sources
