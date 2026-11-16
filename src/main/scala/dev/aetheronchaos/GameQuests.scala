@@ -155,6 +155,9 @@ object GameQuests:
             .asScala
             .minByOption(e => player.blockPosition.distSqr(e.blockPosition()))
           found.map(e => (e.position(), s"$name (dropped)"))
+        case Objective.WarBand(_) =>
+          // the compass points at the war band itself while one is on the ground
+          Invasion.fieldPosition
 
   private def scanBox(player: ServerPlayer): AABB =
     val p = player.position()
@@ -177,11 +180,13 @@ object GameQuests:
     q.objective match
       case Objective.Kill(_, _, _) => c.progress.getOrElse(q.id, 0)
       case Objective.Collect(item, _) => Game.countItem(player, item)
+      case Objective.WarBand(_) => c.progress.getOrElse(q.id, 0)
 
   private def objectiveMet(player: ServerPlayer, q: Quest): Boolean =
     q.objective match
       case Objective.Kill(_, count, _) => Game.ensure(player.getUUID).progress.getOrElse(q.id, 0) >= count
       case Objective.Collect(item, count) => Game.countItem(player, item) >= count
+      case Objective.WarBand(count) => Game.ensure(player.getUUID).progress.getOrElse(q.id, 0) >= count
 
   def turnIn(player: ServerPlayer, id: String): String =
     val c = Game.ensure(player.getUUID)
@@ -198,6 +203,7 @@ object GameQuests:
           val why = q.objective match
             case Objective.Kill(_, count, _) => s"Not yet: $have/$count. Keep going."
             case Objective.Collect(item, count) => s"You need $count ${ItemStack(item).getHoverName.getString} in your inventory (you have $have)."
+            case Objective.WarBand(count) => s"Not yet: $have/$count of the war band driven off. Sieges are announced realm-wide - the board's compass will point you at one."
           return why
         // shared turn-in: party members holding this quest and ready at the board turn in too
         val mates = Game.partyMates(player).filter(m =>
@@ -355,9 +361,7 @@ object GameQuests:
       Game.message(player, "In your log:", ChatFormatting.YELLOW)
       taken.foreach(q =>
         val have = progressOf(player, q)
-        val goal = q.objective match
-          case Objective.Kill(_, n, _) => n
-          case Objective.Collect(_, n) => n
+        val goal = Quests.goalOf(q)
         Game.message(player, s"${q.name}: $have/$goal - ${Quests.objectiveText(q)}", ChatFormatting.YELLOW)
       )
     if available.isEmpty && taken.isEmpty && ready.isEmpty && posted.isEmpty then Game.message(player, "Nothing for you today, adventurer.", ChatFormatting.GRAY)

@@ -29,9 +29,7 @@ object Hud:
     val compass = GameQuests.trackerCompass(player).toMap
     val quests = c.tracked.toList.flatMap(Quests.byId).take(2).map { q =>
       val have = GameQuests.progressOf(player, q)
-      val goal = q.objective match
-        case Objective.Kill(_, n, _) => n
-        case Objective.Collect(_, n) => n
+      val goal = Quests.goalOf(q)
       val done = if have >= goal then " DONE->board" else ""
       val nav = compass.get(q.id).map(" " + _).getOrElse("")
       s"${q.name} $have/$goal$done$nav"

@@ -40,6 +40,21 @@ object Invasion:
   private val MaxWaveSize = 8
   private val CrowdCap = 14 // never pile up more than this many on the field
   private val KillBonusGold = 2 // paid out as it happens
+  // a named captain leads every third wave: named means the rare rules pay for it
+  private val CaptainEveryWaves = 3
+  private val CaptainHealth = 2.6
+  private val CaptainAttack = 1.5
+  private val CaptainBonusGold = 8
+  private val CaptainThinsWave = 2 // a captain that falls arrives thin afterwards
+  private val RavagerCaptainWave = 6 // a ravager rides with the last wave
+  private val warBandCaptains: List[String] = List(
+    "Ashra of the Riven Axe",
+    "Vesk the Quartermaster",
+    "Three-Winter Ost",
+    "Shieldbiter",
+    "Halberd-Mother Brenna",
+    "The Quiet Conductor"
+  )
   private val RewardBaseGold = 15
   private val RewardGoldPerKill = 4
   private val RewardBaseXp = 150
@@ -67,15 +82,21 @@ object Invasion:
     var nextWaveTick = Game.now
     var wave = 0
     var drivenOff = 0
+    var captainsFelled = 0
     val mobs = mutable.LinkedHashSet[Mob]()
+    val captains = mutable.LinkedHashSet[Mob]()
+    val captainNames = mutable.LinkedHashSet[String]()
     val kills = mutable.LinkedHashMap[UUID, Int]()
     refreshBar()
 
+    def liveCaptain: Option[Mob] = captains.find(m => m.isAlive && !m.isRemoved)
+
     def refreshBar(): Unit =
       val left = math.max(0L, endTick - Game.now)
+      val captainNote = liveCaptain.map(c => s" - ${c.getName.getString} leads them").getOrElse("")
       bar.setName(
         Component
-          .literal(s"Siege of $label - $drivenOff driven off, ${mmss(left)} left")
+          .literal(s"Siege of $label - $drivenOff driven off, ${mmss(left)} left$captainNote")
           .withStyle(ChatFormatting.RED)
       )
       bar.setProgress(math.max(0.0f, left.toFloat / SiegeTicks.toFloat))
@@ -163,15 +184,27 @@ object Invasion:
   private def spawnWave(server: MinecraftServer, s: Siege): Unit =
     s.wave += 1
     val nearby = defenders(s)
-    val size = math.min(MaxWaveSize, 2 + s.wave + nearby.size / 2)
-    (1 to size).foreach(_ => spawnHostile(s, s.wave))
+    val size = math.max(2, math.min(MaxWaveSize, 2 + s.wave + nearby.size / 2 - CaptainThinsWave * s.captainsFelled))
+    (1 to size).foreach(_ => spawnHostile(s, s.wave, captain = false))
+    if s.wave % CaptainEveryWaves == 0 then
+      val captain = spawnHostile(s, s.wave, captain = true)
+      s.captains.filterInPlace(m => m.isAlive && !m.isRemoved)
+      captain.foreach { m =>
+        Game.broadcast(
+          server,
+          Component
+            .literal(s"${m.getName.getString} rides at the head of wave ${s.wave}. Take the captain down and the war band arrives thin after it.")
+            .withStyle(ChatFormatting.LIGHT_PURPLE)
+        )
+      }
     s.mobs.filterInPlace(m => m.isAlive && !m.isRemoved)
     if s.wave > 1 then
       nearby.foreach { h =>
         Game.message(h, s"Wave ${s.wave} of the war band arrives at ${s.label}.", ChatFormatting.RED)
       }
 
-  private def spawnHostile(s: Siege, wave: Int): Unit =
+  /** Spawns one hostile; a captain is named and scaled (and rare rules pay for it). */
+  private def spawnHostile(s: Siege, wave: Int, captain: Boolean): Option[Mob] =
     val (x1, _, z1, x2, _, z2) = s.town.region
     val cx = (x1 + x2 + 1) / 2.0
     val cz = (z1 + z2 + 1) / 2.0
@@ -179,25 +212,57 @@ object Invasion:
     val radius = 15.0 + rng.nextInt(11)
     val bx = cx + math.cos(ang) * radius
     val bz = cz + math.sin(ang) * radius
-    val kind = warBand(rng.nextInt(warBand.size)).asInstanceOf[net.minecraft.world.entity.EntityType[Mob]]
+    val kind =
+      if captain then captainKind(s.wave).asInstanceOf[net.minecraft.world.entity.EntityType[Mob]]
+      else warBand(rng.nextInt(warBand.size)).asInstanceOf[net.minecraft.world.entity.EntityType[Mob]]
     val by = s.level.getHeight(Heightmap.Types.MOTION_BLOCKING, bx.floor.toInt, bz.floor.toInt) + 1.0
     kind.create(s.level) match
-      case null => ()
+      case null => None
       case m =>
         m.setPos(bx, by, bz)
         m.finalizeSpawn(s.level, s.level.getCurrentDifficultyAt(m.blockPosition), MobSpawnType.EVENT, null)
         // later waves arrive harder - a war band does not send its worst first
-        val toughen = 1.0 + 0.15 * (wave - 1)
+        val toughen = (1.0 + 0.15 * (wave - 1)) * (if captain then CaptainHealth else 1.0)
         Option(m.getAttribute(Attributes.MAX_HEALTH)).foreach { a =>
           a.setBaseValue(a.getBaseValue * toughen)
           m.setHealth(a.getValue.toFloat)
         }
+        if captain then
+          Option(m.getAttribute(Attributes.ATTACK_DAMAGE)).foreach(a => a.setBaseValue(a.getBaseValue * CaptainAttack))
+          s.captainNames += nextCaptainName(s)
+          m.setCustomName(Component.literal(s.captainNames.last))
+          m.setCustomNameVisible(true)
+          s.captains += m
         s.level.addFreshEntityWithPassengers(m)
         s.mobs += m
         // they came for the town, and they take the nearest hero who stands in the way
         defenders(s).filter(h => h.distanceToSqr(m) < 625.0) match
           case nearest :: _ => m.setTarget(nearest)
           case Nil => m.getNavigation.moveTo(cx, by, cz, 1.0)
+        Some(m)
+
+  private def captainKind(wave: Int): net.minecraft.world.entity.EntityType[?] =
+    if wave >= RavagerCaptainWave then net.minecraft.world.entity.EntityType.RAVAGER
+    else
+      val pool = List(
+        net.minecraft.world.entity.EntityType.VINDICATOR,
+        net.minecraft.world.entity.EntityType.VINDICATOR,
+        net.minecraft.world.entity.EntityType.WITCH,
+        net.minecraft.world.entity.EntityType.PILLAGER
+      )
+      pool(rng.nextInt(pool.size))
+
+  private def nextCaptainName(s: Siege): String =
+    val fresh = warBandCaptains.filterNot(s.captainNames.contains)
+    val pick = if fresh.isEmpty then warBandCaptains else fresh
+    s"Captain ${pick(rng.nextInt(pick.size))}"
+
+  /** Where the war band is, for quest compasses. */
+  private[aetheronchaos] def fieldPosition: Option[(net.minecraft.world.phys.Vec3, String)] =
+    siege.map { s =>
+      val (x1, _, z1, x2, _, z2) = s.town.region
+      (net.minecraft.world.phys.Vec3((x1 + x2 + 1) / 2.0, s.town.base.getY.toDouble, (z1 + z2 + 1) / 2.0), "the war band")
+    }
 
   // --- kill crediting (from Game.awardKill) -----------------------------------
 
@@ -209,7 +274,14 @@ object Invasion:
         val scored = s.kills.getOrElse(player.getUUID, 0) + 1
         s.kills(player.getUUID) = scored
         Game.giveCoins(player, KillBonusGold)
-        if scored % 5 == 0 then
+        Game.creditWarBandKill(player)
+        if s.captains.remove(victim) then
+          s.captainsFelled += 1
+          Game.giveCoins(player, CaptainBonusGold)
+          defenders(s).foreach { h =>
+            Game.message(h, s"${victim.getName.getString} falls. The war band falters - its next wave arrives thin.", ChatFormatting.LIGHT_PURPLE)
+          }
+        else if scored % 5 == 0 then
           Game.message(player, s"${s.label}: $scored of the war band driven off.", ChatFormatting.GOLD)
         s.refreshBar()
     }
@@ -238,7 +310,9 @@ object Invasion:
     val headline =
       if s.drivenOff == 0 then s"The war band walked up to ${s.label} and nobody stood. The town keeps its sheep, and its grudges."
       else if s.drivenOff < 4 then s"The siege of ${s.label} ends with the fences scorched - only ${s.drivenOff} of the war band driven off."
-      else s"The siege of ${s.label} is HELD. ${s.drivenOff} of the war band driven off across ${s.wave} waves."
+      else
+        val captainNote = if s.captainsFelled > 0 then s" ${s.captainsFelled} captain(s) down." else ""
+        s"The siege of ${s.label} is HELD. ${s.drivenOff} of the war band driven off across ${s.wave} waves.$captainNote"
     Game.broadcast(
       server,
       Component.literal(headline).withStyle(if s.drivenOff == 0 then ChatFormatting.GRAY else ChatFormatting.GREEN)

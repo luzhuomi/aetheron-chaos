@@ -6,10 +6,12 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.enchantment.Enchantments
 
-/** Quest objectives: slay N mobs of a type, or deliver N of an item. */
+/** Quest objectives: slay N mobs of a type, deliver N of an item, or drive off N of a
+ *  war band while defending a town through an invasion night. */
 enum Objective:
   case Kill(target: EntityType[?], count: Int, label: String)
   case Collect(item: Item, count: Int)
+  case WarBand(count: Int)
 
 /** A quest posted on the town quest board. requires: id of a quest that must be
  *  completed first - that's what makes chains ("finish A and B appears on the board").
@@ -205,6 +207,11 @@ object Quests:
       "daily-phantom-dusk", "Dusk Patrol", 4,
       "Phantoms gather where the sleepless walk. Four fewer by morning.",
       Objective.Kill(EntityType.PHANTOM, 4, "phantoms"), 340, 7, None, daily = true
+    ),
+    Quest(
+      "daily-hold-the-wall", "Hold the Wall", 4,
+      "When the war horn sounds the town needs bodies at its walls. Eight fewer of them by morning.",
+      Objective.WarBand(8), 420, 8, None, daily = true
     )
   )
 
@@ -238,3 +245,11 @@ object Quests:
     q.objective match
       case Objective.Kill(_, count, label) => s"Defeat $count $label"
       case Objective.Collect(item, count) => s"Deliver $count x ${ItemStack(item).getHoverName.getString}"
+      case Objective.WarBand(count) => s"Drive off $count of the war band while a town is under siege"
+
+  /** The N in "have/N" - every objective has one, and the UIs all show it the same way. */
+  def goalOf(q: Quest): Int =
+    q.objective match
+      case Objective.Kill(_, n, _) => n
+      case Objective.Collect(_, n) => n
+      case Objective.WarBand(n) => n

@@ -250,6 +250,24 @@ object Game:
       advanceQuests(mate, victim)
     }
 
+  /** Advances the "drive off the war band" objectives of every quest the member holds
+   *  (called from Invasion for each siege kill). */
+  private[aetheronchaos] def creditWarBandKill(member: ServerPlayer): Unit =
+    val mc = ensure(member.getUUID)
+    mc.taken.toList.foreach(qid =>
+      Quests.byId(qid).foreach(q =>
+        q.objective match
+          case Objective.WarBand(count) =>
+            val now = mc.progress.getOrElse(qid, 0) + 1
+            mc.progress(qid) = now
+            if now == count then
+              message(member, s"Objective complete: ${q.name}! Turn it in at the quest board.", ChatFormatting.GREEN)
+            else if now < count then
+              message(member, s"${q.name}: $now/$count", ChatFormatting.GRAY)
+          case _ => ()
+      )
+    )
+
   /** Advances the kill objectives of every quest the member holds. */
   private def advanceQuests(member: ServerPlayer, victim: Mob): Unit =
     val mc = ensure(member.getUUID)

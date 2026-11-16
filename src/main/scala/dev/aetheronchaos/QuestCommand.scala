@@ -173,9 +173,7 @@ object QuestCommand:
           ctx.getSource.sendSuccess(() => Component.literal(s"Quest log (${c.tracked.size}/${GameQuests.MaxTrackedQuests} tracked):").withStyle(ChatFormatting.GOLD), false)
           c.taken.toList.flatMap(Quests.byId).foreach { q =>
             val have = GameQuests.progressOf(p, q)
-            val goal = q.objective match
-              case Objective.Kill(_, n, _) => n
-              case Objective.Collect(_, n) => n
+            val goal = Quests.goalOf(q)
             val tag = if q.partyOnly then "[GROUP] " else ""
             val mark = if c.tracked.contains(q.id) then "★ " else "- "
             ctx.getSource.sendSuccess(

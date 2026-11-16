@@ -225,6 +225,15 @@ loop, built entirely from vanilla blocks, items and effects.
     defending is its own ending (the town keeps its sheep, and its grudges), and heroes who loitered
     away from the walls are named. The town guard still escorts off any hostile nobody is fighting, so
     the fight happens at the walls where a siege belongs. Ops can call one with `/quest invade [hub]`.
+18. **War-band captains and siege duty** — a **named captain leads every third wave** (a vindicator,
+    witch or pillager captain; from the sixth wave onward, a **ravager**). Captains are named and
+    visible above their head, carry **2.6x health and 1.5x damage**, and the siege bar says who leads
+    the band while one lives. Because they are named, **rare rules pay for them**: rare XP, guaranteed
+    loot and a Sigil of the Elite. Fell one and the war band actually falters — **the next wave
+    arrives two files thinner** — so the siege has a priority target, not just a crowd. Sieges are
+    quest content too: the daily rotation can post **Hold the Wall**, whose objective counts only
+    hostiles driven off during a siege, and its quest compass points straight at the war band while
+    one is on the ground.
 
 ### Rules
 

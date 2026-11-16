@@ -2,15 +2,15 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~4,100 lines, 22 files, 36 commits — see README.md.
+Current state: ~4,200 lines, 22 files, 36 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Siege depth** — the siege engine (scheduler, waves, tally, rewards, boss bar) is generic.
-   Next: rare-elite "war band captains" leading a wave, towns undermanned if guards were lost,
-   a defend-the-board daily quest off the back of it.
-2. **Titles/achievements** — 100 rare kills, first legend forged, a siege held; shown in
+1. **Titles/achievements** — 100 rare kills, first legend forged, a siege held; shown in
    `/quest stats`, optionally broadcast. Cheap on top of counters that already exist.
+2. **Guard companies** — the town "guard" is invulnerable NPCs plus a sweep. Real guard entities
+   that answer a siege horn, can fall, and leave a hub undermanned until it is re-manned: the
+   half of siege depth that needs new machinery, and it makes hubs feel defended.
 
 ## A. Make the trinity real
 
