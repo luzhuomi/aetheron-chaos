@@ -344,6 +344,11 @@ loop, built entirely from vanilla blocks, items and effects.
     `/quest guild claim` — online or not, the share waits. The count resets at dawn, same as the
     board's dailies. Charters and rosters persist in the world folder; a guild whose last member
     leaves folds its banner, and a founder who leaves hands the charter to the next in line.
+    A guild can also put its name **in the world**: `/quest guild banner` (200 gold) raises a real
+    **banner on a pole at the hub plaza's edge** — the guild's own colours, picked from its name and
+    always the same. One banner per guild; raising it at another hub moves it. The mason's daily
+    round re-raises it if it's knocked down, and it comes down for good when the charter folds.
+    Guilded heroes also carry their `[Guild]` tag on `/quest top`.
 
 ### Rules
 
@@ -392,6 +397,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest guild create <name>` | everyone | Found a guild (100 gold charter) |
 | `/quest guild invite <hero>` / `accept` / `decline` | everyone | Invite a hero; answer an invitation |
 | `/quest guild leave` / `claim` | everyone | Leave the guild; take your share of a finished hunt |
+| `/quest guild banner` | everyone | Raise the guild's banner at the hub you stand at (200 gold) |
 | `/quest titles` | everyone | Title ladder: what you've earned and what's next, with progress |
 | `/quest title <id>` | everyone | Carry an earned title (action bar + leaderboard), `none` to set down |
 | `/quest guard` | everyone | The realm's watch: strength and shortfalls at every hub |

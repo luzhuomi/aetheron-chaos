@@ -547,7 +547,7 @@ object Game:
 
   private def fmt1(x: Double): String = if x == x.round.toDouble then x.round.toString else f"$x%.1f"
 
-  def leaderboard(server: MinecraftServer): List[(String, Int, Int, String, String)] =
+  def leaderboard(server: MinecraftServer): List[(String, Int, Int, String, String, UUID)] =
     val merged = mutable.Map[UUID, (Int, Int, String, String, String)]() // level, paragon, classId, saved name, carried title
     CharacterStore.readAll(server).foreach { (uuid, tag) =>
       merged(uuid) = (tag.getInt("level"), tag.getInt("paragon"), tag.getString("class"), tag.getString("name"), tag.getString("title"))
@@ -564,7 +564,7 @@ object Game:
         val classId = entry._2._3
         val savedName = entry._2._4
         val name = Option(server.getPlayerList.getPlayer(uuid)).map(_.getName.getString).getOrElse(savedName)
-        (name, level, paragon, HeroClasses.byId(classId).map(_.name).getOrElse("Adventurer"), entry._2._5)
+        (name, level, paragon, HeroClasses.byId(classId).map(_.name).getOrElse("Adventurer"), entry._2._5, uuid)
       }
       .sortBy(row => (-row._2, -row._3))
       .take(10)
@@ -612,6 +612,7 @@ object Game:
       lastTownRepairDay = today
       TownBuilder.repairTowns(server)
       GuardWatch.reform(server) // the mason's round re-forms a hub's watch too
+      Guilds.ensureBanners(server) // and re-raises any guild banner that came down
       GameQuests.announceDailies(server) // the board's daily rotation wakes with the realm
     GameRares.tickScheduler(server)
     Invasion.tickScheduler(server)

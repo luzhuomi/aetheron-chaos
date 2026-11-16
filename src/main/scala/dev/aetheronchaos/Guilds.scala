@@ -7,11 +7,17 @@ import scala.jdk.CollectionConverters.*
 import scala.util.Try
 
 import net.minecraft.ChatFormatting
+import net.minecraft.core.{BlockPos, Direction}
 import net.minecraft.nbt.{CompoundTag, ListTag, Tag, TagParser}
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.item.Items
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.block.state.properties.BlockStateProperties
+import net.minecraft.world.level.levelgen.Heightmap
 import net.minecraft.world.level.storage.LevelResource
 
 /**
@@ -41,6 +47,7 @@ object Guilds:
     var dailyDay: String = ""
     var dailyProgress: Int = 0
     val dailyPaid = mutable.Set[UUID]() // who has already taken today's reward
+    var bannerAt: Option[(String, BlockPos)] = None // hub key -> the banner's block, if raised
 
     def isComplete: Boolean = dailyProgress >= DailyGoal
 
@@ -80,12 +87,14 @@ object Guilds:
             if g.dailyPaid.contains(player.getUUID) then "Today's hunt: complete, and you have taken your share."
             else s"Today's hunt: complete! Your $DailyRewardGold gold is unclaimed: /quest guild claim"
           else s"Today's hunt: ${g.dailyProgress}/$DailyGoal monsters felled by the guild"
+        val bannerLine = g.bannerAt.flatMap { (key, _) => hubByServerKey(player.server, key).map(hub => s"Banner: flying at ${hubLabel(hub)}.") }
+          .orElse(if g.bannerAt.isDefined then Some("Banner: its hub is gone now.") else None)
         val claimNote = if g.isComplete then " /quest guild claim" else ""
         (List(
           s"--- Guild: ${g.name} --- ${g.members.size}/$MaxMembers. Founder: ${g.names.getOrElse(g.leader, "?")}.",
           hunt,
-          "Roster:"
-        ) ::: roster ::: List(s"Ops: /quest guild invite <hero> | leave | claim$claimNote"))
+          bannerLine.getOrElse(s"Banner: none raised. Any member may raise one at a hub for $BannerGold gold (/quest guild banner).")
+        ) ::: "Roster:" :: roster ::: List(s"Ops: /quest guild invite <hero> | leave | claim | banner$claimNote"))
           .mkString("\n")
 
   // --- founding & membership -------------------------------------------------------
@@ -177,6 +186,7 @@ object Guilds:
         g.members -= player.getUUID
         invites -= player.getUUID
         if g.members.isEmpty then
+          removeBanner(player.server, g) // the banner comes down with the charter
           guilds -= keyOf(g)
           save(player.server)
           Game.broadcast(
@@ -208,6 +218,100 @@ object Guilds:
           Game.giveCoins(player, DailyRewardGold)
           save(player.server)
           s"'${g.name}' completed today's hunt: $DailyRewardGold gold, and the guild's thanks. Tomorrow the count starts at zero."
+
+  // --- the banner ------------------------------------------------------------------
+  // A guild's name in the world: a real banner on a pole at a hub plaza, paid for in
+  // gold like the barracks. One per guild; raising it elsewhere moves it. The mason's
+  // daily round re-raises it if someone knocks it down.
+
+  private def BannerGold: Int = Tuning.getInt("guild.banner_gold", 200)
+
+  /** The guild's colours are its name's: the same guild always flies the same banner. */
+  private val BannerPalette: List[Block] = List(
+    Blocks.WHITE_BANNER, Blocks.ORANGE_BANNER, Blocks.MAGENTA_BANNER, Blocks.LIGHT_BLUE_BANNER,
+    Blocks.YELLOW_BANNER, Blocks.LIME_BANNER, Blocks.PINK_BANNER, Blocks.GRAY_BANNER,
+    Blocks.LIGHT_GRAY_BANNER, Blocks.CYAN_BANNER, Blocks.PURPLE_BANNER, Blocks.BLUE_BANNER,
+    Blocks.BROWN_BANNER, Blocks.GREEN_BANNER, Blocks.RED_BANNER, Blocks.BLACK_BANNER
+  )
+
+  /** `/quest guild banner` - raise the guild's banner at the hub you stand at. */
+  def banner(player: ServerPlayer): String =
+    ensureLoaded(player.server)
+    guildOf(player.getUUID) match
+      case None => "You are not in a guild to raise a banner."
+      case Some(g) =>
+        val hubIndex = GuardWatch.hubNear(player).getOrElse(-1)
+        TownBuilder.townByIndex(hubIndex + 1) match
+          case None => "Stand at a hub plaza to raise the guild's banner there."
+          case Some(hub) =>
+            val level = player.server.overworld()
+            if level == null then return "No overworld to raise it in."
+            val gold = Game.countItem(player, Items.GOLD_NUGGET)
+            if gold < BannerGold then return s"A banner costs $BannerGold gold for pole and cloth - you carry $gold."
+            removeBanner(player.server, g) // a guild flies one banner: raising it here moves it
+            placeBanner(level, hub, g) match
+              case None => "There is no clear ground for a banner here - the plaza's edge is spoken for."
+              case Some(pos) =>
+                Game.removeItems(player, Items.GOLD_NUGGET, BannerGold)
+                g.bannerAt = Some((hubKey(hub), pos))
+                save(player.server)
+                Game.broadcast(
+                  player.server,
+                  Component
+                    .literal(s"The guild '${g.name}' raises its banner at ${hubLabel(hub)} - it flies from the plaza's edge now.")
+                    .withStyle(ChatFormatting.LIGHT_PURPLE)
+                )
+                s"The guild's banner stands at ${hubLabel(hub)} ($BannerGold gold, ${gold - BannerGold} left). Its colours are your guild's own."
+
+  private def hubKey(hub: TownBuilder.Town): String = s"${hub.base.getX},${hub.base.getZ}"
+
+  private def hubByServerKey(server: MinecraftServer, key: String): Option[TownBuilder.Town] =
+    TownBuilder.allTowns.find(t => hubKey(t) == key)
+
+  private def hubLabel(hub: TownBuilder.Town): String =
+    if hub.capital then "Hearthhome" else s"the hub at ${hub.base.getX}, ${hub.base.getZ}"
+
+  private def bannerBlockFor(g: Guild): Block = BannerPalette(math.abs(g.name.hashCode) % BannerPalette.size)
+
+  private def isAnyBanner(state: net.minecraft.world.level.block.state.BlockState): Boolean =
+    BannerPalette.exists(b => state.is(b))
+
+  private def placeBanner(level: ServerLevel, hub: TownBuilder.Town, g: Guild): Option[BlockPos] =
+    val stand = TownBuilder.guildBannerStand(hub)
+    val y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, stand.getX, stand.getZ)
+    val bannerPos = new BlockPos(stand.getX, y, stand.getZ)
+    val pedestal = bannerPos.below()
+    if !level.getBlockState(bannerPos).isAir && !isAnyBanner(level.getBlockState(bannerPos)) then None
+    else
+      if level.getBlockState(pedestal).isAir then level.setBlock(pedestal, Blocks.SMOOTH_STONE.defaultBlockState, 3)
+      level.setBlock(bannerPos, bannerBlockFor(g).defaultBlockState.setValue(BlockStateProperties.HORIZONTAL_FACING, facingToward(bannerPos, hub.base)), 3)
+      Some(bannerPos)
+
+  private def removeBanner(server: MinecraftServer, g: Guild): Unit =
+    val level = server.overworld()
+    if level == null then return
+    g.bannerAt.foreach { (_, pos) =>
+      if isAnyBanner(level.getBlockState(pos)) then level.setBlock(pos, Blocks.AIR.defaultBlockState, 3)
+    }
+    g.bannerAt = None
+
+  /** The mason's daily round: a knocked-down guild banner goes back up for free. */
+  private[aetheronchaos] def ensureBanners(server: MinecraftServer): Unit =
+    if !loaded then return
+    val level = server.overworld()
+    if level == null then return
+    guilds.values.foreach { g =>
+      g.bannerAt.foreach { (key, pos) =>
+        if !isAnyBanner(level.getBlockState(pos)) then
+          hubByServerKey(server, key).foreach(hub => placeBanner(level, hub, g).foreach(p => g.bannerAt = Some((key, p))))
+      }
+    }
+
+  private def facingToward(from: BlockPos, to: BlockPos): Direction =
+    val dx = to.getX - from.getX
+    val dz = to.getZ - from.getZ
+    if math.abs(dx) >= math.abs(dz) then (if dx >= 0 then Direction.EAST else Direction.WEST)
+    else if dz >= 0 then Direction.SOUTH else Direction.NORTH
 
   // --- the shared daily ------------------------------------------------------------
 
@@ -254,6 +358,11 @@ object Guilds:
     ensureLoaded(player.server)
     guildOf(player.getUUID).map(g => s" [${g.name}]").getOrElse("")
 
+  /** The guild name behind a hero, for the leaderboard. */
+  private[aetheronchaos] def tagName(server: MinecraftServer, uuid: UUID): Option[String] =
+    ensureLoaded(server)
+    guildOf(uuid).map(_.name)
+
   // --- persistence ---------------------------------------------------------------------
 
   private def path(server: MinecraftServer): Path =
@@ -277,7 +386,10 @@ object Guilds:
               g.names(u) = m.getString("name")
             case _ => ()
           }
-          if g.members.nonEmpty then guilds += g.name.toLowerCase -> g
+          if g.members.nonEmpty then
+            if e.contains("bannerHub") then
+              g.bannerAt = Some((e.getString("bannerHub"), new BlockPos(e.getInt("bx"), e.getInt("by"), e.getInt("bz"))))
+            guilds += g.name.toLowerCase -> g
         case _ => ()
       }
     }
@@ -298,6 +410,12 @@ object Guilds:
           members.add(m)
         }
         e.put("members", members)
+        g.bannerAt.foreach { (key, pos) =>
+          e.putString("bannerHub", key)
+          e.putInt("bx", pos.getX)
+          e.putInt("by", pos.getY)
+          e.putInt("bz", pos.getZ)
+        }
         list.add(e)
       }
       val root = new CompoundTag

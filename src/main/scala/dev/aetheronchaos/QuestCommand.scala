@@ -70,6 +70,7 @@ object QuestCommand:
               .`then`(Commands.literal("decline").executes(ctx => withPlayer(ctx, p => Guilds.decline(p))))
               .`then`(Commands.literal("leave").executes(ctx => withPlayer(ctx, p => Guilds.leave(p))))
               .`then`(Commands.literal("claim").executes(ctx => withPlayer(ctx, p => Guilds.claim(p))))
+              .`then`(Commands.literal("banner").executes(ctx => withPlayer(ctx, p => Guilds.banner(p))))
           )
           .`then`(
             Commands.literal("warp")
@@ -282,12 +283,14 @@ object QuestCommand:
       ctx.getSource.sendSuccess(() => Component.literal("No heroes yet. Be the first: /quest join").withStyle(ChatFormatting.GRAY), false)
     else
       ctx.getSource.sendSuccess(() => Component.literal("Heroes of the realm:").withStyle(ChatFormatting.GOLD), false)
-      rows.zipWithIndex.foreach { case ((name, level, paragon, cls, titleId), i) =>
+      rows.zipWithIndex.foreach { case ((name, level, paragon, cls, titleId, uuid), i) =>
         val titleTag = Achievements.byId(titleId).map(t => s" \"${t.title}\"").getOrElse("")
+        val guildTag = Guilds.tagName(ctx.getSource.getServer, uuid).map(g => s" [$g]").getOrElse("")
         val line = Component.literal(s"${i + 1}. Lv $level").withStyle(ChatFormatting.AQUA)
         if paragon > 0 then line.append(Component.literal(s" ★$paragon").withStyle(Game.paragonColor(paragon)))
         line.append(Component.literal(s" $cls").withStyle(ChatFormatting.AQUA))
         if titleTag.nonEmpty then line.append(Component.literal(titleTag).withStyle(if paragon > 0 then Game.paragonColor(paragon) else ChatFormatting.AQUA))
+        if guildTag.nonEmpty then line.append(Component.literal(guildTag).withStyle(ChatFormatting.LIGHT_PURPLE))
         line.append(Component.literal(s" - $name").withStyle(ChatFormatting.AQUA))
         ctx.getSource.sendSuccess(() => line, false)
       }

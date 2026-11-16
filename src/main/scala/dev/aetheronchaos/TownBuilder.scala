@@ -170,6 +170,9 @@ object TownBuilder:
   /** Where the barracks rises: the plaza's other flank, mirror of the market. */
   def barracksStand(t: Town): BlockPos = atOf(t.base, t.dir)(12, -6, 0)
 
+  /** Where a guild's banner flies: the plaza's edge, between market and barracks. */
+  def guildBannerStand(t: Town): BlockPos = atOf(t.base, t.dir)(12, 0, 0)
+
   /** Heroes can tell a barracks when they see one; the watch knows too. */
   def BarracksGold: Int = Tuning.getInt("town.barracks_gold", 150)
 
