@@ -82,6 +82,15 @@ object QuestCommand:
               )
           )
           .`then`(
+            Commands.literal("forge")
+              .executes(ctx => withPlayer(ctx, p => GameShop.forge(p, "")))
+              .`then`(
+                Commands.argument("pattern", StringArgumentType.greedyString())
+                  .suggests((_, builder) => SharedSuggestionProvider.suggest(Shop.forgeables.map(_.id).asJava, builder))
+                  .executes(ctx => withPlayer(ctx, p => GameShop.forge(p, StringArgumentType.getString(ctx, "pattern"))))
+              )
+          )
+          .`then`(
             Commands.literal("loot")
               .`then`(Commands.literal("need").`then`(offerArgument(need = true)))
               .`then`(Commands.literal("greed").`then`(offerArgument(need = false)))
@@ -203,7 +212,7 @@ object QuestCommand:
             "Aetheron Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
               "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest track <id> (quest compass), /quest turnin <id> (at the board), " +
               "/quest warp <n> (wayside portal at any board), " +
-              "/quest party <name>, /quest shop (spend gold), /quest stats, /quest top. Ops: /quest town, /quest clear, /quest rare. " +
+              "/quest party <name>, /quest shop (spend gold), /quest forge (strike legends), /quest stats, /quest top. Ops: /quest town, /quest clear, /quest rare. " +
               "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."
           )
           .withStyle(ChatFormatting.YELLOW),

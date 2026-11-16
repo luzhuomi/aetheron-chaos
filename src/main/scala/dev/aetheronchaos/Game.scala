@@ -232,6 +232,12 @@ object Game:
     if rare then
       c.rareKills += 1
       GameRares.forget(victim)
+      Game.giveItem(player, Loot.sigilStack())
+      Game.message(
+        player,
+        s"${victim.getName.getString} fell by your hand: a Sigil of the Elite is yours. The village forger strikes legends from these (/quest forge).",
+        ChatFormatting.GOLD
+      )
     val mates = partyMates(player)
     advanceQuests(player, victim)
     Loot.onKill(victim, player, mates)
@@ -310,6 +316,10 @@ object Game:
     val inv = player.getInventory
     (inv.items.asScala.toSeq ++ inv.offhand.asScala.toSeq).filter(_.getItem == item).map(_.getCount).sum
 
+  /** Does this hero carry a copy of this item type that `accept` approves of? */
+  private[aetheronchaos] def hasItem(player: ServerPlayer, item: Item, accept: net.minecraft.world.item.ItemStack => Boolean): Boolean =
+    allStacks(player).exists(s => !s.isEmpty && s.getItem == item && accept(s))
+
   private[aetheronchaos] def removeItems(player: ServerPlayer, item: Item, count: Int): Unit =
     var left = count
     player.getInventory.items.asScala.foreach { stack =>
@@ -318,6 +328,39 @@ object Game:
         stack.shrink(take)
         left -= take
     }
+
+  /** Sigils of the Elite in this hero's pack (the named amethyst, not raw ones). */
+  private[aetheronchaos] def countSigils(player: ServerPlayer): Int =
+    val inv = player.getInventory
+    (inv.items.asScala.toSeq ++ inv.offhand.asScala.toSeq).filter(Loot.isSigil).map(_.getCount).sum
+
+  /** Takes exactly one Sigil of the Elite; false if the hero carries none. */
+  private[aetheronchaos] def takeSigil(player: ServerPlayer): Boolean =
+    allStacks(player).find(s => !s.isEmpty && Loot.isSigil(s)) match
+      case None => false
+      case Some(s) =>
+        s.shrink(1)
+        player.inventoryMenu.broadcastChanges()
+        true
+
+  /** All inventory + offhand stacks (order: main pack first). */
+  private def allStacks(player: ServerPlayer): Seq[net.minecraft.world.item.ItemStack] =
+    val inv = player.getInventory
+    (inv.items.asScala.toSeq ++ inv.offhand.asScala.toSeq)
+
+  /** Takes one copy of an item type, skipping stacks that fail `accept`
+   *  (the forge never eats a legendary). False if nothing matches. */
+  private[aetheronchaos] def takeItem(player: ServerPlayer, item: Item, accept: net.minecraft.world.item.ItemStack => Boolean): Boolean =
+    allStacks(player).find(s => !s.isEmpty && s.getItem == item && accept(s)) match
+      case None => false
+      case Some(s) =>
+        if s.getCount > 1 then s.shrink(1)
+        else
+          val inv = player.getInventory
+          val slot = inv.items.asScala.indexWhere(_ eq s)
+          if slot >= 0 then inv.items.set(slot, net.minecraft.world.item.ItemStack.EMPTY)
+        player.inventoryMenu.broadcastChanges()
+        true
 
   // --- parties ----------------------------------------------------------------
 

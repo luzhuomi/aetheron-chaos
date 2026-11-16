@@ -28,6 +28,7 @@ enum Rarity(val id: String, val label: String, val color: ChatFormatting):
   case Uncommon extends Rarity("uncommon", "Uncommon", ChatFormatting.GREEN)
   case Rare extends Rarity("rare", "Rare", ChatFormatting.AQUA)
   case Epic extends Rarity("epic", "Epic", ChatFormatting.LIGHT_PURPLE)
+  case Legendary extends Rarity("legendary", "Legendary", ChatFormatting.GOLD)
 
 /**
  * Loot drops: gold coins and rarity-colored gear with real vanilla enchantments.
@@ -79,6 +80,20 @@ object Loot:
   /** The amount is the vanilla stack count - never baked into the name, or it goes stale when
    *  stacks shrink, merge or split. */
   val coinName: Component = Component.literal("Gold Coins").withStyle(ChatFormatting.GOLD)
+
+  /** Sigils of the Elite: the proof a rare elite fell to this hero's hand. The village
+   *  forger trades them up into legendary gear (see Shop.forgeables). */
+  val SigilLore = "Proof of a rare elite slain - the forger pays attention to these."
+
+  def sigilStack(): ItemStack =
+    val s = ItemStack(Items.AMETHYST_SHARD)
+    s.set(DataComponents.ITEM_NAME, Component.literal("Sigil of the Elite").withStyle(Rarity.Legendary.color))
+    s.set(DataComponents.LORE, ItemLore(List(Component.literal(SigilLore).withStyle(ChatFormatting.ITALIC, ChatFormatting.GRAY)).asJava))
+    s
+
+  def isSigil(stack: ItemStack): Boolean =
+    stack.is(Items.AMETHYST_SHARD) && Option(stack.get(DataComponents.LORE))
+      .exists(_.lines().asScala.exists(_.getString == SigilLore))
 
   def coinStack(count: Int): ItemStack =
     val s = ItemStack(Items.GOLD_NUGGET, count)

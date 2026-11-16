@@ -178,7 +178,7 @@ loop, built entirely from vanilla blocks, items and effects.
 11. **Trade gold** — right-click the **vendor barrel** or Merchant Tilli (or `/quest shop`) for a
     clickable catalog from common tools to the epic *Helm of the Black Roar* — a gold sink with
     guaranteed gear. Sell too: **hold an item and `/quest sell`** (or sneak+right-click the merchant)
-    and she pays by rarity — 5/12/30/65 gold for common-to-epic loot — and buys everyday junk
+    and she pays by rarity — 5/12/30/65/110 gold for common-to-legendary loot — and buys everyday junk
     (mob drops, crops, ores, gems). Buy-high, sell-low keeps it a sink.
 
 12. **Hunt rare elites** — every ~12 minutes a named, buffed rare (e.g. *Griom the Ironfist*,
@@ -188,7 +188,8 @@ loop, built entirely from vanilla blocks, items and effects.
     prey**: if the hero it lands on is in a party, the rare's health scales +50% per extra member
     and the announcement says so — group fights stay epic without becoming free for one hero. Ops can trigger one with
     `/quest rare`. Fair fight rule: if the whole party (or a solo hero) dies while engaged with the
-    rare, it fades away — no respawn-grinding it down.
+    rare, it fades away — no respawn-grinding it down. Every rare you fell also leaves a **Sigil of
+    the Elite** in your pack — the forger's price for legendary gear (see #16).
 13. **Hold the line** — warrior *Taunt* (aimed) and paladin *Challenge* (war-horn, 5 blocks) force
     foes to come at you. Stand between the party and the rare, keep its eyes on you, and the healer
     stops getting mauled — a real tank trio, server-side. Healers level too: every HP of *Heal*
@@ -205,6 +206,15 @@ loop, built entirely from vanilla blocks, items and effects.
     minimum — a real sink), and `/quest warp <n>` takes you there in a swirl of portal particles,
     arriving on the far plaza. Built hubs, the capital and adopted villages are all stations, so
     exploring new villages pays out as a travel network the very same day you find them.
+16. **Strike legends** — the loot treadmill no longer stops at epic. Each rare elite you slay leaves a
+    **Sigil of the Elite** (a named amethyst shard; the merchant will buy those back for 25 gold).
+    Bring one, plus 100 gold and the base gear it matches, to the **Legend Forge** (`/quest forge`,
+    also listed in the shop menu) and the village forger strikes a **legendary** — gold-named gear at
+    the top of what vanilla allows: *Sunforged Greatblade* (iron sword, Sharpness V + Unbreaking III),
+    *Dawnsong* (bow, Power V + Flame), *Aegis of the Dawn* (iron chestplate, Protection IV + Thorns III)
+    or *Crown of the Steady Light* (iron helmet, Protection IV + Projectile Protection IV). The base
+    gear and the sigil are consumed, legendaries can't be eaten by the forge, and the forge tells you
+    exactly what you're still short of.
 
 ### Rules
 
@@ -234,6 +244,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest shop` | everyone | Vendor catalog (also right-click the town vendor barrel) |
 | `/quest sell` | everyone | Sell the item in your main hand to the merchant for gold |
 | `/quest buy <id>` | everyone | Buy gear with gold coins |
+| `/quest forge [pattern]` | everyone | Legend Forge: base gear + 100 gold + 1 sigil → legendary gear |
 | `/quest loot need <n>` / `greed <n>` | everyone | Roll on party-locked loot |
 | `/quest stats` | everyone | Your hero's stat sheet |
 | `/quest top` | everyone | Server leaderboard |

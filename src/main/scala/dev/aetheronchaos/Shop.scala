@@ -31,12 +31,45 @@ object Shop:
 
   def byId(id: String): Option[ShopItem] = stock.find(_.id == id)
 
+  // --- the legend forge ---------------------------------------------------------
+
+  /** A pattern the forger will strike: the base gear she must see (any copy of that
+   *  item, even a named one), the gold, and one Sigil of the Elite proof that a rare
+   *  elite fell by this hero's hand. The base gear is consumed. */
+  final case class Forgeable(id: String, gear: Loot.Gear, baseItem: Item, gold: Int, flavor: String)
+
+  val ForgeGold = 100
+
+  val forgeables: List[Forgeable] = List(
+    Forgeable("sunforged-greatblade",
+      Loot.Gear(Items.IRON_SWORD, "Sunforged Greatblade", Rarity.Legendary,
+        List(Enchantments.SHARPNESS -> 5, Enchantments.UNBREAKING -> 3)),
+      Items.IRON_SWORD, ForgeGold, "Struck from a blade that survived an elite. It remembers."),
+    Forgeable("dawnsong",
+      Loot.Gear(Items.BOW, "Dawnsong", Rarity.Legendary,
+        List(Enchantments.POWER -> 5, Enchantments.FLAME -> 1, Enchantments.UNBREAKING -> 3)),
+      Items.BOW, ForgeGold, "Every arrow it looses arrives already burning."),
+    Forgeable("aegis-of-the-dawn",
+      Loot.Gear(Items.IRON_CHESTPLATE, "Aegis of the Dawn", Rarity.Legendary,
+        List(Enchantments.PROTECTION -> 4, Enchantments.THORNS -> 3, Enchantments.UNBREAKING -> 3)),
+      Items.IRON_CHESTPLATE, ForgeGold, "Warm to wear. The blows come back to the striker."),
+    Forgeable("crown-of-the-steady-light",
+      Loot.Gear(Items.IRON_HELMET, "Crown of the Steady Light", Rarity.Legendary,
+        List(Enchantments.PROTECTION -> 4, Enchantments.PROJECTILE_PROTECTION -> 4, Enchantments.UNBREAKING -> 3)),
+      Items.IRON_HELMET, ForgeGold, "Steady in the eye of any storm of arrows.")
+  )
+
+  def forgeById(id: String): Option[Forgeable] = forgeables.find(_.id == id)
+
   // --- selling -----------------------------------------------------------------
 
   /** What the merchant pays for gear, by rarity (well below the selling price). */
   private val RarityBuyPrice: Map[Rarity, Int] = Map(
-    Rarity.Common -> 5, Rarity.Uncommon -> 12, Rarity.Rare -> 30, Rarity.Epic -> 65
+    Rarity.Common -> 5, Rarity.Uncommon -> 12, Rarity.Rare -> 30, Rarity.Epic -> 65, Rarity.Legendary -> 110
   )
+
+  /** The forger buys back proofs too - she is always hiring reputation. */
+  val SigilBuyPrice = 25
 
   /** Everyday farm and dungeon junk a village shop will happily take. */
   private val JunkBuyPrice: Map[Item, Int] = Map(
@@ -56,11 +89,12 @@ object Shop:
   def sellPrice(stack: ItemStack): Option[Int] =
     val item = stack.getItem
     if item == Items.GOLD_NUGGET then None // that's already money
+    else if Loot.isSigil(stack) then Some(SigilBuyPrice) // before the raw-amethyst price
     else JunkBuyPrice.get(item)
       .orElse(rarityOf(stack).map(RarityBuyPrice))
 
   /** Recognizes our own loot by its "X loot - Aetheron Chaos" lore line. */
-  private def rarityOf(stack: ItemStack): Option[Rarity] =
+  private[aetheronchaos] def rarityOf(stack: ItemStack): Option[Rarity] =
     Option(stack.get(DataComponents.LORE)).flatMap { lore =>
       Rarity.values.find { r =>
         lore.lines().asScala.exists(_.getString == s"${r.label} loot - Aetheron Chaos")

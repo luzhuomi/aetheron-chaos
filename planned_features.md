@@ -2,14 +2,14 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~3,600 lines, 21 files, 33 commits — see README.md.
+Current state: ~3,700 lines, 21 files, 34 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Legendary tier** — boss-hunt-only drops + shop upgrade path (rare + 100g + boss token ->
-   legendary); the loot treadmill currently stops at Epic, and rare kills deserve a crown.
-2. **Invasion nights** — occasionally hostiles besiege a town for ~5 minutes; everyone defends,
+1. **Invasion nights** — occasionally hostiles besiege a town for ~5 minutes; everyone defends,
    shared reward. Reuses the town guard, the rare scheduler and the boss bar.
+2. **Titles/achievements** — 100 rare kills, first legend forged, a siege held; shown in
+   `/quest stats`, optionally broadcast. Cheap on top of counters that already exist.
 
 ## A. Make the trinity real
 
@@ -25,8 +25,8 @@ Current state: ~3,600 lines, 21 files, 33 commits — see README.md.
 
 - [ ] **Prestige tiers** — at max level, XP converts to a paragon counter with small bonuses
       and a title prefix in chat.
-- [ ] **Legendary tier** — boss-hunt-only drops + shop upgrade path
-      (rare + 100g + boss token → legendary). Extends the gold sink.
+- [ ] **More legend patterns** — the forge has four. Shields, axes, boots and a netherite-tier
+      recipe (2 sigils) would give the sigil sink more destinations.
 - [ ] **Titles/achievements** — 100 rare kills, 1,000 coins earned, etc.; shown in
       `/quest stats`, optionally broadcast.
 
@@ -49,7 +49,9 @@ Current state: ~3,600 lines, 21 files, 33 commits — see README.md.
 ## Notes for future sessions
 
 - Balance is untested in live play: watch **Pickpocket income**, **Quick Shot cadence**,
-  **Avatar uptime** and the **healer XP rate** (`Game.HealerXpPerHp = 2.0`) first when tuning.
+  **Avatar uptime**, the **healer XP rate** (`Game.HealerXpPerHp = 2.0`) and the **sigil economy**
+  (one sigil per rare kill, ~12 min realm-wide — a legend costs 100g + 1 sigil + base gear)
+  first when tuning.
 - Mojmap 1.21 gotchas live in the project's history: `UseItemCallback` returns
   `InteractionResultHolder` (consume/pass), no `setSecondsOnFire` (use `setRemainingFireTicks`),
   mining fatigue = `DIG_SLOWDOWN`, nausea = `CONFUSION`, no `BOWS`/`SHIELDS` item tags
