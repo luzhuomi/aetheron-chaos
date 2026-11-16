@@ -2,22 +2,21 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~3,200 lines, 20 files, 27 commits — see README.md.
+Current state: ~3,250 lines, 20 files, 28 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Healer XP from healing** — small XP per HP restored on allies; with taunt and boss bars in,
-   the support role is now visible but still unrewarded.
-2. **Daily quests** — 3 rotating slots per day from a pool; reinforces the existing daily motif
+1. **Daily quests** — 3 rotating slots per day from a pool; reinforces the existing daily motif
    (hearth ration, mason pass, rare timer). A reason to log in daily.
+2. **Party-scaled rares** — HP × (1 + 0.5 per extra member), announced at spawn; the natural
+   follow-up to the boss bar (the bar makes rares visible, scaling makes them fair).
 
 ## A. Make the trinity real
 
-- [ ] **Healer XP from healing** — small XP per HP restored on allies, so support priests
-      aren't starved in melee parties.
 - [ ] **Party-scaled rares** — HP × (1 + 0.5 per extra member), announced at spawn.
 - [ ] **Threat table** — taunt now forces targets; a real threat list (heal = aggro, damage
       over time = aggro) would make party tactics fully MMO-like. Needs per-mob bookkeeping.
+      (Heal XP landed; a matching aggro-on-heal rule would complete the picture.)
 
 ## B. Content that multiplies what exists
 
@@ -56,7 +55,7 @@ Current state: ~3,200 lines, 20 files, 27 commits — see README.md.
 ## Notes for future sessions
 
 - Balance is untested in live play: watch **Pickpocket income**, **Quick Shot cadence**,
-  and **Avatar uptime** first when tuning.
+  **Avatar uptime** and the **healer XP rate** (`Game.HealerXpPerHp = 2.0`) first when tuning.
 - Mojmap 1.21 gotchas live in the project's history: `UseItemCallback` returns
   `InteractionResultHolder` (consume/pass), no `setSecondsOnFire` (use `setRemainingFireTicks`),
   mining fatigue = `DIG_SLOWDOWN`, nausea = `CONFUSION`, no `BOWS`/`SHIELDS` item tags

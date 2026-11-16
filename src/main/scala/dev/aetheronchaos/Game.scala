@@ -49,6 +49,8 @@ object Game:
   val RareIntervalTicks = 12L * 60L * 20L
   val RareXpMultiplier = 10
   val PartyQuestXpBonusPercent = 0.5
+  // support earns its keep: XP per HP actually restored to another hero by healing
+  val HealerXpPerHp = 2.0
 
   // characters autosave to disk while online (crash safety net; normal saves happen on disconnect)
   val AutosaveIntervalTicks = 5L * 60L * 20L

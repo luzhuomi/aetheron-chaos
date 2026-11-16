@@ -93,7 +93,7 @@ object GameSpells:
     val lines = known.map { s =>
       val mark = if s.id == equippedSpell(c).id then "*" else " "
       val effect = s.kind match
-        case "heal"    => s"mend up to ${s.damage.toInt} HP (aim at an ally)"
+        case "heal"    => s"mend up to ${s.damage.toInt} HP (aim at an ally - healing allies grants you XP)"
         case "purify"  => "cleanse ailments from nearby allies"
         case "protect" => "Damage Resistance 12s for nearby allies"
         case "blink"   =>

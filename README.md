@@ -65,7 +65,7 @@ loop, built entirely from vanilla blocks, items and effects.
    | Spell | Unlock | Effect |
    |---|---|---|
    | Holy Smite | Lv 1 | 2.5 dmg holy bolt (minimal damage, as befits a priest) |
-   | Heal | Lv 3 | mends up to 6 HP on the ally you aim at (falls back to yourself) |
+   | Heal | Lv 3 | mends up to 6 HP on the ally you aim at (falls back to yourself) — **healing allies grants you XP** |
    | Purify | Lv 6 | cleanses slowness/poison/blindness/weakness/... from you + allies within 6 blocks |
    | Protection | Lv 15 | Damage Resistance 12s on you + allies within 6 blocks |
    | Judgment | Lv 25 | AoE holy burst (4-block radius) for groups |
@@ -176,7 +176,9 @@ loop, built entirely from vanilla blocks, items and effects.
     rare, it fades away — no respawn-grinding it down.
 13. **Hold the line** — warrior *Taunt* (aimed) and paladin *Challenge* (war-horn, 5 blocks) force
     foes to come at you. Stand between the party and the rare, keep its eyes on you, and the healer
-    stops getting mauled — a real tank trio, server-side.
+    stops getting mauled — a real tank trio, server-side. Healers level too: every HP of *Heal*
+    actually restored to another hero pays out support XP (over-healing a full tank pays nothing —
+    heal the wounded, not the healthy).
 
 ### Rules
 

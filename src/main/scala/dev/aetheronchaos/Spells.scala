@@ -192,16 +192,20 @@ object Spells:
         sl.playSound(null, caster, SoundEvents.BLAZE_SHOOT, SoundSource.PLAYERS, 0.5f, castPitch(spell.element))
       case _ => ()
 
-  /** Heal: mends the ally closest to the crosshair; falls back to the caster themselves. */
+  /** Heal: mends the ally closest to the crosshair; falls back to the caster themselves.
+   *  HP actually restored to another hero grants the healer support XP. */
   private def castHeal(caster: ServerPlayer, spell: Spell): Unit =
     val target = aimAlly(caster).getOrElse(caster)
-    val healed = target.getMaxHealth - target.getHealth
-    target.setHealth(math.min(target.getMaxHealth, target.getHealth + spell.damage))
+    val healed = math.min(target.getMaxHealth - target.getHealth, spell.damage.toDouble)
+    target.setHealth((target.getHealth + healed).toFloat)
+    val supportXp = if target == caster || healed <= 0.0 then 0L else math.round(healed * Game.HealerXpPerHp)
+    if supportXp > 0L then Game.addXp(caster, supportXp)
     caster.level match
       case sl: ServerLevel =>
         sl.sendParticles(ParticleTypes.HAPPY_VILLAGER, target.getX, target.getY + 1.0, target.getZ, 20, 0.4, 0.6, 0.4, 0.1)
         sl.playSound(null, target, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.8f, 1.2f)
-        Game.message(caster, s"You heal ${target.getDisplayName.getString} (+${math.min(healed, spell.damage).toInt} HP).", ChatFormatting.GREEN)
+        val xpNote = if supportXp > 0L then s" +$supportXp support XP" else ""
+        Game.message(caster, s"You heal ${target.getDisplayName.getString} (+${healed.toInt} HP).$xpNote", ChatFormatting.GREEN)
       case _ => ()
 
   /** Purify: cleanses negative effects from the caster and nearby allies. */
