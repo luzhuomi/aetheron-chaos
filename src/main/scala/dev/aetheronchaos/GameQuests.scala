@@ -47,6 +47,8 @@ object GameQuests:
       case Some(q) =>
         if c.taken.contains(q.id) then "That quest is already in your log."
         else if c.level < q.minLevel then s"You must be level ${q.minLevel} for '${q.name}'. Current level: ${c.level}."
+        else if !Quests.isUnlocked(q, c.done.toSet) then
+          s"That chapter has not reached you yet - complete '${Quests.prereqName(q)}' first."
         else
           c.taken += q.id
           if c.tracked.size < MaxTrackedQuests then c.tracked += q.id
@@ -169,6 +171,7 @@ object GameQuests:
         val partySize = mates.size + 1
         creditQuest(player, q, partySize)
         mates.foreach(m => creditQuest(m, q, partySize))
+        (player :: mates).foreach(m => announceNextChapter(m, q))
         val withParty = if mates.nonEmpty then s" together with ${mates.size} party member(s)" else ""
         val bonus = if q.partyOnly && partySize >= 2 then s" (group quest: +${(Game.PartyQuestXpBonusPercent * 100).toInt}% XP)" else ""
         Game.broadcast(
@@ -180,12 +183,20 @@ object GameQuests:
         val sharedNote = if mates.nonEmpty then s" ${mates.size} party member(s) credited too." else ""
         s"Quest complete: ${q.name} (+${q.xp} XP, +${q.coins} gold${if q.reward.nonEmpty then s", ${q.reward.get.name}" else ""})$bonus. $sharedNote".trim
 
+  /** Quest chains: after a turn-in, tell each credited hero about the next chapter. */
+  private def announceNextChapter(hero: ServerPlayer, q: Quest): Unit =
+    val hc = Game.ensure(hero.getUUID)
+    Quests.nextInChain(q.id).filter(nq => hc.level >= nq.minLevel).foreach { nq =>
+      Game.message(hero, s"A new chapter opens: '${nq.name}' now waits on the quest board.", ChatFormatting.LIGHT_PURPLE)
+    }
+
   /** Credits one hero for a completed quest: consumes the objective, grants rewards. */
   private def creditQuest(member: ServerPlayer, q: Quest, partySize: Int): Unit =
     val mc = Game.ensure(member.getUUID)
     mc.taken -= q.id
     mc.tracked -= q.id
     mc.progress -= q.id
+    mc.done += q.id // the history that unlocks the next chapter
     q.objective match
       case Objective.Collect(item, count) => Game.removeItems(member, item, count)
       case _ => ()
@@ -213,7 +224,7 @@ object GameQuests:
           false
         )
       )
-    val available = Quests.all.filter(q => !c.taken.contains(q.id) && q.minLevel <= c.level)
+    val available = Quests.all.filter(q => !c.taken.contains(q.id) && q.minLevel <= c.level && Quests.isUnlocked(q, c.done.toSet))
     if available.nonEmpty then
       Game.message(player, "LEFT-click a line to accept (press T first to free the mouse). GROUP quests share progress and rewards with your party:", ChatFormatting.AQUA)
       available.foreach(q =>

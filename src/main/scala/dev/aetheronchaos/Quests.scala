@@ -11,7 +11,8 @@ enum Objective:
   case Kill(target: EntityType[?], count: Int, label: String)
   case Collect(item: Item, count: Int)
 
-/** A quest posted on the town quest board. */
+/** A quest posted on the town quest board. requires: id of a quest that must be
+ *  completed first - that's what makes chains ("finish A and B appears on the board"). */
 final case class Quest(
     id: String,
     name: String,
@@ -21,7 +22,8 @@ final case class Quest(
     xp: Int,
     coins: Int,
     reward: scala.Option[Loot.Gear],
-    partyOnly: Boolean = false
+    partyOnly: Boolean = false,
+    requires: String = ""
 )
 
 object Quests:
@@ -57,9 +59,15 @@ object Quests:
       Some(Gear(Items.CROSSBOW, "Steady Strings", Rarity.Uncommon, List(Enchantments.UNBREAKING -> 2)))
     ),
     Quest(
+      "road-patrol", "Road Patrol", 3,
+      "Pillager scouts prowl the trade roads. Thin them out before the warband follows.",
+      Objective.Kill(EntityType.PILLAGER, 5, "pillager scouts"), 400, 7, None
+    ),
+    Quest(
       "warband", "Warband of the Pillager", 3,
       "Raid a pillager outpost or intercept their patrols.",
-      Objective.Kill(EntityType.PILLAGER, 10, "pillagers"), 450, 8, None
+      Objective.Kill(EntityType.PILLAGER, 10, "pillagers"), 450, 8, None,
+      requires = "road-patrol"
     ),
     Quest(
       "nightbane", "Nightbane Patrol", 4,
@@ -77,7 +85,8 @@ object Quests:
       "One ravager stands between the village and peace.",
       Objective.Kill(EntityType.RAVAGER, 1, "a ravager"), 550, 10,
       Some(Gear(Items.IRON_CHESTPLATE, "Girdle of Stone", Rarity.Rare, List(Enchantments.PROTECTION -> 2))),
-      partyOnly = true
+      partyOnly = true,
+      requires = "warband"
     ),
     Quest(
       "void-walkers", "Void Walkers", 5,
@@ -87,7 +96,8 @@ object Quests:
     Quest(
       "pearl-hunt", "Pocketful of Pearls", 6,
       "Endermen leave behind ender pearls when slain.",
-      Objective.Collect(Items.ENDER_PEARL, 3), 520, 10, None
+      Objective.Collect(Items.ENDER_PEARL, 3), 520, 10, None,
+      requires = "void-walkers"
     ),
     Quest(
       "core-hounds", "Core Hound Hunt", 6,
@@ -112,6 +122,16 @@ object Quests:
   )
 
   def byId(id: String): Option[Quest] = all.find(_.id == id)
+
+  /** The quests that a completed quest unlocks - the next chapter of its chain. */
+  def nextInChain(id: String): List[Quest] = all.filter(_.requires == id)
+
+  /** May this hero see/take this quest yet? (level gate + chain prerequisite) */
+  def isUnlocked(q: Quest, done: Set[String]): Boolean =
+    q.requires.isEmpty || done.contains(q.requires)
+
+  def prereqName(q: Quest): String =
+    byId(q.requires).map(_.name).getOrElse(q.requires)
 
   def objectiveText(q: Quest): String =
     q.objective match

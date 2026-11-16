@@ -2,15 +2,14 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~3,200 lines, 20 files, 25 commits — see README.md.
+Current state: ~3,200 lines, 20 files, 27 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Quest chains** — a `chain` field on `Quest`: finishing A unlocks B
-   (*Road Patrol → Clean the Roads → Slay the Roadbreaker*). Data-only change, big story feel;
-   gives newly adopted villages something to say.
-2. **Healer XP from healing** — small XP per HP restored on allies; with taunt and boss bars in,
+1. **Healer XP from healing** — small XP per HP restored on allies; with taunt and boss bars in,
    the support role is now visible but still unrewarded.
+2. **Daily quests** — 3 rotating slots per day from a pool; reinforces the existing daily motif
+   (hearth ration, mason pass, rare timer). A reason to log in daily.
 
 ## A. Make the trinity real
 
@@ -22,8 +21,6 @@ Current state: ~3,200 lines, 20 files, 25 commits — see README.md.
 
 ## B. Content that multiplies what exists
 
-- [ ] **Quest chains** — a `chain` field on `Quest`: finishing A unlocks B
-      (*Road Patrol → Clean the Roads → Slay the Roadbreaker*). Data-only change, big story feel.
 - [ ] **Daily quests** — 3 rotating slots per day from a pool; reinforces the existing daily
       motif (hearth ration, mason pass, rare timer). A reason to log in daily.
 - [ ] **Class quests at milestones** — unlock the Lv 15 spell only after a small class-flavored

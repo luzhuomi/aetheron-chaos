@@ -128,6 +128,10 @@ loop, built entirely from vanilla blocks, items and effects.
    clickable list of quests filtered by your level: kill quests, collection deliveries and boss hunts
    ("The Warden Below"). Accept with a click, track progress in your action bar, turn in **at the
    board** for XP, gold and occasionally gear.
+   **Quest chains**: some quests tell a story — finishing one posts the next chapter on the board
+   with a purple announcement. The *Pillager Road* chain runs *Road Patrol → Warband of the Pillager
+   → Ravager Rampage*; the void line links *Void Walkers → Pocketful of Pearls*. Locked chapters
+   stay off the board until you earn them (your completed-quest history is saved with your hero).
    *Tip: chat lines are only clickable while the chat screen is open — press `T` first (it frees the
    mouse from the crosshair), then click, and `Esc` to return. `/quest take <id>` with Tab-completion
    works without opening chat.*
@@ -280,7 +284,7 @@ src/main/scala/dev/aetheronchaos/
   GameQuests.scala       Quest log, tracker compass, turn-in, board menu
   HeroClasses.scala      Class/role definitions (attribute bonuses + starting gear)
   Spells.scala           Spellbooks: mage elemental bolts/novas + priest holy heal/purify/protect
-  Quests.scala           Quest definitions (kill / collect / boss objectives, [GROUP] flag)
+  Quests.scala           Quest definitions (kill / collect / boss objectives, [GROUP] flag, chains)
   Enemies.scala          Kill-XP table, loot tiers, rare-elite spawn table
   Loot.scala             Rarity-colored gear, signature mob drops, gold coins, tier-scaled rolls
   PartyLoot.scala        Party loot lock: need/greed rolls with timed resolution

@@ -71,6 +71,8 @@ object Game:
     val taken = mutable.LinkedHashSet[String]()
     // which of the taken quests the action-bar tracker follows (max MaxTrackedQuests)
     val tracked = mutable.LinkedHashSet[String]()
+    // quests this hero has finished - the history that unlocks quest chains
+    val done = mutable.LinkedHashSet[String]()
     val progress = mutable.Map[String, Int]()
     var party: Option[String] = None
     var kills: Int = 0
@@ -410,6 +412,8 @@ object Game:
     c.level = 1
     c.xp = 0L
     c.taken.clear()
+    c.tracked.clear()
+    c.done.clear()
     c.progress.clear()
     c.kills = 0
     c.rareKills = 0
@@ -457,6 +461,7 @@ object Game:
     tag.putLong("xp", c.xp)
     tag.putString("taken", c.taken.mkString(","))
     tag.putString("tracked", c.tracked.mkString(","))
+    tag.putString("done", c.done.mkString(","))
     val progressTag = new CompoundTag
     c.progress.foreach { (qid, n) => progressTag.putInt(qid, n) }
     tag.put("progress", progressTag)
@@ -476,6 +481,8 @@ object Game:
     if tag.getString("taken").nonEmpty then c.taken ++= tag.getString("taken").split(",").toSeq
     if tag.contains("tracked") && tag.getString("tracked").nonEmpty then
       tag.getString("tracked").split(",").toSeq.filter(c.taken.contains).foreach(c.tracked += _)
+    if tag.contains("done") && tag.getString("done").nonEmpty then
+      c.done ++= tag.getString("done").split(",").toSeq
     Option(tag.getCompound("progress")).foreach { p =>
       p.getAllKeys.asScala.foreach(k => c.progress(k) = p.getInt(k))
     }
