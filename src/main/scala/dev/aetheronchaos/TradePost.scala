@@ -39,7 +39,7 @@ object TradePost:
   private val SoldHistoryPerItem = 5
   private val FileName = "aetheron-chaos-postings.snbt"
 
-  final class Posting(val seller: UUID, val sellerName: String, val stack: ItemStack, val gold: Int):
+  final class Posting(val seller: UUID, val sellerName: String, val stack: ItemStack, val gold: Int, val postedDay: String):
     def described: String =
       val name = stack.getDisplayName.getString
       if stack.getCount > 1 then s"$name x${stack.getCount}" else name
@@ -77,7 +77,7 @@ object TradePost:
         val mineWatch = watches.get(player.getUUID).filter(_.nonEmpty).map(w => s"\n  You watch for: ${w.mkString(", ")} (/quest post unwatch <phrase>)").getOrElse("")
         (List(
           s"--- Trade Post at ${hubLabel(hub)} --- ${board.size}/$MaxPerHub posted. To sell: hold a stack, /quest post sell <gold> (no price asks the market what it paid). To buy: /quest post buy <n>. To be told when something lands: /quest post watch <phrase>."
-        ) ::: rows ::: List(waiting, mineWatch)).filter(_.nonEmpty).mkString("\n")
+        ) ::: rows ::: List(waiting, mineWatch, "Anything still posted come dawn, the village merchant buys it at half asking - the gold waits at the post.")).filter(_.nonEmpty).mkString("\n")
 
   /** `/quest post sell <gold>` - leave the stack in hand on the board for a price.
    *  No price (`gold` 0) is the market's turn to speak: what the board recently paid. */
@@ -99,7 +99,7 @@ object TradePost:
             val snapshot = held.copy()
             held.shrink(snapshot.getCount)
             player.inventoryMenu.broadcastChanges()
-            board += new Posting(player.getUUID, player.getName.getString, snapshot, gold)
+            board += new Posting(player.getUUID, player.getName.getString, snapshot, gold, today)
             notifyWatchers(player.server, snapshot, gold, hub)
             save(player.server)
             rewriteSigns(player.server)
@@ -241,15 +241,48 @@ object TradePost:
 
   // --- the posts themselves --------------------------------------------------------
 
-  /** First time a hero is online: load the ledgers and make sure every hub has its sign. */
+  /** First time a hero is online: load the ledgers and make sure every hub has its sign.
+   *  Each new day, the village merchant sweeps the boards (see merchantSweep). */
   private[aetheronchaos] def tick(server: MinecraftServer): Unit =
     if postsPending && server.getPlayerList.getPlayerCount > 0 then
       postsPending = false
       ensureLoaded(server)
       raisePosts(server)
+    val day = today
+    if loaded && day != lastSweepDay then
+      lastSweepDay = day
+      merchantSweep(server, day)
+
+  /** The NPC floor: anything the heroes left posted overnight, the merchant buys at half
+   *  asking. A quiet server still has a market, and a cornered hub still clears. */
+  private def merchantSweep(server: MinecraftServer, today: String): Unit =
+    var taken = 0
+    boards.values.foreach { board =>
+      board.filter(_.postedDay < today).toList.foreach { p =>
+        board -= p
+        val price = math.max(1, (p.gold * Tuning.getDouble("trade.npc_floor_fraction", 0.5)).floor.toInt)
+        owe(p.seller, p.sellerName, price)
+        Option(server.getPlayerList.getPlayer(p.seller)).foreach { hero =>
+          Game.message(hero, s"The village merchant took your ${describe(p.stack)} off the board at dawn - it sat unsold, so she paid half asking: $price gold waits at the post (/quest post coin).", ChatFormatting.GOLD)
+        }
+        taken += 1
+      }
+    }
+    if taken > 0 then
+      save(server)
+      rewriteSigns(server)
+      Game.broadcast(
+        server,
+        Component
+          .literal(s"The village merchant swept the trade posts at dawn, buying what was left posted overnight at half asking ($taken item(s)). The market wakes fresh.")
+          .withStyle(ChatFormatting.GOLD)
+      )
 
   private def hubFor(player: ServerPlayer): Option[(String, TownBuilder.Town)] =
     GuardWatch.hubNear(player).flatMap(i => TownBuilder.townByIndex(i + 1).map(h => s"${h.base.getX},${h.base.getZ}" -> h))
+
+  private def today: String = java.time.LocalDate.now().toString
+  private var lastSweepDay = ""
 
   private def countEverywhere(uuid: UUID): Int =
     boards.values.map(_.count(_.seller == uuid)).sum
@@ -325,7 +358,9 @@ object TradePost:
           case e: CompoundTag =>
             val stack = ItemStack.parseOptional(provider, e.getCompound("item"))
             if !stack.isEmpty && e.contains("seller") then
-              board += new Posting(UUID.fromString(e.getString("seller")), e.getString("sellerName"), stack, e.getInt("gold"))
+              // postings written before the NPC floor existed get today's grace
+              val day = if e.contains("postedDay") then e.getString("postedDay") else today
+              board += new Posting(UUID.fromString(e.getString("seller")), e.getString("sellerName"), stack, e.getInt("gold"), day)
           case _ => ()
         }
         boards += hubKey -> board
@@ -366,6 +401,7 @@ object TradePost:
           e.putString("seller", p.seller.toString)
           e.putString("sellerName", p.sellerName)
           e.putInt("gold", p.gold)
+          e.putString("postedDay", p.postedDay)
           p.stack.saveOptional(provider) match
             case null => ()
             case tag => e.put("item", tag)

@@ -328,7 +328,9 @@ loop, built entirely from vanilla blocks, items and effects.
     **`/quest post sell` with no price asks the market what it paid**: the posts keep a sale ledger
     per item (named legendaries are their own market), and the board answers with its recent prices
     and an average — the only price guide there is. A price far off recent sales gets one honest
-    sentence when it's posted, no more.
+    sentence when it's posted, no more. And the market has an **NPC floor**: anything left posted
+    overnight, the village merchant buys at **half asking** at dawn (the gold waits at the post like
+    any sale). A quiet server still has a market, and one hero can't corner a hub forever.
 24. **A barracks at the plaza** — the other building a hub can grow: for 150 gold a hero raises a
     **guardhold** on the plaza's edge — floor stones, an arms-rack wall, an anvil, a lantern, and an
     iron sword racked where the plaza can see it. A hub with a barracks keeps a **bigger watch**
