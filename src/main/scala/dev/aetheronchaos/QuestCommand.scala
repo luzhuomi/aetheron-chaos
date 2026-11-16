@@ -36,19 +36,19 @@ object QuestCommand:
           .`then`(Commands.literal("roles").executes(ctx => roles(ctx)))
           .`then`(
             Commands.literal("spell")
-              .executes(ctx => withPlayer(ctx, Game.spellList))
+              .executes(ctx => withPlayer(ctx, GameSpells.spellList))
               .`then`(
                 Commands.argument("spell", StringArgumentType.word())
                   .suggests((_, builder) => SharedSuggestionProvider.suggest(Spells.all.map(_.id).asJava, builder))
-                  .executes(ctx => withPlayer(ctx, p => Game.equipSpell(p, StringArgumentType.getString(ctx, "spell"))))
+                  .executes(ctx => withPlayer(ctx, p => GameSpells.equipSpell(p, StringArgumentType.getString(ctx, "spell"))))
               )
           )
-          .`then`(Commands.literal("board").executes(ctx => withPlayerSilent(ctx, Game.boardMenu)))
-          .`then`(questArgument("take", ctx => withPlayer(ctx, p => Game.takeQuest(p, StringArgumentType.getString(ctx, "quest")))))
-          .`then`(questArgument("abandon", ctx => withPlayer(ctx, p => Game.abandonQuest(p, StringArgumentType.getString(ctx, "quest")))))
-          .`then`(questArgument("track", ctx => withPlayer(ctx, p => Game.track(p, StringArgumentType.getString(ctx, "quest")))))
-          .`then`(questArgument("untrack", ctx => withPlayer(ctx, p => Game.untrack(p, StringArgumentType.getString(ctx, "quest")))))
-          .`then`(questArgument("turnin", ctx => withPlayer(ctx, p => Game.turnIn(p, StringArgumentType.getString(ctx, "quest")))))
+          .`then`(Commands.literal("board").executes(ctx => withPlayerSilent(ctx, GameQuests.boardMenu)))
+          .`then`(questArgument("take", ctx => withPlayer(ctx, p => GameQuests.takeQuest(p, StringArgumentType.getString(ctx, "quest")))))
+          .`then`(questArgument("abandon", ctx => withPlayer(ctx, p => GameQuests.abandonQuest(p, StringArgumentType.getString(ctx, "quest")))))
+          .`then`(questArgument("track", ctx => withPlayer(ctx, p => GameQuests.track(p, StringArgumentType.getString(ctx, "quest")))))
+          .`then`(questArgument("untrack", ctx => withPlayer(ctx, p => GameQuests.untrack(p, StringArgumentType.getString(ctx, "quest")))))
+          .`then`(questArgument("turnin", ctx => withPlayer(ctx, p => GameQuests.turnIn(p, StringArgumentType.getString(ctx, "quest")))))
           .`then`(Commands.literal("log").executes(ctx => log(ctx)))
           .`then`(
             Commands.literal("party")
@@ -61,17 +61,17 @@ object QuestCommand:
           )
           .`then`(Commands.literal("stats").executes(ctx => withPlayer(ctx, Game.statsReport)))
           .`then`(Commands.literal("top").executes(ctx => top(ctx)))
-          .`then`(Commands.literal("shop").executes(ctx => withPlayerSilent(ctx, Game.shopMenu)))
+          .`then`(Commands.literal("shop").executes(ctx => withPlayerSilent(ctx, GameShop.shopMenu)))
           .`then`(
             Commands.literal("sell")
-              .executes(ctx => withPlayer(ctx, p => Game.sellHeld(p)))
+              .executes(ctx => withPlayer(ctx, p => GameShop.sellHeld(p)))
           )
           .`then`(
             Commands.literal("buy")
               .`then`(
                 Commands.argument("item", StringArgumentType.greedyString())
                   .suggests((_, builder) => SharedSuggestionProvider.suggest(Shop.stock.map(_.id).asJava, builder))
-                  .executes(ctx => withPlayer(ctx, p => Game.buy(p, StringArgumentType.getString(ctx, "item"))))
+                  .executes(ctx => withPlayer(ctx, p => GameShop.buy(p, StringArgumentType.getString(ctx, "item"))))
               )
           )
           .`then`(
@@ -93,7 +93,7 @@ object QuestCommand:
           .`then`(
             Commands.literal("rare")
               .requires(src => src.hasPermission(2))
-              .executes(ctx => withPlayer(ctx, p => Game.spawnRare(p, None)))
+              .executes(ctx => withPlayer(ctx, p => GameRares.spawnRare(p, None)))
           )
           .`then`(
             Commands.literal("reset")
@@ -145,9 +145,9 @@ object QuestCommand:
         if c.taken.isEmpty then
           ctx.getSource.sendSuccess(() => Component.literal("Quest log is empty. Visit the board: /quest board").withStyle(ChatFormatting.GRAY), false)
         else
-          ctx.getSource.sendSuccess(() => Component.literal(s"Quest log (${c.tracked.size}/${Game.MaxTrackedQuests} tracked):").withStyle(ChatFormatting.GOLD), false)
+          ctx.getSource.sendSuccess(() => Component.literal(s"Quest log (${c.tracked.size}/${GameQuests.MaxTrackedQuests} tracked):").withStyle(ChatFormatting.GOLD), false)
           c.taken.toList.flatMap(Quests.byId).foreach { q =>
-            val have = Game.progressOf(p, q)
+            val have = GameQuests.progressOf(p, q)
             val goal = q.objective match
               case Objective.Kill(_, n, _) => n
               case Objective.Collect(_, n) => n

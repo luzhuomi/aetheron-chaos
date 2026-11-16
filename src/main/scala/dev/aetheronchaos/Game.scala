@@ -3,13 +3,11 @@ package dev.aetheronchaos
 import java.util.UUID
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
-import scala.util.Random
 
 import net.minecraft.ChatFormatting
 import net.minecraft.core.Holder
 import net.minecraft.core.component.DataComponents
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket
 import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket
@@ -19,11 +17,8 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.effect.MobEffectInstance
-import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.Mob
-import net.minecraft.world.entity.item.ItemEntity
-import net.minecraft.world.phys.Vec3
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
@@ -34,7 +29,9 @@ import net.minecraft.server.level.ServerLevel
 
 /**
  * Holds the persistent realm state: hero characters (class, level, XP, quest log),
- * parties, quest progress, and the rare-elite spawn scheduler.
+ * parties, kill/XP crediting and the tick scheduler. The spellbook, vendor, rare-elite
+ * and quest-tracker halves live in GameSpells / GameShop / GameRares / GameQuests,
+ * which schedule against `now` and use the package-private helpers exposed here.
  *
  * Gameplay loop (MMORPG style):
  *  - /quest join to create your hero, /quest class to pick one (WoW-style classes).
@@ -58,11 +55,6 @@ object Game:
   // town guard sweep: how often hostile strays inside town land get escorted out
   private val TownGuardIntervalTicks = 40L
 
-  // quest tracker / navigation
-  val MaxTrackedQuests = 4
-  private val NavRefreshTicks = 40L
-  private val NavScanRadius = 96.0
-  private val CompassArrows = Array("↑", "↖", "←", "↙", "↓", "↘", "→", "↗")
 
   final class Character(val uuid: UUID):
     var displayName: String = "?"
@@ -85,27 +77,19 @@ object Game:
 
   private val characters = mutable.Map[UUID, Character]()
   private val parties = mutable.Map[String, mutable.LinkedHashSet[UUID]]()
-  private val rng = Random()
   private var elapsedTicks = 0L
-  private var nextRareTick = 200L // first rare appears 10 seconds into the server run
+  private var nextAutosaveTick = AutosaveIntervalTicks
   // date of the last town mason pass, so towns repair once per real-world day (and on boot)
   private var lastTownRepairDay = ""
-  // live rare elites, so a party wipe can end the fight instead of letting players grind it down
-  private val activeRares = mutable.LinkedHashSet[Mob]()
-  private var nextAutosaveTick = AutosaveIntervalTicks
-  // quest tracker navigation cache: player uuid -> list of (questId, compass text)
-  private val navCache = mutable.Map[UUID, List[(String, String)]]()
-  // spell cooldowns: uuid -> tick the focus is ready again
-  private val spellCooldowns = mutable.Map[UUID, Long]()
-  // throttle for "hold your focus" hints: uuid -> tick of the last hint
-  private val spellNags = mutable.Map[UUID, Long]()
-  private var rareAnnounced = 0
+
+  /** Realm time in ticks; spell and navigation schedulers schedule against this. */
+  private[aetheronchaos] def now: Long = elapsedTicks
 
   def xpToNext(level: Int): Long = 100L + 60L * level + 35L * level * level
 
   def isJoined(player: ServerPlayer): Boolean = characters.get(player.getUUID).exists(_.joined)
 
-  private def ensure(uuid: UUID): Character = characters.getOrElseUpdate(uuid, new Character(uuid))
+  private[aetheronchaos] def ensure(uuid: UUID): Character = characters.getOrElseUpdate(uuid, new Character(uuid))
 
   private[aetheronchaos] def characterFor(player: ServerPlayer): Character = ensure(player.getUUID)
 
@@ -236,7 +220,7 @@ object Game:
     c.kills += 1
     if rare then
       c.rareKills += 1
-      activeRares -= victim
+      GameRares.forget(victim)
     val mates = partyMates(player)
     advanceQuests(player, victim)
     Loot.onKill(victim, player, mates)
@@ -266,7 +250,8 @@ object Game:
     )
 
   /** Online party members within XP-share range. */
-  private def partyMates(player: ServerPlayer): List[ServerPlayer] =
+  /** Online party members within XP-share range. */
+  private[aetheronchaos] def partyMates(player: ServerPlayer): List[ServerPlayer] =
     val c = ensure(player.getUUID)
     c.party.toList.flatMap { pname =>
       parties.getOrElse(pname, mutable.LinkedHashSet[UUID]()).toList.flatMap { muuid =>
@@ -285,42 +270,10 @@ object Game:
       val lost = (c.xp * DeathXpPenalty).toLong
       c.xp -= lost
       message(player, s"You died. The effort set you back $lost XP.", ChatFormatting.RED)
-    dropRaressOnWipe(player)
+    GameRares.dropRaressOnWipe(player)
 
-  /** A wipe is not a grind: any rare the group was actually fighting fades away when the
-   *  whole group is down (solo death counts as a wipe of a party of one). */
-  private def dropRaressOnWipe(player: ServerPlayer): Unit =
-    activeRares.filterInPlace(r => r.isAlive && !r.isRemoved)
-    if activeRares.isEmpty then return
-    val c = ensure(player.getUUID)
-    val group: List[ServerPlayer] = c.party match
-      case Some(p) =>
-        parties.getOrElse(p, mutable.LinkedHashSet[UUID]()).toList
-          .flatMap(u => Option(player.server.getPlayerList.getPlayer(u)))
-      case None => List(player)
-    if group.exists(_.isAlive) then return // someone is still standing to fight it
-    activeRares.toList.foreach { r =>
-      val engaged = group.exists(g => r.getTarget == g || r.distanceToSqr(g) < 900) // targeting or within 30 blocks
-      if engaged then
-        activeRares -= r
-        r.discard()
-        r.level match
-          case sl: ServerLevel =>
-            sl.sendParticles(
-              net.minecraft.core.particles.ParticleTypes.POOF,
-              r.getX, r.getY + 1.0, r.getZ, 25, 0.4, 0.6, 0.4, 0.05
-            )
-            sl.playSound(null, r, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 0.8f, 0.7f)
-          case _ => ()
-        broadcast(
-          player.server,
-          Component
-            .literal(s"${r.getName.getString}, sensing the party's fall, fades back into the wilds.")
-            .withStyle(ChatFormatting.DARK_GRAY)
-        )
-    }
 
-  private def addXp(player: ServerPlayer, amount: Long): Unit =
+  private[aetheronchaos] def addXp(player: ServerPlayer, amount: Long): Unit =
     val c = ensure(player.getUUID)
     c.xp += amount
     val fromLevel = c.level
@@ -340,247 +293,13 @@ object Game:
       player.connection.send(ClientboundSetTitlesAnimationPacket(10, 70, 20))
       player.connection.send(ClientboundSetTitleTextPacket(Component.literal(s"Level ${c.level}!").withStyle(ChatFormatting.GOLD)))
       player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal(heroClassOf(c).map(_.name).getOrElse("Adventurer"))))
-      val school = Spells.schoolFor(c.classId)
-      if school.nonEmpty then
-        Spells.all.filter(s => s.school == school && s.unlockLevel > fromLevel && s.unlockLevel <= c.level).foreach { s =>
-          message(player, s"New spell learned: ${s.name}! Right-click with your focus to cast it, /quest spell to equip.", ChatFormatting.LIGHT_PURPLE)
-        }
+      GameSpells.announceNewSpells(player, c, fromLevel)
 
-  // --- mage spells --------------------------------------------------------------
-
-  /** The spell a hero currently has equipped (falls back to the first known one). */
-  private[aetheronchaos] def equippedSpell(c: Character): Spell =
-    val school = Spells.schoolFor(c.classId)
-    Spells.byId(c.spell).filter(s => s.school == school && s.unlockLevel <= c.level)
-      .orElse(Spells.learnedFor(school, c.level).headOption)
-      .getOrElse(Spells.all.head)
-
-  /** Right-click cast / sneak+right-click cycle. Returns true if the click was consumed. */
-  private[aetheronchaos] def castOrCycle(player: ServerPlayer, hand: net.minecraft.world.InteractionHand): Boolean =
-    val c = ensure(player.getUUID)
-    val school = Spells.schoolFor(c.classId)
-    if !c.joined || school.isEmpty then return false
-    // only the hand being used matters: carrying a wand in the bag must not block eating,
-    // placing or using anything else. Mirror vanilla's choice: an empty main hand uses the off-hand.
-    val primary = player.getItemInHand(hand)
-    val used =
-      if primary.isEmpty && hand == net.minecraft.world.InteractionHand.MAIN_HAND then player.getOffhandItem
-      else primary
-    if !Spells.isFocus(school, used) then
-      if used.isEmpty then
-        // empty-hand right-click: a nudge about the focus, at most once per 10s
-        if elapsedTicks >= spellNags.getOrElse(c.uuid, 0L) then
-          spellNags(c.uuid) = elapsedTicks + 200
-          val hint = school match
-            case "holy"    => "A prayer book is your holy focus - hold any book (your Book of Radiance works) to cast."
-            case "shadow"  => "Your blades are your focus - hold any sword to call on your martial arts."
-            case "hunt"    => "Your bow is your focus - hold a bow to fire skill-shots."
-            case "might"   => "An axe focuses your might - hold any axe (the vendor sells one)."
-            case "crusade" => "Your shield is your prayer focus - hold any shield to call down blessings."
-            case _         => "A wand is your spell focus - hold any blaze rod to cast. Your other items stay usable."
-          message(player, hint, ChatFormatting.GRAY)
-      return false
-    if player.isCrouching then
-      val known = Spells.learnedFor(school, c.level)
-      if known.size < 2 then
-        message(player, s"Casting ${equippedSpell(c).name}. Learn more spells by leveling up.", ChatFormatting.GRAY)
-        return true
-      val current = known.indexWhere(_.id == c.spell)
-      val next = known((current + 1) % known.size)
-      c.spell = next.id
-      message(player, s"Equipped: ${next.name} - right-click to cast.", ChatFormatting.LIGHT_PURPLE)
-      return true
-    val spell = equippedSpell(c)
-    val readyAt = spellCooldowns.getOrElse(c.uuid, 0L)
-    if elapsedTicks < readyAt then
-      message(player, s"${spell.name} is still recharging... ${(readyAt - elapsedTicks + 19) / 20}s", ChatFormatting.GRAY)
-      return true
-    spellCooldowns(c.uuid) = elapsedTicks + spell.cooldownTicks
-    player.getCooldowns.addCooldown(used.getItem, spell.cooldownTicks) // the focus visibly greys out
-    Spells.cast(player, spell)
-    true
-
-  private[aetheronchaos] def spellList(player: ServerPlayer): String =
-    val c = ensure(player.getUUID)
-    val school = Spells.schoolFor(c.classId)
-    if school.isEmpty then return "That class has no spellbook. /quest roles to see classes."
-    val known = Spells.learnedFor(school, c.level)
-    val focusName = school match
-      case "holy"    => "book focus"
-      case "shadow"  => "sword focus (any blade)"
-      case "hunt"    => "bow focus (any bow)"
-      case "might"   => "axe focus (any axe)"
-      case "crusade" => "shield focus (any shield)"
-      case _         => "wand (blaze rod) focus"
-    val lines = known.map { s =>
-      val mark = if s.id == equippedSpell(c).id then "*" else " "
-      val effect = s.kind match
-        case "heal"    => s"mend up to ${s.damage.toInt} HP (aim at an ally)"
-        case "purify"  => "cleanse ailments from nearby allies"
-        case "protect" => "Damage Resistance 12s for nearby allies"
-        case "blink"   =>
-          if s.effect == "charge" then s"charge up to ${s.aoeRadius.toInt} blocks, slamming foes on landing"
-          else s"blink up to ${s.aoeRadius.toInt} blocks toward your aim"
-        case "burst"   => s"${s.damage} dmg to all foes around you (${s.aoeRadius} blocks)"
-        case "steal"   => s"steal coin from foes within ${s.aoeRadius.toInt} blocks"
-        case "buff"    =>
-          if s.effect == "speed" then s"Speed II for ${s.damage.toInt / 20}s"
-          else if s.effect == "invis" then s"invisibility ${s.damage.toInt / 20}s + a little mending"
-          else if s.effect == "guard" then s"Damage Resistance (hard to hurt) for ${s.damage.toInt / 20}s"
-          else s"harder hits (+damage) for ${s.damage.toInt / 20}s"
-        case "wound"    => s"open a bleeding wound: withers the aimed foe for ${s.damage.toInt / 20}s"
-        case "stun"     => s"${s.damage} dmg + stuns the aimed foe in place ~3s"
-        case "fear"     => s"scare foes within ${s.aoeRadius.toInt} blocks into fleeing"
-        case "mendself" => s"mend up to ${s.damage.toInt} HP on yourself"
-        case "arrows"  =>
-          val rider = s.effect match
-            case "poison" => ", poisons"
-            case "slow"   => ", hobbles the target"
-            case "pierce" => ", flies through up to 6 foes"
-            case _        => ""
-          val shots = if s.count > 1 then s"fires ${s.count} arrows" else "one arrow"
-          s"${s.damage} dmg - $shots$rider"
-        case _ if s.aoeRadius > 0 => s"${s.damage} dmg to all foes within ${s.aoeRadius.toInt} blocks"
-        case _         => s"${s.damage} dmg bolt"
-      s"$mark ${s.name} (Lv${s.unlockLevel}) - $effect"
-    }
-    val locked = Spells.all.filter(s => s.school == school && s.unlockLevel > c.level)
-    (List(s"Spellbook - right-click with your $focusName to cast, sneak+right-click to cycle:") ++ lines ++
-      (if locked.nonEmpty then List("Locked: " + locked.map(s => s"${s.name} (Lv${s.unlockLevel})").mkString(", ")) else Nil))
-      .mkString("\n")
-
-  private[aetheronchaos] def equipSpell(player: ServerPlayer, id: String): String =
-    val c = ensure(player.getUUID)
-    val school = Spells.schoolFor(c.classId)
-    if school.isEmpty then return "That class has no spellbook."
-    Spells.byId(id) match
-      case None =>
-        val hint = Spells.all.find(s => s.school == school && editDistance(s.id.toLowerCase, id.toLowerCase) <= 3)
-          .map(s => s" Did you mean ${s.id}?").getOrElse("")
-        s"Unknown spell '$id'.$hint See /quest spell."
-      case Some(s) if s.school != school => s"${s.name} is a ${s.school} spell - not in your book."
-      case Some(s) if s.unlockLevel > c.level => s"${s.name} unlocks at level ${s.unlockLevel} (you are ${c.level})."
-      case Some(s) =>
-        c.spell = s.id
-        s"Equipped: ${s.name}."
-
-  // --- quests ----------------------------------------------------------------
-
-  def takeQuest(player: ServerPlayer, id: String): String =
-    val c = ensure(player.getUUID)
-    if !c.joined then return "Join the realm first: /quest join"
-    Quests.byId(id) match
-      case None =>
-        val hint = didYouMean(id).map(s => s" Did you mean /quest take $s?").getOrElse("")
-        s"Unknown quest '$id'.$hint See the board: /quest board"
-      case Some(q) =>
-        if c.taken.contains(q.id) then "That quest is already in your log."
-        else if c.level < q.minLevel then s"You must be level ${q.minLevel} for '${q.name}'. Current level: ${c.level}."
-        else
-          c.taken += q.id
-          if c.tracked.size < MaxTrackedQuests then c.tracked += q.id
-          refreshNav(player)
-          val trackNote = if c.tracked.contains(q.id) then " (tracked)" else ""
-          s"Quest accepted: ${q.name}$trackNote - ${Quests.objectiveText(q)}. Hint: ${q.hint}"
-
-  def abandonQuest(player: ServerPlayer, id: String): String =
-    val c = ensure(player.getUUID)
-    if !c.taken.remove(id) then "That quest is not in your log."
-    else
-      c.tracked -= id
-      c.progress -= id
-      navCache -= player.getUUID
-      s"Abandoned '$id'."
-
-  // --- quest tracker: the action bar follows these ------------------------------
-
-  def track(player: ServerPlayer, id: String): String =
-    val c = ensure(player.getUUID)
-    Quests.byId(id) match
-      case None =>
-        val hint = didYouMean(id).map(s => s" Did you mean /quest track $s?").getOrElse("")
-        s"No such quest: $id.$hint"
-      case Some(q) =>
-        if !c.taken.contains(id) then s"Accept '${q.name}' first: /quest take ${q.id}"
-        else if c.tracked.contains(id) then s"'${q.name}' is already tracked."
-        else if c.tracked.size >= MaxTrackedQuests then
-          s"Tracker is full ($MaxTrackedQuests). Untrack one first: /quest untrack <id>"
-        else
-          c.tracked += id
-          refreshNav(player)
-          s"Tracking '${q.name}' - the action bar now points the way."
-
-  def untrack(player: ServerPlayer, id: String): String =
-    val c = ensure(player.getUUID)
-    if !c.tracked.contains(id) then s"You are not tracking '$id'."
-    else
-      c.tracked -= id
-      navCache -= player.getUUID
-      Quests.byId(id).map(q => s"Stopped tracking '${q.name}'.") getOrElse "Stopped tracking."
-
-  /** Per-quest compass strings for the action bar, refreshed on NavRefreshTicks. */
-  private[aetheronchaos] def trackerCompass(player: ServerPlayer): List[(String, String)] =
-    navCache.getOrElse(player.getUUID, Nil)
-
-  private def refreshNav(player: ServerPlayer): Unit =
-    val c = ensure(player.getUUID)
-    navCache(c.uuid) = c.tracked.toList.flatMap { qid =>
-      Quests.byId(qid).flatMap(q => navTarget(player, q).map(t => (qid, compassText(player, t))))
-    }
-
-  /** Where a quest's next step physically is: the objective target, or the board once it's done. */
-  private def navTarget(player: ServerPlayer, q: Quest): Option[(Vec3, String)] =
-    val level = player.level
-    if objectiveMet(player, q) then
-      TownBuilder.nearestBoard(player).map(bp => (Vec3.atBottomCenterOf(bp), "quest board"))
-    else
-      q.objective match
-        case Objective.Kill(target, _, label) =>
-          val found = level
-            .getEntitiesOfClass(classOf[Entity], scanBox(player), e => e.isAlive && e.getType == target)
-            .asScala
-            .minByOption(e => player.blockPosition.distSqr(e.blockPosition()))
-          found.map(e => (e.position(), label))
-        case Objective.Collect(item, _) =>
-          val name = ItemStack(item).getHoverName.getString
-          val found = level
-            .getEntitiesOfClass(classOf[ItemEntity], scanBox(player), ei => ei.getItem.is(item))
-            .asScala
-            .minByOption(e => player.blockPosition.distSqr(e.blockPosition()))
-          found.map(e => (e.position(), s"$name (dropped)"))
-
-  private def scanBox(player: ServerPlayer): net.minecraft.world.phys.AABB =
-    val p = player.position()
-    new net.minecraft.world.phys.AABB(
-      p.x - NavScanRadius, p.y - NavScanRadius, p.z - NavScanRadius,
-      p.x + NavScanRadius, p.y + NavScanRadius, p.z + NavScanRadius
-    )
-
-  /** "↗ 43m zombies" - 8-way arrow relative to where the player is facing. */
-  private def compassText(player: ServerPlayer, t: (Vec3, String)): String =
-    val d = t._1.subtract(player.position())
-    val dist = math.sqrt(d.x * d.x + d.z * d.z).toInt
-    val look = player.getLookAngle
-    val rel = math.atan2(d.z, d.x) - math.atan2(look.z, look.x)
-    val idx = ((math.round(math.toDegrees(rel) / 45.0).toInt % 8) + 8) % 8
-    s"${CompassArrows(idx)} ${dist}m ${t._2}"
-
-  private[aetheronchaos] def progressOf(player: ServerPlayer, q: Quest): Int =
-    val c = ensure(player.getUUID)
-    q.objective match
-      case Objective.Kill(_, _, _) => c.progress.getOrElse(q.id, 0)
-      case Objective.Collect(item, _) => countItem(player, item)
-
-  private def objectiveMet(player: ServerPlayer, q: Quest): Boolean =
-    q.objective match
-      case Objective.Kill(_, count, _) => ensure(player.getUUID).progress.getOrElse(q.id, 0) >= count
-      case Objective.Collect(item, count) => countItem(player, item) >= count
-
-  private def countItem(player: ServerPlayer, item: Item): Int =
+  private[aetheronchaos] def countItem(player: ServerPlayer, item: Item): Int =
     val inv = player.getInventory
     (inv.items.asScala.toSeq ++ inv.offhand.asScala.toSeq).filter(_.getItem == item).map(_.getCount).sum
 
-  private def removeItems(player: ServerPlayer, item: Item, count: Int): Unit =
+  private[aetheronchaos] def removeItems(player: ServerPlayer, item: Item, count: Int): Unit =
     var left = count
     player.getInventory.items.asScala.foreach { stack =>
       if left > 0 && stack.getItem == item then
@@ -588,96 +307,6 @@ object Game:
         stack.shrink(take)
         left -= take
     }
-
-  def turnIn(player: ServerPlayer, id: String): String =
-    val c = ensure(player.getUUID)
-    if !c.taken.contains(id) then
-      return s"'$id' is not in your log, so there is nothing to turn in. To ACCEPT a quest: /quest board then LEFT-click its blue line, or type /quest take $id (Tab completes ids)."
-    Quests.byId(id) match
-      case None => "Unknown quest."
-      case Some(q) =>
-        if TownBuilder.boardCount > 0 && !TownBuilder.nearBoard(player) then
-          return "Return to the quest board in town to turn quests in."
-        if !objectiveMet(player, q) then
-          val have = progressOf(player, q)
-          val why = q.objective match
-            case Objective.Kill(_, count, _) => s"Not yet: $have/$count. Keep going."
-            case Objective.Collect(item, count) => s"You need $count ${ItemStack(item).getHoverName.getString} in your inventory (you have $have)."
-          return why
-        // shared turn-in: party members holding this quest and ready at the board turn in too
-        val mates = partyMates(player).filter(m =>
-          ensure(m.getUUID).taken.contains(id) && objectiveMet(m, q) && TownBuilder.nearBoard(m)
-        )
-        val partySize = mates.size + 1
-        creditQuest(player, q, partySize)
-        mates.foreach(m => creditQuest(m, q, partySize))
-        val withParty = if mates.nonEmpty then s" together with ${mates.size} party member(s)" else ""
-        val bonus = if q.partyOnly && partySize >= 2 then s" (group quest: +${(PartyQuestXpBonusPercent * 100).toInt}% XP)" else ""
-        broadcast(
-          player.server,
-          Component
-            .literal(s"${c.displayName} completed '${q.name}'$withParty! +${q.xp} XP, +${q.coins} gold${if q.reward.nonEmpty then " and a reward" else ""}$bonus")
-            .withStyle(ChatFormatting.GREEN)
-        )
-        val sharedNote = if mates.nonEmpty then s" ${mates.size} party member(s) credited too." else ""
-        s"Quest complete: ${q.name} (+${q.xp} XP, +${q.coins} gold${if q.reward.nonEmpty then s", ${q.reward.get.name}" else ""})$bonus. $sharedNote".trim
-
-  /** Credits one hero for a completed quest: consumes the objective, grants rewards. */
-  private def creditQuest(member: ServerPlayer, q: Quest, partySize: Int): Unit =
-    val mc = ensure(member.getUUID)
-    mc.taken -= q.id
-    mc.tracked -= q.id
-    mc.progress -= q.id
-    q.objective match
-      case Objective.Collect(item, count) => removeItems(member, item, count)
-      case _ => ()
-    giveItem(member, Loot.coinStack(q.coins))
-    q.reward.foreach(g => giveItem(member, Loot.stack(g, member.level.registryAccess())))
-    val bonusXp = if q.partyOnly && partySize >= 2 then (q.xp * PartyQuestXpBonusPercent).toLong else 0L
-    addXp(member, q.xp + bonusXp)
-    member.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.0f, 1.0f)
-
-  /** The quest-board menu: turn-in offers on top, then quests you may take. Both are clickable. */
-  def boardMenu(player: ServerPlayer): Unit =
-    val c = ensure(player.getUUID)
-    if !c.joined then
-      message(player, join(player), ChatFormatting.GOLD)
-      return
-    message(player, "--- Quest Board ---", ChatFormatting.GOLD)
-    val ready = c.taken.toList.flatMap(Quests.byId).filter(q => objectiveMet(player, q))
-    if ready.nonEmpty then
-      message(player, "Ready to turn in (left-click):", ChatFormatting.GREEN)
-      ready.foreach(q =>
-        player.displayClientMessage(
-          Component
-            .literal(s"[TURN IN] ${q.name}")
-            .withStyle(s => s.withColor(ChatFormatting.GREEN).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest turnin ${q.id}"))),
-          false
-        )
-      )
-    val available = Quests.all.filter(q => !c.taken.contains(q.id) && q.minLevel <= c.level)
-    if available.nonEmpty then
-      message(player, "LEFT-click a line to accept (press T first to free the mouse). GROUP quests share progress and rewards with your party:", ChatFormatting.AQUA)
-      available.foreach(q =>
-        val tag = if q.partyOnly then "[GROUP] " else ""
-        player.displayClientMessage(
-          Component
-            .literal(s"$tag[${q.name}] ${q.minLevel}o - ${Quests.objectiveText(q)} -> ${q.xp} XP, ${q.coins} gold")
-            .withStyle(s => s.withColor(ChatFormatting.AQUA).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest take ${q.id}"))),
-          false
-        )
-      )
-    val taken = c.taken.toList.flatMap(Quests.byId)
-    if taken.nonEmpty then
-      message(player, "In your log:", ChatFormatting.YELLOW)
-      taken.foreach(q =>
-        val have = progressOf(player, q)
-        val goal = q.objective match
-          case Objective.Kill(_, n, _) => n
-          case Objective.Collect(_, n) => n
-        message(player, s"${q.name}: $have/$goal - ${Quests.objectiveText(q)}", ChatFormatting.YELLOW)
-      )
-    if available.isEmpty && taken.isEmpty && ready.isEmpty then message(player, "Nothing for you today, adventurer.", ChatFormatting.GRAY)
 
   // --- parties ----------------------------------------------------------------
 
@@ -704,6 +333,10 @@ object Game:
         }
         c.party = None
         "Left the party."
+
+  /** Member uuids of a named party (online or not) - used by the rare-wipe rule. */
+  private[aetheronchaos] def partyMembers(pname: String): List[UUID] =
+    parties.getOrElse(pname, mutable.LinkedHashSet[UUID]()).toList
 
   private[aetheronchaos] def partiesOf(player: ServerPlayer, pname: String): List[String] =
     parties
@@ -740,57 +373,6 @@ object Game:
           sl.playSound(null, player, SoundEvents.PLAYER_BURP, SoundSource.PLAYERS, 0.6f, 1.0f)
         case _ => ()
       s"${TownBuilder.HearthNpcName}: 'Here - eat while it's warm. Two loaves, two drumsticks. Every day, one basket, that's the house rule.'"
-
-  // --- vendor / shop ------------------------------------------------------------
-
-  def shopMenu(player: ServerPlayer): Unit =
-    val gold = countItem(player, Items.GOLD_NUGGET)
-    message(player, s"--- General Vendor --- you carry $gold gold", ChatFormatting.GOLD)
-    Shop.stock.foreach { s =>
-      val color = if gold >= s.price then ChatFormatting.AQUA else ChatFormatting.DARK_GRAY
-      val text = Component
-        .literal(s"[${s.gear.name}] ${s.price} gold")
-        .withStyle(st => st.withColor(color).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest buy ${s.id}")))
-      player.displayClientMessage(text, false)
-    }
-    val held = player.getInventory.getSelected
-    val sellable = if held.isEmpty then None else Shop.sellPrice(held).map(u => u * held.getCount)
-    sellable match
-      case Some(total) =>
-        val sellLine = Component
-          .literal(s"[Sell held: ${held.getDisplayName.getString} x${held.getCount} -> $total gold]")
-          .withStyle(st => st.withColor(ChatFormatting.GREEN).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, "/quest sell")))
-        player.displayClientMessage(sellLine, false)
-      case _ =>
-        message(player, "To sell: hold the item in your main hand, then use /quest sell (or sneak+right-click the merchant).", ChatFormatting.GRAY)
-    message(player, "Press T then LEFT-click a line to buy. Gold comes from coin drops, quest rewards and selling.", ChatFormatting.GRAY)
-
-  def buy(player: ServerPlayer, id: String): String =
-    Shop.byId(id) match
-      case None => s"Unknown item '$id'. Browse with /quest shop."
-      case Some(s) =>
-        val gold = countItem(player, Items.GOLD_NUGGET)
-        if gold < s.price then s"The ${s.gear.name} costs ${s.price} gold - you carry only $gold."
-        else
-          removeItems(player, Items.GOLD_NUGGET, s.price)
-          giveItem(player, Loot.stack(s.gear, player.level.registryAccess()))
-          s"Bought ${s.gear.name} for ${s.price} gold (${gold - s.price} left)."
-
-  /** Sells the whole stack in the player's main hand at the merchant's buy price. */
-  def sellHeld(player: ServerPlayer): String =
-    val inv = player.getInventory
-    val held = inv.getSelected
-    if held.isEmpty then "Hold the item you want to sell in your main hand, then use /quest sell."
-    else
-      Shop.sellPrice(held) match
-        case None => s"${TownBuilder.VendorNpcName} waves it off - she won't pay coin for ${held.getDisplayName.getString}."
-        case Some(unit) =>
-          val count = held.getCount
-          val total = unit * count
-          inv.setItem(inv.selected, ItemStack.EMPTY)
-          player.inventoryMenu.broadcastChanges()
-          giveItem(player, Loot.coinStack(total))
-          s"Sold $count ${held.getDisplayName.getString} for $total gold - you carry ${countItem(player, Items.GOLD_NUGGET)} now."
 
   // --- stats & leaderboard ----------------------------------------------------
 
@@ -839,39 +421,6 @@ object Game:
       case Some(p) => reset(p)
       case None => s"No online player named '$target'."
 
-  // --- rare elites & ticking --------------------------------------------------
-
-  def spawnRare(player: ServerPlayer, nameOpt: Option[String]): String =
-    val chosen = nameOpt.flatMap(n => Enemies.rares.find(_.name.equalsIgnoreCase(n)))
-      .getOrElse(Enemies.rares(rng.nextInt(Enemies.rares.size)))
-    player.level match
-      case serverLevel: ServerLevel =>
-        val factory = chosen.entityType.asInstanceOf[EntityType[Mob]]
-        Option(factory.create(serverLevel)) match
-          case None => "The rare refused to appear here."
-          case Some(m) =>
-            val ang = rng.nextDouble() * 2 * Math.PI
-            val dist = 14 + rng.nextInt(10)
-            m.setPos(player.getX + math.cos(ang) * dist, player.getY + 2, player.getZ + math.sin(ang) * dist)
-            m.setCustomName(Component.literal(chosen.name))
-            m.setCustomNameVisible(true)
-            Option(m.getAttribute(Attributes.MAX_HEALTH)).foreach { a =>
-              a.setBaseValue(a.getBaseValue * chosen.healthMult)
-              m.setHealth(a.getValue.toFloat)
-            }
-            Option(m.getAttribute(Attributes.ATTACK_DAMAGE)).foreach(a => a.setBaseValue(a.getBaseValue * chosen.attackMult))
-            serverLevel.addFreshEntity(m)
-            activeRares += m
-            rareAnnounced += 1
-            broadcast(
-              player.server,
-              Component
-                .literal(s"A RARE ELITE has appeared: ${chosen.name}, near ${player.getName.getString}! Slay it for 10x XP and guaranteed loot.")
-                .withStyle(ChatFormatting.LIGHT_PURPLE)
-            )
-            player.playNotifySound(SoundEvents.ENDER_DRAGON_AMBIENT, SoundSource.HOSTILE, 1.0f, 0.9f)
-            s"Spawned rare elite: ${chosen.name}"
-      case _ => "Not on a server level."
 
   def tick(server: MinecraftServer): Unit =
     elapsedTicks += 1
@@ -885,14 +434,9 @@ object Game:
     if today != lastTownRepairDay then
       lastTownRepairDay = today
       TownBuilder.repairTowns(server)
-    if elapsedTicks >= nextRareTick then
-      nextRareTick = elapsedTicks + RareIntervalTicks
-      val online = server.getPlayerList.getPlayers.asScala.filter(isJoined)
-      if online.nonEmpty then
-        val target = online.toSeq(rng.nextInt(online.size))
-        spawnRare(target, None)
+    GameRares.tickScheduler(server)
+    GameQuests.tickNavigation(server)
     server.getPlayerList.getPlayers.asScala.filter(isJoined).foreach { p =>
-      if elapsedTicks % NavRefreshTicks == 0 then refreshNav(p)
       Hud.update(p)
     }
 
@@ -946,17 +490,7 @@ object Game:
         stack.set(DataComponents.ITEM_NAME, Loot.coinName)
     }
 
-  /** Typo help: the closest quest id within edit distance 3, e.g. bone-copllection -> bone-collection. */
-  private def didYouMean(input: String): Option[String] =
-    Quests.all
-      .map(_.id)
-      .map(id => (editDistance(id.toLowerCase, input.toLowerCase), id))
-      .filter(_._1 <= 3)
-      .sortBy(_._1)
-      .headOption
-      .map(_._2)
-
-  private def editDistance(a: String, b: String): Int =
+  private[aetheronchaos] def editDistance(a: String, b: String): Int =
     var prev = Array.tabulate(b.length + 1)(identity)
     for i <- 1 to a.length do
       val cur = Array.ofDim[Int](b.length + 1)
@@ -967,7 +501,7 @@ object Game:
       prev = cur
     prev(b.length)
 
-  private def giveItem(player: ServerPlayer, stack: net.minecraft.world.item.ItemStack): Unit =
+  private[aetheronchaos] def giveItem(player: ServerPlayer, stack: net.minecraft.world.item.ItemStack): Unit =
     if !player.getInventory.add(stack) then player.drop(stack, false)
 
   private[aetheronchaos] def giveCoins(player: ServerPlayer, amount: Int): Unit =

@@ -33,10 +33,10 @@ object Interactions:
     UseBlockCallback.EVENT.register((player, world, _, hitResult) =>
       player match
         case p: ServerPlayer if TownBuilder.isBoard(hitResult.getBlockPos) && world.getBlockState(hitResult.getBlockPos).is(Blocks.LOOM) =>
-          Game.boardMenu(p)
+          GameQuests.boardMenu(p)
           InteractionResult.SUCCESS
         case p: ServerPlayer if TownBuilder.isVendor(hitResult.getBlockPos) && world.getBlockState(hitResult.getBlockPos).is(Blocks.BARREL) =>
-          if p.isCrouching then Game.message(p, Game.sellHeld(p), ChatFormatting.GOLD) else Game.shopMenu(p)
+          if p.isCrouching then Game.message(p, GameShop.sellHeld(p), ChatFormatting.GOLD) else GameShop.shopMenu(p)
           InteractionResult.SUCCESS
         case _ => InteractionResult.PASS
     )
@@ -46,10 +46,10 @@ object Interactions:
       else
         (player, TownBuilder.npcRole(entity)) match
           case (p: ServerPlayer, Some("board")) =>
-            Game.boardMenu(p)
+            GameQuests.boardMenu(p)
             InteractionResult.SUCCESS
           case (p: ServerPlayer, Some("vendor")) =>
-            if p.isCrouching then Game.message(p, Game.sellHeld(p), ChatFormatting.GOLD) else Game.shopMenu(p)
+            if p.isCrouching then Game.message(p, GameShop.sellHeld(p), ChatFormatting.GOLD) else GameShop.shopMenu(p)
             InteractionResult.SUCCESS
           case (p: ServerPlayer, Some("hearth")) =>
             Game.message(p, Game.dailyRation(p), ChatFormatting.GOLD)
@@ -64,6 +64,6 @@ object Interactions:
     // (mage: blaze rod, priest: book, rogue: any sword, hunter: any bow, warrior: any axe, paladin: any shield)
     UseItemCallback.EVENT.register((player, _, hand) =>
       player match
-        case p: ServerPlayer if Game.castOrCycle(p, hand) => InteractionResultHolder.consume(ItemStack.EMPTY)
+        case p: ServerPlayer if GameSpells.castOrCycle(p, hand) => InteractionResultHolder.consume(ItemStack.EMPTY)
         case _ => InteractionResultHolder.pass(ItemStack.EMPTY)
     )

@@ -20,15 +20,15 @@ object Hud:
     val xpBar = ("█" * filled) + ("░" * (10 - filled))
     val hp = f"${player.getHealth.toFloat}%.0f/${player.getMaxHealth.toFloat}%.0f"
 
-    val spellTag = if Spells.schoolFor(c.classId).nonEmpty then s"  ✦ ${Game.equippedSpell(c).name}" else ""
+    val spellTag = if Spells.schoolFor(c.classId).nonEmpty then s"  ✦ ${GameSpells.equippedSpell(c).name}" else ""
     val head = Component
       .literal(s"Lv ${c.level} $className  XP $pct%% $xpBar  HP $hp$spellTag")
       .withStyle(ChatFormatting.GOLD)
 
     // tracked quests with a live compass to the next objective (or the board when done)
-    val compass = Game.trackerCompass(player).toMap
+    val compass = GameQuests.trackerCompass(player).toMap
     val quests = c.tracked.toList.flatMap(Quests.byId).take(2).map { q =>
-      val have = Game.progressOf(player, q)
+      val have = GameQuests.progressOf(player, q)
       val goal = q.objective match
         case Objective.Kill(_, n, _) => n
         case Objective.Collect(_, n) => n

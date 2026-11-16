@@ -262,7 +262,11 @@ Feature roadmap lives in [planned_features.md](planned_features.md).
 ```
 src/main/scala/dev/aetheronchaos/
   AetheronChaosMod.scala  Fabric entrypoint, event wiring
-  Game.scala             Characters: classes, XP/levels, quests, parties, rare spawns
+  Game.scala             Realm state core: characters, XP/levels, parties, kill credit, tick
+  GameSpells.scala       Spellbook state: equip, cast, cooldowns, spell menu
+  GameShop.scala         Vendor flows: shop menu, buy, sell
+  GameRares.scala        Rare-elite scheduler, live registry, spawn
+  GameQuests.scala       Quest log, tracker compass, turn-in, board menu
   HeroClasses.scala      Class/role definitions (attribute bonuses + starting gear)
   Spells.scala           Spellbooks: mage elemental bolts/novas + priest holy heal/purify/protect
   Quests.scala           Quest definitions (kill / collect / boss objectives, [GROUP] flag)

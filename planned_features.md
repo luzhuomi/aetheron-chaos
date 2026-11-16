@@ -2,17 +2,14 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~3,000 lines, 16 files, 22 commits — see README.md.
+Current state: ~3,000 lines, 20 files, 23 commits — see README.md.
 
 ## Top picks (next sessions)
 
 1. **Bossbar + taunt pair** — bossbar HP for rares (`ClientboundBossEventPacket`, ~30 lines)
    plus paladin *Challenge* (AoE aggro pull) and warrior *Taunt* (single target). Turns rares
    from "buffed mob" into boss encounters and makes the tank role real.
-2. **Split `Game.scala`** (~980 lines) into domain objects — `GameXp`, `GameQuests`,
-   `GameParty`, `GameShop`, `GameRare`. Mechanical, no behavior change; do it *before* the next
-   feature while the refactor is still safe.
-3. **Adopt vanilla villages as towns** — detect village structures, graft in a board/vendor/NPCs.
+2. **Adopt vanilla villages as towns** — detect village structures, graft in a board/vendor/NPCs.
    Biggest content multiplier relative to systems that already exist.
 
 ## A. Make the trinity real
@@ -56,7 +53,6 @@ Current state: ~3,000 lines, 16 files, 22 commits — see README.md.
 
 ## E. Engineering
 
-- [ ] **Split `Game.scala`** — see top pick #2.
 - [ ] **Add AGENTS.md** — build/test commands, Mojmap gotchas list, commit conventions.
       Cheap, compounds for future contributors and tooling.
 - [ ] **Unit tests for pure logic** — XP curve, sell prices, did-you-mean distance.
