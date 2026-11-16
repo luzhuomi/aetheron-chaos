@@ -298,7 +298,9 @@ loop, built entirely from vanilla blocks, items and effects.
     to the realm with a title screen, and three new titles hang on the ladder (*the Reborn*,
     *the Everwalking*, *the Undying*). `/quest prestige` reads the whole thing out: your tier, the
     progress to the next, and what it grants. The tier persists in the character save; old saves
-    simply read as tier 0.
+    simply read as tier 0. And ascension is *visible*: the ★ and any carried title burn **aqua from
+    Paragon 1, violet from Paragon 3, gold from Paragon 6** — on the HUD and on `/quest top` — with
+    the milestone named in the ascension broadcast. Pure chat formatting, so every client sees it.
 22. **Hero-to-hero trading** — a vanilla client has no trade window, so the trade is the chat
     window: `/quest trade <hero>` invites a hero standing within 40 blocks of you, and they answer
     with a click ([Accept] / [Decline]). Each side offers **the stack in hand** (`/quest trade give`

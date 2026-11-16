@@ -280,11 +280,12 @@ object QuestCommand:
       ctx.getSource.sendSuccess(() => Component.literal("Heroes of the realm:").withStyle(ChatFormatting.GOLD), false)
       rows.zipWithIndex.foreach { case ((name, level, paragon, cls, titleId), i) =>
         val titleTag = Achievements.byId(titleId).map(t => s" \"${t.title}\"").getOrElse("")
-        val star = if paragon > 0 then s" ★$paragon" else ""
-        ctx.getSource.sendSuccess(
-          () => Component.literal(s"${i + 1}. Lv $level$star $cls$titleTag - $name").withStyle(ChatFormatting.AQUA),
-          false
-        )
+        val line = Component.literal(s"${i + 1}. Lv $level").withStyle(ChatFormatting.AQUA)
+        if paragon > 0 then line.append(Component.literal(s" ★$paragon").withStyle(Game.paragonColor(paragon)))
+        line.append(Component.literal(s" $cls").withStyle(ChatFormatting.AQUA))
+        if titleTag.nonEmpty then line.append(Component.literal(titleTag).withStyle(if paragon > 0 then Game.paragonColor(paragon) else ChatFormatting.AQUA))
+        line.append(Component.literal(s" - $name").withStyle(ChatFormatting.AQUA))
+        ctx.getSource.sendSuccess(() => line, false)
       }
     1
 

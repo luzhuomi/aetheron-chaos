@@ -118,6 +118,19 @@ object Game:
   /** Paragon tiers sharpen the hero's craft: +3% XP earned per tier, to a ceiling. */
   private def paragonXpRate(c: Character): Double = math.min(1.5, 1.0 + 0.03 * c.paragon)
 
+  /** The visible rank of ascension: a hero's star and carried title burn a different
+   *  color past each milestone. Pure chat formatting - every client sees it. */
+  private[aetheronchaos] def paragonColor(paragon: Int): ChatFormatting =
+    if paragon >= 6 then ChatFormatting.GOLD
+    else if paragon >= 3 then ChatFormatting.LIGHT_PURPLE
+    else if paragon >= 1 then ChatFormatting.AQUA
+    else ChatFormatting.WHITE
+
+  private[aetheronchaos] def paragonColorNote(paragon: Int): String = paragon match
+    case 3 => " Your star now burns violet."
+    case 6 => " Your star now burns gold."
+    case _ => ""
+
   def isJoined(player: ServerPlayer): Boolean = characters.get(player.getUUID).exists(_.joined)
 
   private[aetheronchaos] def ensure(uuid: UUID): Character = characters.getOrElseUpdate(uuid, new Character(uuid))
@@ -376,7 +389,7 @@ object Game:
         player.server,
         Component
           .literal(
-            s"${c.displayName} has ascended to Paragon ${c.paragon}! +2 hearts, +0.5 attack, +${3 * c.paragon}% experience."
+            s"${c.displayName} has ascended to Paragon ${c.paragon}! +2 hearts, +0.5 attack, +${3 * c.paragon}% experience.${paragonColorNote(c.paragon)}"
           )
           .withStyle(ChatFormatting.AQUA)
       )
@@ -518,7 +531,7 @@ object Game:
   def prestigeReport(player: ServerPlayer): String =
     val c = ensure(player.getUUID)
     val bonus =
-      s"Each paragon tier: +2 hearts, +0.5 attack, +3% experience earned (to +50%), and a star on the realm's leaderboard."
+      s"Each paragon tier: +2 hearts, +0.5 attack, +3% experience earned (to +50%), and a star on the realm's leaderboard - your star and carried title burn violet at Paragon 3, gold at Paragon 6."
     if c.level < MaxLevel then
       val need = xpToNext(c.level)
       s"Prestige begins at the level cap ($MaxLevel), where experience stops being wasted and starts feeding paragon tiers. You are Lv ${c.level} - $need XP to the next level. $bonus"

@@ -22,12 +22,16 @@ object Hud:
     val hp = f"${player.getHealth.toFloat}%.0f/${player.getMaxHealth.toFloat}%.0f"
 
     val spellTag = if Spells.schoolFor(c.classId).nonEmpty then s"  ✦ ${GameSpells.equippedSpell(c).name}" else ""
-    val paragonTag = if c.paragon > 0 then s" ★${c.paragon}" else ""
     val titleTag = Achievements.byId(c.title).map(a => s" \"${a.title}\"").getOrElse("")
     val pool = if atCap then s"PAR $pct%" else s"XP $pct%"
-    val head = Component
-      .literal(s"Lv ${c.level}$paragonTag $className$titleTag  $pool $xpBar  HP $hp$spellTag")
-      .withStyle(if atCap then ChatFormatting.AQUA else ChatFormatting.GOLD)
+    val base = if atCap then ChatFormatting.AQUA else ChatFormatting.GOLD
+    // the paragon ladder: star and carried title burn by milestone (1 aqua, 3 violet, 6 gold)
+    val rank = Game.paragonColor(c.paragon)
+    val head = Component.literal(s"Lv ${c.level}").withStyle(base)
+    if c.paragon > 0 then head.append(Component.literal(s" ★${c.paragon}").withStyle(rank))
+    head.append(Component.literal(s" $className").withStyle(base))
+    if titleTag.nonEmpty then head.append(Component.literal(titleTag).withStyle(if c.paragon > 0 then rank else base))
+    head.append(Component.literal(s"  $pool $xpBar  HP $hp$spellTag").withStyle(base))
 
     // tracked quests with a live compass to the next objective (or the board when done)
     val compass = GameQuests.trackerCompass(player).toMap
