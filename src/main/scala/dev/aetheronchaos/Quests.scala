@@ -13,7 +13,8 @@ enum Objective:
 
 /** A quest posted on the town quest board. requires: id of a quest that must be
  *  completed first - that's what makes chains ("finish A and B appears on the board").
- *  daily: part of the rotating pool - three of them are posted realm-wide each day. */
+ *  daily: part of the rotating pool - three of them are posted realm-wide each day.
+ *  forClass: only this class is ever offered the quest (class trials). */
 final case class Quest(
     id: String,
     name: String,
@@ -25,7 +26,8 @@ final case class Quest(
     reward: scala.Option[Loot.Gear],
     partyOnly: Boolean = false,
     requires: String = "",
-    daily: Boolean = false
+    daily: Boolean = false,
+    forClass: String = ""
 )
 
 object Quests:
@@ -121,6 +123,43 @@ object Quests:
       Some(Gear(Items.IRON_SWORD, "Deepbrand, Bane of the Dark", Rarity.Epic, List(Enchantments.SHARPNESS -> 4, Enchantments.UNBREAKING -> 3))),
       partyOnly = true
     ),
+    // --- class trials: complete yours to earn its signature spell (see Spell.gate) ---
+    Quest(
+      "trial-warrior-battalion", "Hollow Battalion", 12,
+      "A warrior's answer to a raid is geometry: make eight pillagers into fewer.",
+      Objective.Kill(EntityType.PILLAGER, 8, "pillagers"), 700, 12, None,
+      forClass = "warrior"
+    ),
+    Quest(
+      "trial-paladin-circle", "The Unbroken Circle", 12,
+      "Four creepers, four walls, zero detonations. The hammer learns who swings it.",
+      Objective.Kill(EntityType.CREEPER, 4, "creepers"), 680, 12, None,
+      forClass = "paladin"
+    ),
+    Quest(
+      "trial-hunter-longshot", "The Long Shot", 12,
+      "Phantoms are the only targets that mock a bow from above. Four clean kills.",
+      Objective.Kill(EntityType.PHANTOM, 4, "phantoms"), 650, 12, None,
+      forClass = "hunter"
+    ),
+    Quest(
+      "trial-rogue-silence", "Guild Trials: Silence", 14,
+      "The Guild counts cellars cleared, not swords drawn. Six spiders, quietly.",
+      Objective.Kill(EntityType.SPIDER, 6, "spiders"), 750, 14, None,
+      forClass = "rogue"
+    ),
+    Quest(
+      "trial-mage-embers", "The Crucible of Embers", 15,
+      "A nova is a circle of fire you stand in the middle of. Prove you survive one: four blazes.",
+      Objective.Kill(EntityType.BLAZE, 4, "blazes"), 900, 15, None,
+      forClass = "mage"
+    ),
+    Quest(
+      "trial-priest-vigil", "The Shepherd's Vigil", 15,
+      "Six altars dark, six lamps to carry. Protection is learned by staying awake.",
+      Objective.Collect(Items.GLOWSTONE_DUST, 6), 850, 15, None,
+      forClass = "priest"
+    ),
     // --- the daily rotation pool: three of these are posted realm-wide each day -----
     Quest(
       "daily-undead-cull", "Dawn Watch: Undead Cull", 1,
@@ -184,6 +223,9 @@ object Quests:
 
   /** The quests that a completed quest unlocks - the next chapter of its chain. */
   def nextInChain(id: String): List[Quest] = all.filter(_.requires == id)
+
+  /** Spells earned by completing this class trial (see Spell.gate). */
+  def trialSpells(questId: String): List[Spell] = Spells.all.filter(_.gate == questId)
 
   /** May this hero see/take this quest yet? (level gate + chain prerequisite) */
   def isUnlocked(q: Quest, done: Set[String]): Boolean =

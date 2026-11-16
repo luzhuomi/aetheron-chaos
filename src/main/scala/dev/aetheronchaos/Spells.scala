@@ -29,7 +29,8 @@ import net.minecraft.world.phys.Vec3
 /** A class spell. kind: bolt | heal | purify | protect | blink | burst | steal | buff | arrows | wound | stun | fear | mendself | taunt.
  *  Notes: heal/mendself damage = HP restored; buff damage = duration in ticks; wound damage = wither ticks;
  *  taunt effect: single = the aimed foe, otherwise all foes within aoeRadius;
- *  aoeRadius doubles as blink/charge distance. */
+ *  aoeRadius doubles as blink/charge distance; gate = trial quest that must be completed
+ *  before the spell is learned, even at the right level. */
 final case class Spell(
     id: String,
     name: String,
@@ -41,7 +42,8 @@ final case class Spell(
     kind: String = "bolt",
     school: String = "arcane", // arcane (mage) | holy (priest) | shadow (rogue) | hunt (hunter)
     effect: String = "", // rider descriptor: poison | slow | pierce | speed | invis
-    count: Int = 1 // arrows: projectiles per cast (volley)
+    count: Int = 1, // arrows: projectiles per cast (volley)
+    gate: String = "" // class trial quest id ("" = learned at the level, as before)
 )
 
 /**
@@ -61,38 +63,38 @@ object Spells:
     Spell("fire-bolt", "Fire Bolt", 1, 3.5f, 60, "fire"),
     Spell("frost-bolt", "Frost Bolt", 5, 3.0f, 70, "frost"),
     Spell("thunder-bolt", "Thunder Bolt", 12, 5.5f, 100, "storm"),
-    Spell("flame-nova", "Flame Nova", 15, 4.0f, 180, "fire", 3.5),
+    Spell("flame-nova", "Flame Nova", 15, 4.0f, 180, "fire", 3.5, gate = "trial-mage-embers"),
     Spell("storm-nova", "Storm Nova", 25, 5.5f, 220, "storm", 4.5),
     // priest - holy
     Spell("holy-smite", "Holy Smite", 1, 2.5f, 70, "holy", kind = "bolt", school = "holy"),
     Spell("heal", "Heal", 3, 6.0f, 110, "holy", kind = "heal", school = "holy"),
     Spell("purify", "Purify", 6, 0f, 160, "holy", kind = "purify", school = "holy"),
-    Spell("protection", "Protection", 15, 0f, 400, "holy", kind = "protect", school = "holy"),
+    Spell("protection", "Protection", 15, 0f, 400, "holy", kind = "protect", school = "holy", gate = "trial-priest-vigil"),
     Spell("judgment", "Judgment", 25, 4.0f, 190, "holy", 4.0, kind = "bolt", school = "holy"),
     // rogue - shadow (focus: any sword)
     Spell("shadowstep", "Shadowstep", 1, 0f, 150, "shadow", 8.0, kind = "blink", school = "shadow"),
     Spell("fan-of-knives", "Fan of Knives", 3, 3.5f, 130, "shadow", 3.5, kind = "burst", school = "shadow"),
     Spell("pickpocket", "Pickpocket", 8, 0f, 200, "shadow", 5.0, kind = "steal", school = "shadow"),
-    Spell("evasion", "Evasion", 14, 160f, 300, "shadow", kind = "buff", effect = "speed", school = "shadow"),
+    Spell("evasion", "Evasion", 14, 160f, 300, "shadow", kind = "buff", effect = "speed", school = "shadow", gate = "trial-rogue-silence"),
     Spell("vanish", "Vanish", 22, 130f, 420, "shadow", kind = "buff", effect = "invis", school = "shadow"),
     // hunter - skill shots (focus: any bow)
     Spell("quick-shot", "Quick Shot", 1, 3.0f, 25, "arrow", kind = "arrows", school = "hunt"),
     Spell("serpent-shot", "Serpent Shot", 5, 2.5f, 90, "arrow", kind = "arrows", effect = "poison", school = "hunt"),
-    Spell("piercing-shot", "Piercing Shot", 12, 3.0f, 130, "arrow", kind = "arrows", effect = "pierce", school = "hunt"),
+    Spell("piercing-shot", "Piercing Shot", 12, 3.0f, 130, "arrow", kind = "arrows", effect = "pierce", school = "hunt", gate = "trial-hunter-longshot"),
     Spell("volley", "Arrow Volley", 18, 2.5f, 220, "arrow", kind = "arrows", count = 5, school = "hunt"),
     Spell("crippling-shot", "Crippling Shot", 25, 4.5f, 160, "arrow", kind = "arrows", effect = "slow", school = "hunt"),
     // warrior - might (focus: any axe; wound damage = wither ticks)
     Spell("charge", "Charge", 1, 1.5f, 140, "might", 6.0, kind = "blink", effect = "charge", school = "might"),
     Spell("deep-wound", "Deep Wound", 3, 100f, 120, "might", kind = "wound", school = "might"),
     Spell("taunt", "Taunt", 5, 0f, 100, "might", kind = "taunt", effect = "single", school = "might"),
-    Spell("whirlwind", "Whirlwind", 12, 4.0f, 170, "might", 4.0, kind = "burst", school = "might"),
+    Spell("whirlwind", "Whirlwind", 12, 4.0f, 170, "might", 4.0, kind = "burst", school = "might", gate = "trial-warrior-battalion"),
     Spell("intimidating-shout", "Intimidating Shout", 18, 0f, 300, "might", 5.0, kind = "fear", school = "might"),
     Spell("avatar", "Avatar", 25, 200f, 600, "might", kind = "buff", effect = "rage", school = "might"),
     // paladin - crusade (focus: any shield)
     Spell("consecrate", "Consecrate", 1, 2.5f, 120, "holy", 3.0, kind = "burst", school = "crusade"),
     Spell("lay-on-hands", "Lay on Hands", 5, 10.0f, 200, "holy", kind = "mendself", school = "crusade"),
     Spell("challenge", "Challenge", 8, 0f, 160, "holy", 5.0, kind = "taunt", school = "crusade"),
-    Spell("hammer-of-justice", "Hammer of Justice", 12, 1.5f, 200, "holy", kind = "stun", school = "crusade"),
+    Spell("hammer-of-justice", "Hammer of Justice", 12, 1.5f, 200, "holy", kind = "stun", school = "crusade", gate = "trial-paladin-circle"),
     Spell("guardians-blessing", "Guardian's Blessing", 15, 120f, 400, "holy", kind = "buff", effect = "guard", school = "crusade"),
     Spell("divine-storm", "Divine Storm", 25, 5.0f, 240, "holy", 4.5, kind = "burst", school = "crusade")
   )
@@ -127,12 +129,14 @@ object Spells:
 
   def byId(id: String): Option[Spell] = all.find(_.id == id)
 
-  def learnedFor(school: String, level: Int): List[Spell] =
-    all.filter(s => s.school == school && s.unlockLevel <= level)
+  /** What the hero actually knows at this level: level-unlocked spells whose class
+   *  trials (if any) have been completed. */
+  def learnedFor(school: String, level: Int, done: Set[String]): List[Spell] =
+    all.filter(s => s.school == school && s.unlockLevel <= level && (s.gate.isEmpty || done.contains(s.gate)))
 
-  /** Spells that just unlocked at this exact level (for level-up announcements). */
-  def newlyLearnedAt(school: String, level: Int): List[Spell] =
-    all.filter(s => s.school == school && s.unlockLevel == level)
+  /** Spells this hero has reached the level for but is still trialling for. */
+  def sealedFor(school: String, level: Int, done: Set[String]): List[Spell] =
+    all.filter(s => s.school == school && s.unlockLevel <= level && s.gate.nonEmpty && !done.contains(s.gate))
 
   private def particleFor(element: String) = element match
     case "fire"   => ParticleTypes.FLAME

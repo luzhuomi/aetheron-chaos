@@ -72,7 +72,9 @@ object GameQuests:
         val hint = didYouMean(id).map(s => s" Did you mean /quest take $s?").getOrElse("")
         s"Unknown quest '$id'.$hint See the board: /quest board"
       case Some(q) =>
-        if c.taken.contains(q.id) then "That quest is already in your log."
+        if q.forClass.nonEmpty && q.forClass != c.classId then
+          s"The '${q.name}' trial is for the ${HeroClasses.byId(q.forClass).map(_.name).getOrElse(q.forClass)}. Yours will find you when the time comes."
+        else if c.taken.contains(q.id) then "That quest is already in your log."
         else if q.daily && c.dailyDone.contains(q.id) then
           s"You already finished '${q.name}' today - the board posts fresh tasks at dawn."
         else if c.level < q.minLevel then s"You must be level ${q.minLevel} for '${q.name}'. Current level: ${c.level}."
@@ -201,7 +203,10 @@ object GameQuests:
         val partySize = mates.size + 1
         creditQuest(player, q, partySize)
         mates.foreach(m => creditQuest(m, q, partySize))
-        (player :: mates).foreach(m => announceNextChapter(m, q))
+        (player :: mates).foreach(m =>
+          announceNextChapter(m, q)
+          announceTrialSpells(m, q)
+        )
         val withParty = if mates.nonEmpty then s" together with ${mates.size} party member(s)" else ""
         val bonus = if q.partyOnly && partySize >= 2 then s" (group quest: +${(Game.PartyQuestXpBonusPercent * 100).toInt}% XP)" else ""
         Game.broadcast(
@@ -218,6 +223,16 @@ object GameQuests:
     val hc = Game.ensure(hero.getUUID)
     Quests.nextInChain(q.id).filter(nq => hc.level >= nq.minLevel).foreach { nq =>
       Game.message(hero, s"A new chapter opens: '${nq.name}' now waits on the quest board.", ChatFormatting.LIGHT_PURPLE)
+    }
+
+  /** Class trials: completing one earns its spell (now, or at the spell's level). */
+  private def announceTrialSpells(hero: ServerPlayer, q: Quest): Unit =
+    val hc = Game.ensure(hero.getUUID)
+    Quests.trialSpells(q.id).foreach { s =>
+      if hc.level >= s.unlockLevel then
+        Game.message(hero, s"You have learned ${s.name}! Right-click with your focus to cast it, /quest spell to equip.", ChatFormatting.LIGHT_PURPLE)
+      else
+        Game.message(hero, s"${s.name} is earned - it wakes at level ${s.unlockLevel}.", ChatFormatting.LIGHT_PURPLE)
     }
 
   /** Credits one hero for a completed quest: consumes the objective, grants rewards. */
@@ -256,11 +271,14 @@ object GameQuests:
           false
         )
       )
-    val available = Quests.all.filter(q => !q.daily && !c.taken.contains(q.id) && q.minLevel <= c.level && Quests.isUnlocked(q, c.done.toSet))
+    val available = Quests.all.filter(q =>
+      !q.daily && !c.taken.contains(q.id) && q.minLevel <= c.level &&
+        Quests.isUnlocked(q, c.done.toSet) && (q.forClass.isEmpty || q.forClass == c.classId)
+    )
     if available.nonEmpty then
       Game.message(player, "LEFT-click a line to accept (press T first to free the mouse). GROUP quests share progress and rewards with your party:", ChatFormatting.AQUA)
       available.foreach(q =>
-        val tag = if q.partyOnly then "[GROUP] " else ""
+        val tag = (if q.partyOnly then "[GROUP] " else "") + (if q.forClass.nonEmpty then "[TRIAL] " else "")
         player.displayClientMessage(
           Component
             .literal(s"$tag[${q.name}] ${q.minLevel}o - ${Quests.objectiveText(q)} -> ${q.xp} XP, ${q.coins} gold")

@@ -18,19 +18,29 @@ object GameSpells:
   // throttle for "hold your focus" hints: uuid -> tick of the last hint
   private val spellNags = mutable.Map[UUID, Long]()
 
-  /** Spells that just unlocked on a level-up - announces them (called from Game.addXp). */
+  /** Spells that just unlocked on a level-up - or the class trial that stands between
+   *  the hero and the spell (WoW Classic style: earn the big spells). */
   private[aetheronchaos] def announceNewSpells(player: ServerPlayer, c: Game.Character, fromLevel: Int): Unit =
     val school = Spells.schoolFor(c.classId)
-    if school.nonEmpty then
-      Spells.all.filter(s => s.school == school && s.unlockLevel > fromLevel && s.unlockLevel <= c.level).foreach { s =>
+    if school.isEmpty then return
+    val done = c.done.toSet
+    Quests.all.filter(q => q.forClass == c.classId && q.minLevel == c.level).foreach { q =>
+      val spellNote = Spells.all.find(_.gate == q.id).map(s => s" Complete it to learn ${s.name}.").getOrElse("")
+      Game.message(player, s"A trial awaits: '${q.name}' now waits on the quest board.$spellNote", ChatFormatting.GOLD)
+    }
+    Spells.all
+      .filter(s =>
+        s.school == school && s.unlockLevel > fromLevel && s.unlockLevel <= c.level && (s.gate.isEmpty || done.contains(s.gate))
+      )
+      .foreach { s =>
         Game.message(player, s"New spell learned: ${s.name}! Right-click with your focus to cast it, /quest spell to equip.", ChatFormatting.LIGHT_PURPLE)
       }
 
   /** The spell a hero currently has equipped (falls back to the first known one). */
   private[aetheronchaos] def equippedSpell(c: Game.Character): Spell =
     val school = Spells.schoolFor(c.classId)
-    Spells.byId(c.spell).filter(s => s.school == school && s.unlockLevel <= c.level)
-      .orElse(Spells.learnedFor(school, c.level).headOption)
+    Spells.byId(c.spell).filter(s => s.school == school && s.unlockLevel <= c.level && (s.gate.isEmpty || c.done.contains(s.gate)))
+      .orElse(Spells.learnedFor(school, c.level, c.done.toSet).headOption)
       .getOrElse(Spells.all.head)
 
   /** Right-click cast / sneak+right-click cycle. Returns true if the click was consumed. */
@@ -59,7 +69,7 @@ object GameSpells:
           Game.message(player, hint, ChatFormatting.GRAY)
       return false
     if player.isCrouching then
-      val known = Spells.learnedFor(school, c.level)
+      val known = Spells.learnedFor(school, c.level, c.done.toSet)
       if known.size < 2 then
         Game.message(player, s"Casting ${equippedSpell(c).name}. Learn more spells by leveling up.", ChatFormatting.GRAY)
         return true
@@ -82,7 +92,7 @@ object GameSpells:
     val c = Game.ensure(player.getUUID)
     val school = Spells.schoolFor(c.classId)
     if school.isEmpty then return "That class has no spellbook. /quest roles to see classes."
-    val known = Spells.learnedFor(school, c.level)
+    val known = Spells.learnedFor(school, c.level, c.done.toSet)
     val focusName = school match
       case "holy"    => "book focus"
       case "shadow"  => "sword focus (any blade)"
@@ -126,8 +136,14 @@ object GameSpells:
       s"$mark ${s.name} (Lv${s.unlockLevel}) - $effect"
     }
     val locked = Spells.all.filter(s => s.school == school && s.unlockLevel > c.level)
+    val trialsPending = Spells.sealedFor(school, c.level, c.done.toSet)
     (List(s"Spellbook - right-click with your $focusName to cast, sneak+right-click to cycle:") ++ lines ++
-      (if locked.nonEmpty then List("Locked: " + locked.map(s => s"${s.name} (Lv${s.unlockLevel})").mkString(", ")) else Nil))
+      (if locked.nonEmpty then List("Locked: " + locked.map(s => s"${s.name} (Lv${s.unlockLevel})").mkString(", ")) else Nil) ++
+      (if trialsPending.nonEmpty then
+        List("Trials pending: " + trialsPending
+          .map(s => s"${s.name} - complete '${Quests.byId(s.gate).map(_.name).getOrElse("your class trial")}'")
+          .mkString("; "))
+      else Nil))
       .mkString("\n")
 
   private[aetheronchaos] def equipSpell(player: ServerPlayer, id: String): String =
@@ -141,6 +157,8 @@ object GameSpells:
         s"Unknown spell '$id'.$hint See /quest spell."
       case Some(s) if s.school != school => s"${s.name} is a ${s.school} spell - not in your book."
       case Some(s) if s.unlockLevel > c.level => s"${s.name} unlocks at level ${s.unlockLevel} (you are ${c.level})."
+      case Some(s) if s.gate.nonEmpty && !c.done.contains(s.gate) =>
+        s"${s.name} is still sealed - complete '${Quests.byId(s.gate).map(_.name).getOrElse("your class trial")}' at the quest board first."
       case Some(s) =>
         c.spell = s.id
         s"Equipped: ${s.name}."

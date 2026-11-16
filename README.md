@@ -117,6 +117,15 @@ loop, built entirely from vanilla blocks, items and effects.
    | Guardian's Blessing | Lv 15 | Damage Resistance on yourself for 6s |
    | Divine Storm | Lv 25 | 5 holy dmg to all foes around you (4.5 blocks) |
 
+   **Class trials**: one signature spell per class is earned, not given — at its level the trial
+   quest appears on your board (marked `[TRIAL]`, only ever offered to your class), and the spell
+   stays sealed until you complete it. Warrior *Whirlwind* ← Hollow Battalion (8 pillagers, Lv 12);
+   paladin *Hammer of Justice* ← The Unbroken Circle (4 creepers, Lv 12); hunter *Piercing Shot*
+   ← The Long Shot (4 phantoms, Lv 12); rogue *Evasion* ← Guild Trials: Silence (6 spiders, Lv 14);
+   mage *Flame Nova* ← The Crucible of Embers (4 blazes, Lv 15); priest *Protection* ←
+   The Shepherd's Vigil (6 glowstone dust, Lv 15). Completing the trial announces the spell;
+   `/quest spell` shows what you're trialling for.
+
    Kills from any spell or shot grant XP, quest progress and loot exactly like melee kills;
    arrows you conjure can't be picked back up (they're magic, not ammunition).
 
