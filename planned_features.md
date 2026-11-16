@@ -2,62 +2,59 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~5,700 lines, 26 files, 47 commits — see README.md; contributor/tooling
-notes now live in AGENTS.md.
+Current state: ~6,300 lines across 29 files, 54 commits, plus a unit-tested `Formulas.scala`
+(`./gradlew test`) and a host-facing `aetheron-chaos-tuning.conf` — see README.md and AGENTS.md.
 
 ## Top picks (next sessions)
 
-1. **A guild, lightly** — parties exist; a named guild with a roster in chat and one shared
-   daily would be the next social rung. No new entities needed.
-2. **A forge that improves** — eleven patterns and two paragon gates are enough for now.
-   Next: one pattern that takes a legendary back and re-rolls its enchantment line
-   (a familiar MMO sink for spent legends).
+1. **Tests over more of the math** — the pure-logic harness now exists (`Formulas.scala` +
+   munit). Next candidates: the Shop price/buy tables, the Loot rarity bands (`maxRarityFor`,
+   the tier+1 enchant bump), and the guild daily/charter numbers — each needs a small pure
+   extraction, exactly like the first one.
+2. **A guild, a little deeper** — charters, rosters and the shared daily landed. Next: a
+   rented **banner at a hub plaza** (a real banner block a guild raises for gold, like the
+   barracks did) or a guild column on `/quest top`. Both ride existing machinery.
 
 ## A. Make the trinity real
 
-- [ ] **Threat, deeper** — the readout (`/quest threat`), buff threat, mob temperaments and
-      the on-HUD lost-aggro tell all landed. Next: taunt cooldown tuning per class (the
-      spell cooldowns are uniform today), and a defender's-benefit window (brief threat bonus
-      for whoever a mob just turned away from).
+- [ ] **Party frames, chat-side** — the HUD shows party names; a compact `/quest party`
+      readout with everyone's HP (from the server's side) would make supporting playable.
+      No new entities; the data is all server-side already.
 
 ## C. Endgame
 
-- [ ] **Paragon rewards beyond numbers** — paragon tiers, gated forge patterns and titles landed.
-      Next: a cosmetic per milestone (a banner at the hero's hearth? a title color?) — cheap,
-      vanilla-client-safe celebration.
+- [ ] **Paragon milestones past 6** — the color ladder stops at gold. If tiers keep
+      climbing, something has to keep meaningfully changing past there (a fourth forge
+      pattern? a hearth banner?). Only worth doing once someone actually reaches 6.
 
 ## D. Social & economy
 
-- [ ] **A guild, lightly** — parties exist; a named guild with a roster in chat and one shared
-      daily would be the next social rung. No new entities needed.
-- [ ] **Trade post depth** — postings, waiting gold and market signs landed. Next: a "watch"
-      on a listing (a message to the buyer when something they asked for is posted), and
-      price guidance from what the board has actually sold for.
+- [ ] **Trade post: an NPC floor** — the board now watches phrases and quotes recent sales,
+      but a lone seller can still corner a hub. An NPC that buys anything the board has
+      ignored for a day would keep the market moving on a quiet server.
 
 ## E. Engineering
 
-- [ ] **Unit tests for pure logic** — XP/paragon curves, sell prices, did-you-mean distance.
-      No Minecraft runtime needed; the pure helpers would need a little extraction first.
-- [ ] **`tuning.conf`** — one file for cooldowns/prices/levels instead of constants
-      scattered across Spells.scala / Shop.scala / Game.scala. (AGENTS.md currently tells
-      contributors where each knob lives; this makes players/admins able to move them.)
+- [ ] **`/quest tuning` (admin readout)** — the conf file works and logs at load; an admin
+      command that prints the live effective values (and which came from the file) would
+      make a mis-set knob obvious without digging through console logs.
 
 ## Notes for future sessions
 
-- Balance is untested in live play: watch **Pickpocket income**, **Quick Shot cadence**,
-  **Avatar uptime**, the **healer XP rate** (`Game.HealerXpPerHp = 2.0`) and the **sigil economy**
-  (a sigil now comes from three places - a rare kill, a war-band captain, 5+ kills in a siege -
-  and the two-sigil netherite patterns are the big sink) first when tuning.
-- The watch is a combat surface too: golem companies at 60% health / 70% damage were chosen so they
-  help without taking the fight over; a barracks fields +1 guard at +15% more health. If hubs start
-  clearing war bands unaided, drop `GuardWatch.GuardHealthScale` before touching the barracks bonus.
-- Prestige pacing is a guess: the first tier is 2,000 XP (`Game.paragonToNext`) and each costs 1,500
-  more, with +3% XP per tier feeding itself. If max-level heroes ascend weekly, raise the base; the
-  bonuses themselves (+2 hearts / +0.5 attack per tier) are deliberately small.
-- Threat temperaments (`Threat.MobThreatScale`) are flavor, not math someone checked. If witches feel
-  uncontrollable or taunts feel weak on ravagers, those maps are one line each — and creepers being
-  scale 0 means the trinity deliberately does not apply to them.
-- The trade post lets sellers name any price up to 5,000 gold with no NPC floor. If gold piles
-  inflate, the levers are `TradePost.MaxPrice`, the merchant's buy table, and re-man/barracks
-  gold sinks — in that order.
-- Mojmap 1.21 gotchas now live in AGENTS.md (kept current there); the list here is retired.
+- Balance is untested in live play. New numbers to watch first: the **guild daily**
+  (20 kills shared → 20 gold per member — a fresh income source; if a 3-man guild makes
+  60g/day for ~10 minutes of play, that may be generous), the **re-forge** (120g + 1 sigil
+  is the only sigil sink that doesn't consume gear — if sigils pile up, it's priced too low),
+  and the **defender's window** (×1.5 for 5s can flip a close table; if tanks feel
+  sticky, drop `threat.defender_bonus` first).
+- The old watchlist still stands: Pickpocket income, Quick Shot cadence, Avatar uptime,
+  `healer.xp_per_hp`, and the sigil economy (three sources; netherite patterns, paragon
+  patterns and the re-forge are the sinks).
+- Prestige pacing is a guess; the tuning file now makes it movable (`paragon.base_xp`,
+  `paragon.step_xp`) — the defaults (2,000 + 1,500/tier) are what the tests pin.
+- The trade post's price guidance reads its own sale ledger — on a fresh world it has
+  nothing to say until items actually sell. That's honest, not a bug; don't seed it.
+- `aetheron-chaos-tuning.conf` overrides are read once at world load. A knob changed
+  mid-session will not apply until restart — say so in any admin tooling.
+- Mojmap 1.21 gotchas (including this session's: `ResourceKey.location()`,
+  `ItemEnchantments.EMPTY`, no public enchantment-conflict API) live in AGENTS.md.

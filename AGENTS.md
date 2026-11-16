@@ -48,6 +48,11 @@ needs a joined hero (titles unlocking, trading, the HUD) can only be checked in-
   (use `setRemainingFireTicks`); mining fatigue = `DIG_SLOWDOWN`, nausea = `CONFUSION`;
   no `BOWS`/`SHIELDS` item tags (use `BOW_ENCHANTABLE` / `Items.SHIELD`); there is no
   vanilla spawn-cancel event (town guard sweeps instead).
+- `ResourceKey` has no `getPath` in 1.21 — use `.location()` (a `ResourceLocation`, which
+  has `getPath`); `Registry.getKey` returns a `ResourceLocation` too. `ItemEnchantments.EMPTY`
+  clears a stack's enchantment line; `registry.holders()` enumerates an registry's holders;
+  there is **no public enchantment-conflict API** (GameShop keeps a small explicit family
+  table for the re-forge instead). Curses are `BINDING_CURSE`/`VANISHING_CURSE`.
 
 ## Scala 3 gotchas hit in this repo
 
