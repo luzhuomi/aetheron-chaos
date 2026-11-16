@@ -424,9 +424,10 @@ names, with the Scala stdlib bundled as a jar-in-jar — no Scala plugin needed 
 ./gradlew test
 ```
 
-The XP/paragon curves, warp tolls, guard charters and typo distance live in one
-Minecraft-free object (`Formulas.scala`) and are covered by munit tests under `src/test` —
-they run without a world, and `./gradlew build` runs them too.
+The XP/paragon curves, warp tolls, guard charters, loot rarity bands, the merchant's
+price tables and the typo distance live in one Minecraft-free object (`Formulas.scala`)
+and are covered by munit tests under `src/test` — they run without a world, and
+`./gradlew build` runs them too.
 
 ### Tune the realm without recompiling
 

@@ -57,6 +57,38 @@ class FormulasTest extends munit.FunSuite:
     // GameSpells/QuestCommand only suggest within 3 - a far typo must not be "helped"
     assert(Formulas.editDistance("firebolt", "quickshot") > 3)
 
+  test("kill loot rarity bands climb with the mob tier and stop below legendary"):
+    assertEquals(Formulas.maxRarityOrdinalFor(1), 0) // Common
+    assertEquals(Formulas.maxRarityOrdinalFor(2), 1) // Uncommon
+    assertEquals(Formulas.maxRarityOrdinalFor(3), 2) // Rare
+    assertEquals(Formulas.maxRarityOrdinalFor(4), 2)
+    assertEquals(Formulas.maxRarityOrdinalFor(5), 3) // Epic
+    for tier <- 1 to 12 do
+      assert(Formulas.maxRarityOrdinalFor(tier) < 4, s"tier $tier reached Legendary - legends are forged, not found")
+    for tier <- 1 until 12 do
+      assert(Formulas.maxRarityOrdinalFor(tier + 1) >= Formulas.maxRarityOrdinalFor(tier), s"tier ${tier + 1} went backwards")
+
+  test("the enchant bump lands at tier 4 and stops at the cap"):
+    for tier <- 1 to 3 do assertEquals(Formulas.enchantBumpFor(tier), 0, s"tier $tier should not bump lines")
+    for tier <- 4 to 9 do assertEquals(Formulas.enchantBumpFor(tier), 1)
+    assertEquals(Formulas.EnchantLevelCap, 5)
+
+  test("the merchant's buy ladder rises by rarity and always pays real coin"):
+    assertEquals(Formulas.rarityBuyPrice(0), 5)
+    for r <- 0 until 4 do
+      assert(Formulas.rarityBuyPrice(r + 1) > Formulas.rarityBuyPrice(r), s"rarity $r paid as well as ${r + 1}")
+    assert(Formulas.rarityBuyPrice(4) < 5000, "the merchant should never outbid the trade post ceiling")
+
+  test("sigils buy back at a fixed price, worth more than common gear"):
+    assertEquals(Formulas.sigilBuyPrice, 25)
+    assert(Formulas.sigilBuyPrice > Formulas.rarityBuyPrice(0))
+
+  test("the junk table pays for the drops the dailies collect, and never for coin"):
+    for id <- List("rotten_flesh", "bone", "string", "gunpowder", "slime_ball", "ender_pearl") do
+      assert(Formulas.junkBuyPrices.contains(id), s"the merchant stopped buying $id - a daily depends on it")
+      assert(Formulas.junkBuyPrices(id) >= 1)
+    assert(!Formulas.junkBuyPrices.contains("gold_nugget"), "gold nuggets are already money")
+
 /** The level cap, mirrored so the test does not load the Minecraft-typed Game object. */
 private object Game0:
   val MaxLevel = 40

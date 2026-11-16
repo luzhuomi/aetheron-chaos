@@ -161,11 +161,7 @@ object Loot:
       if rng.nextInt(100) < 3 + tier * 5 then
         lockedOrDrop(victim, stack(rollGear(maxRarity = maxRarityFor(tier), tier = tier), registries), killer, party)
 
-  private def maxRarityFor(tier: Int): Rarity = tier match
-    case 1 => Rarity.Common
-    case 2 => Rarity.Uncommon
-    case 3 | 4 => Rarity.Rare
-    case _ => Rarity.Epic
+  private def maxRarityFor(tier: Int): Rarity = Rarity.fromOrdinal(Formulas.maxRarityOrdinalFor(tier))
 
   private def lockedOrDrop(victim: Mob, s: ItemStack, killer: ServerPlayer, party: List[ServerPlayer]): Unit =
     if party.size >= 2 then PartyLoot.offer(killer.server, victim, s, killer :: party)
@@ -177,7 +173,8 @@ object Loot:
     // higher tiers push the pick toward the best rarity in the band, and bump enchant levels
     val best = pool.maxBy(_.rarity.ordinal)
     val chosen = if rng.nextInt(100) < tier * 8 then best else base
-    if tier >= 4 then chosen.copy(enchantments = chosen.enchantments.map(e => (e._1, math.min(5, e._2 + 1))))
+    val bump = Formulas.enchantBumpFor(tier)
+    if bump > 0 then chosen.copy(enchantments = chosen.enchantments.map(e => (e._1, math.min(Formulas.EnchantLevelCap, e._2 + bump))))
     else chosen
 
   def dropNear(entity: LivingEntity, s: ItemStack): Unit =
