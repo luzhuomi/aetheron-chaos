@@ -200,6 +200,7 @@ object Spells:
     target.setHealth((target.getHealth + healed).toFloat)
     val supportXp = if target == caster || healed <= 0.0 then 0L else math.round(healed * Game.HealerXpPerHp)
     if supportXp > 0L then Game.addXp(caster, supportXp)
+    Threat.onHeal(target, caster, healed) // mending the mob's target pulls the mob's notice
     caster.level match
       case sl: ServerLevel =>
         sl.sendParticles(ParticleTypes.HAPPY_VILLAGER, target.getX, target.getY + 1.0, target.getZ, 20, 0.4, 0.6, 0.4, 0.1)
@@ -418,6 +419,7 @@ object Spells:
           val push = m.position().subtract(c).normalize()
           m.push(push.x * 1.1, 0.3, push.z * 1.1)
           m.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 80, 0, true, true))
+          Threat.forget(m) // a frightened mob stops keeping score
           if m.getTarget == caster then m.setTarget(null)
         )
         sl.sendParticles(ParticleTypes.CRIT, c.x, c.y + 1.2, c.z, 20, 1.2, 0.6, 1.2, 0.15)
@@ -433,7 +435,7 @@ object Spells:
     if spell.effect == "single" then
       aimFoe(caster, 10.0) match
         case Some(t) =>
-          t.setTarget(caster)
+          Threat.onTaunt(t, caster) // top of the threat table, and it hears you
           t.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 40, 0, true, true))
           t.level match
             case sl: ServerLevel =>
@@ -449,7 +451,7 @@ object Spells:
           val box = new AABB(c, c).inflate(spell.aoeRadius)
           val foes = sl.getEntitiesOfClass(classOf[Monster], box, (m: Monster) => m.isAlive && m.getTarget != caster)
           foes.forEach((m: Monster) =>
-            m.setTarget(caster)
+            Threat.onTaunt(m, caster)
             m.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 40, 0, true, true))
           )
           sl.sendParticles(ParticleTypes.END_ROD, c.x, c.y + 1.4, c.z, 24, 1.2, 0.6, 1.2, 0.05)

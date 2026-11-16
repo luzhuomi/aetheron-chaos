@@ -185,6 +185,12 @@ loop, built entirely from vanilla blocks, items and effects.
     stops getting mauled — a real tank trio, server-side. Healers level too: every HP of *Heal*
     actually restored to another hero pays out support XP (over-healing a full tank pays nothing —
     heal the wounded, not the healthy).
+14. **Threat is real** — engaged mobs keep a threat score: every hit lands threat, *healing the
+    mob's target* pulls threat onto the mender, and a taunt slams you to the top of the list.
+    Every couple of seconds a mob turns to whoever leads its table — but only on a clear lead
+    (30%), so targets never flicker. The tank's job is to top the list and stay there; healers
+    must respect who the mob is angry at; bursty DPS waits its turn. Frightened mobs (Intimidating
+    Shout) stop keeping score entirely. Mobs no hero has ever fought are left to vanilla AI.
 
 ### Rules
 
@@ -301,7 +307,8 @@ src/main/scala/dev/aetheronchaos/
   TownBuilder.scala      Starter town on first join, /quest town hubs, town NPCs, village adoption
   TownStore.scala        SNBT persistence of towns / quest-board registrations
   Interactions.scala     Right-click hooks: quest board, vendor barrel, town NPCs
-  Combat.scala           Kill credit from damage sources
+  Combat.scala           Kill credit from damage sources, threat feed
+  Threat.scala           Per-mob threat table: damage/heal/taunt aggro with hysteresis retargeting
   QuestCommand.scala     /quest command tree (Brigadier)
   Hud.scala              Action-bar HUD: level, XP bar, quest tracker, party
 ```

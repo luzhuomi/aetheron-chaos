@@ -2,21 +2,19 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~3,350 lines, 20 files, 29 commits — see README.md.
+Current state: ~3,450 lines, 21 files, 31 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Party-scaled rares** — HP × (1 + 0.5 per extra member), announced at spawn; the natural
-   follow-up to the boss bar (the bar makes rares visible, scaling makes them fair).
-2. **Threat table** — taunt forces targets and heals now pay healers; a real per-mob threat
-   list (heal = aggro, sustained damage = aggro) would complete the tactical trinity.
+1. **Class quests at milestones** — unlock the Lv 15 spell only after a small class-flavored
+   quest; the chain machinery from quest-chains makes this mostly data now.
+2. **Teleport between towns for gold** — waypoint network at quest boards; content + gold sink
+   in one feature, and adopted villages suddenly become a travel network.
 
 ## A. Make the trinity real
 
-- [ ] **Party-scaled rares** — HP × (1 + 0.5 per extra member), announced at spawn.
-- [ ] **Threat table** — taunt now forces targets; a real threat list (heal = aggro, damage
-      over time = aggro) would make party tactics fully MMO-like. Needs per-mob bookkeeping.
-      (Heal XP landed; a matching aggro-on-heal rule would complete the picture.)
+- [ ] **Threat polish** — the table landed (damage/heal/taunt aggro, hysteresis retarget).
+      Next: show it (a /quest threat readout), threat from party buffs, mob-specific modifiers.
 
 ## B. Content that multiplies what exists
 
