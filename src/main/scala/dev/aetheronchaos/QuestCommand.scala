@@ -97,6 +97,30 @@ object QuestCommand:
               .`then`(Commands.argument("hero", StringArgumentType.word())
                 .executes(ctx => withPlayer(ctx, p => Trading.invite(p, StringArgumentType.getString(ctx, "hero")))))
           )
+          .`then`(
+            Commands.literal("barracks")
+              .executes(ctx => withPlayer(ctx, p => TownBuilder.barracksStatus(p)))
+              .`then`(Commands.literal("build").executes(ctx => withPlayer(ctx, p => {
+                val hubIndex = GuardWatch.hubNear(p).getOrElse(-1)
+                if hubIndex < 0 then "Stand at a hub plaza to raise a barracks there."
+                else TownBuilder.buildBarracks(p, hubIndex)
+              })))
+          )
+          .`then`(
+            Commands.literal("post")
+              .executes(ctx => withPlayer(ctx, p => TradePost.list(p)))
+              .`then`(
+                Commands.literal("sell")
+                  .executes(ctx => withPlayer(ctx, p => TradePost.sell(p, 10)))
+                  .`then`(Commands.argument("gold", IntegerArgumentType.integer(1, 5000))
+                    .executes(ctx => withPlayer(ctx, p => TradePost.sell(p, IntegerArgumentType.getInteger(ctx, "gold")))))
+              )
+              .`then`(Commands.literal("buy").`then`(Commands.argument("n", IntegerArgumentType.integer(1, 10))
+                .executes(ctx => withPlayer(ctx, p => TradePost.buy(p, IntegerArgumentType.getInteger(ctx, "n"))))))
+              .`then`(Commands.literal("cancel").`then`(Commands.argument("n", IntegerArgumentType.integer(1, 10))
+                .executes(ctx => withPlayer(ctx, p => TradePost.cancel(p, IntegerArgumentType.getInteger(ctx, "n"))))))
+              .`then`(Commands.literal("coin").executes(ctx => withPlayer(ctx, p => TradePost.collect(p))))
+          )
           .`then`(Commands.literal("shop").executes(ctx => withPlayerSilent(ctx, GameShop.shopMenu)))
           .`then`(
             Commands.literal("sell")
@@ -259,7 +283,7 @@ object QuestCommand:
             "Aetheron Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
               "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest track <id> (quest compass), /quest turnin <id> (at the board), " +
               "/quest warp <n> (wayside portal at any board), " +
-              "/quest party <name>, /quest trade <hero> (swap goods face to face), /quest threat (who the nearby mobs are angry at), /quest shop (spend gold), /quest forge (strike legends), /quest guard (the realm's watch; 'guard eman' to re-man), /quest stats, /quest prestige (paragon tiers past the cap), /quest titles (carry one with /quest title), /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
+              "/quest party <name>, /quest trade <hero> (swap goods face to face), /quest post (the hub market: sell/buy/coin), /quest threat (who the nearby mobs are angry at), /quest shop (spend gold), /quest forge (strike legends), /quest guard (the realm's watch; 'guard eman' to re-man), /quest stats, /quest prestige (paragon tiers past the cap), /quest titles (carry one with /quest title), /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
               "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."
           )
           .withStyle(ChatFormatting.YELLOW),

@@ -3,6 +3,7 @@ package dev.aetheronchaos
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
+import net.minecraft.ChatFormatting
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.network.chat.Component
@@ -22,6 +23,7 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.entity.SignBlockEntity
+import net.minecraft.world.level.levelgen.Heightmap
 import net.minecraft.world.level.levelgen.structure.BoundingBox
 import net.minecraft.world.phys.AABB
 
@@ -40,7 +42,7 @@ object TownBuilder:
   /** A built town: anchor block, facing, footprint, whether it is the realm's starter town,
    *  and whether it was adopted from a vanilla village (its plaza stands at the village
    *  meeting point; the surrounding village is the villagers' own business). */
-  final case class Town(base: BlockPos, dir: Direction, region: Region, capital: Boolean, adopted: Boolean = false)
+  final case class Town(base: BlockPos, dir: Direction, region: Region, capital: Boolean, adopted: Boolean = false, barracks: Boolean = false)
 
   // town NPCs (named nitwit villagers). The questmaster and merchant double as
   // clickable quest board / vendor; guards hand out hints.
@@ -161,6 +163,75 @@ object TownBuilder:
 
   /** Where a warrier or newcomer is placed inside a hub: the plaza stone, one step in. */
   def plazaStand(t: Town): BlockPos = atOf(t.base, t.dir)(2, 0, 1)
+
+  /** Where the market sign stands: just beyond the plaza's edge. */
+  def tradePostStand(t: Town): BlockPos = atOf(t.base, t.dir)(12, 6, 0)
+
+  /** Where the barracks rises: the plaza's other flank, mirror of the market. */
+  def barracksStand(t: Town): BlockPos = atOf(t.base, t.dir)(12, -6, 0)
+
+  /** Heroes can tell a barracks when they see one; the watch knows too. */
+  val BarracksGold = 150
+
+  /** Status of barracks across the realm, read at a hub. */
+  def barracksStatus(player: ServerPlayer): String =
+    val rows = allTowns.zipWithIndex.map { (t, i) =>
+      val note =
+        if t.barracks then " - a barracks stands: the watch charter is +1"
+        else s" - no barracks; $BarracksGold gold to raise one (/quest barracks build)"
+      s"  ${if t.capital then "Hearthhome" else s"the hub at ${t.base.getX}, ${t.base.getZ}"}: $note"
+    }
+    if rows.isEmpty then "No hubs yet. Build one: /quest town"
+    else (List("Barracks of the realm:") ::: rows).mkString("\n")
+
+  /** Raise the barracks at this hub: the gold is the hero's, the stones are the realm's. */
+  def buildBarracks(player: ServerPlayer, hubIndex: Int): String =
+    val hubOpt = townByIndex(hubIndex + 1)
+    hubOpt match
+      case None => "There is no such hub."
+      case Some(hub) if hub.barracks => "A barracks already stands at this hub."
+      case Some(hub) =>
+        val gold = Game.countItem(player, net.minecraft.world.item.Items.GOLD_NUGGET)
+        if gold < BarracksGold then s"A barracks costs $BarracksGold gold in stone and timber - you carry $gold."
+        else
+          val level = player.server.overworld()
+          if level == null then return "No overworld to build in."
+          val placed = placeBarracks(level, hub)
+          if placed == 0 then return "There is no clear ground for a barracks here - the plaza's edge is spoken for."
+          Game.removeItems(player, net.minecraft.world.item.Items.GOLD_NUGGET, BarracksGold)
+          towns(hubIndex) = hub.copy(barracks = true)
+          TownStore.save(player.server)
+          val raised = GuardWatch.raiseToCharter(player.server, hubIndex)
+          Game.broadcast(
+            player.server,
+            Component
+              .literal(s"${player.getName.getString} raises a barracks at ${if hub.capital then "Hearthhome" else s"the hub at ${hub.base.getX}, ${hub.base.getZ}"} - $placed stones set, the watch charter now ${GuardWatch.charterFor(townByIndex(hubIndex + 1).get)}${if raised > 0 then s", and $raised new Guard(s) take the plaza" else ""}.")
+              .withStyle(ChatFormatting.GREEN)
+          )
+          s"The barracks stands: $placed stones set for $BarracksGold gold (${gold - BarracksGold} left). Its weapon rack is visible from the plaza, and the hub's watch charter rises by one."
+
+  /** A small guardhold: floor, arms-rack wall, anvil, lantern, and a sword on the rack. */
+  private def placeBarracks(level: ServerLevel, hub: Town): Int =
+    val stand = barracksStand(hub)
+    var placed = 0
+    def set(pos: BlockPos, block: Block): Unit =
+      if level.setBlock(pos, block.defaultBlockState, 3) then placed += 1
+    val y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, stand.getX, stand.getZ)
+    val floor = new BlockPos(stand.getX, y - 1, stand.getZ)
+    // clear the pad first: a barracks that can't stand is not paid for
+    val needed = for dx <- -1 to 1; dz <- -1 to 1 yield floor.offset(dx, 1, dz)
+    if needed.exists(p => !level.getBlockState(p).isAir && !level.getBlockState(p).canBeReplaced) then return 0
+    for dx <- -1 to 1; dz <- -1 to 1 do
+      set(floor.offset(dx, 0, dz), Blocks.SMOOTH_STONE)
+      set(floor.offset(dx, 1, dz), Blocks.AIR)
+    // the arms rack: a wall of the hub's own stone, an anvil, a light, and the sword itself
+    for dx <- -1 to 1 do set(floor.offset(dx, 1, -1), Blocks.STONE_BRICKS)
+    set(floor.offset(1, 1, 0), Blocks.ANVIL)
+    set(floor.offset(0, 1, 0), Blocks.LANTERN)
+    val rack = new net.minecraft.world.entity.decoration.ItemFrame(level, floor.offset(-1, 2, -1), Direction.UP)
+    rack.setItem(net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_SWORD))
+    level.addFreshEntity(rack)
+    placed
 
   /** How the realm labels a hub in warp listings and announcements. */
   def townLabel(t: Town): String =

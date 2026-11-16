@@ -158,6 +158,7 @@ object Game:
           .literal(s"${c.displayName} (Lv ${c.level} ${heroClassOf(c).map(_.name).getOrElse("Adventurer")}) has entered the realm.")
           .withStyle(ChatFormatting.LIGHT_PURPLE)
       )
+    TradePost.settleOnJoin(player) // whatever sold at the posts while this hero was away pays out
 
   def leave(player: ServerPlayer): String =
     val c = ensure(player.getUUID)
@@ -177,6 +178,7 @@ object Game:
   def onServerStopping(server: MinecraftServer): Unit =
     CharacterStore.save(server)
     TownStore.save(server)
+    TradePost.settleForShutdown(server)
 
   def afterRespawn(player: ServerPlayer): Unit =
     val c = ensure(player.getUUID)
@@ -584,6 +586,7 @@ object Game:
       CharacterStore.save(server) // crash safety net between disconnect saves
     if elapsedTicks % TownGuardIntervalTicks == 0 then TownBuilder.expelHostileMobs(server)
     GuardWatch.tick(server)
+    TradePost.tick(server) // the realm's market signs are raised once heroes are about
     if elapsedTicks % ThreatSweepTicks == 0 then Threat.tick(server)
     if elapsedTicks % VillageScanIntervalTicks == 0 then TownBuilder.adoptNearbyVillages(server)
     // the mason's daily round: patch creeper scars and missing town blocks

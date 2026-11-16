@@ -49,8 +49,19 @@ object GuardWatch:
   // the roll is only made up once the world is actually loaded around a hero
   private var rollPending = true
 
-  /** How many guards a hub is entitled to keep. */
-  def charterFor(hub: TownBuilder.Town): Int = if hub.capital then CharterCapital else CharterHub
+  /** How many guards a hub is entitled to keep. A barracks raises the charter by one. */
+  def charterFor(hub: TownBuilder.Town): Int =
+    (if hub.capital then CharterCapital else CharterHub) + (if hub.barracks then 1 else 0)
+
+  /** Fill a hub's watch up to its charter at no cost (a barracks raise, a mason's gift). */
+  private[aetheronchaos] def raiseToCharter(server: MinecraftServer, hubIndex: Int): Int =
+    val level = server.overworld()
+    TownBuilder.townByIndex(hubIndex + 1) match
+      case None | Some(_) if level == null => 0
+      case Some(hub) =>
+        val missing = charterFor(hub) - company(level, hubIndex).size
+        if missing <= 0 then 0 else (1 to missing).count(_ => raiseGuard(level, hub, hubIndex) != null)
+      case None => 0
 
   /** Founding a hub raises its watch. */
   private[aetheronchaos] def foundWatch(level: ServerLevel, hub: TownBuilder.Town, hubIndex: Int): Int =
@@ -208,8 +219,10 @@ object GuardWatch:
         g.setPos(px, py, pz)
         g.setCustomName(Component.literal(s"$GuardName of ${shortName(hub)}"))
         g.setPersistenceRequired()
+        // a hub with a barracks fields better-kept guards
+        val healthScale = GuardHealthScale * (if hub.barracks then 1.15 else 1.0)
         Option(g.getAttribute(Attributes.MAX_HEALTH)).foreach { a =>
-          a.setBaseValue(a.getBaseValue * GuardHealthScale)
+          a.setBaseValue(a.getBaseValue * healthScale)
           g.setHealth(a.getValue.toFloat)
         }
         Option(g.getAttribute(Attributes.ATTACK_DAMAGE)).foreach(a => a.setBaseValue(a.getBaseValue * GuardAttackScale))

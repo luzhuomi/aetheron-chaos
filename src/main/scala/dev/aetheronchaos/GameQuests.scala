@@ -351,6 +351,13 @@ object GameQuests:
         .withStyle(st => st.withColor(ChatFormatting.DARK_GRAY).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, "/quest guard")))
       player.displayClientMessage(line, false)
     }
+    // the market sign: what the trade post at this hub is holding
+    GuardWatch.hubNear(player).foreach { _ =>
+      val line = Component
+        .literal("[Trade post] /quest post lists what the market holds; sell and buy from there.")
+        .withStyle(st => st.withColor(ChatFormatting.DARK_GRAY).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, "/quest post")))
+      player.displayClientMessage(line, false)
+    }
     // wayside portal: every board is a station on the network
     val offers = TownBuilder.warpOffers(player)
     if offers.nonEmpty then

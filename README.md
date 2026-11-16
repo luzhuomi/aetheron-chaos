@@ -260,7 +260,7 @@ loop, built entirely from vanilla blocks, items and effects.
     class and beside your name in `/quest top`. No new systems, no UI: recognition layered on the
     play you already do. Earned titles and their counters persist in the character save.
 20. **The realm's watch** — every hub keeps a company of real **iron-golem guards** (the capital 3,
-    other hubs 2): they stand on the plaza, and when a war band marches on their town **they answer
+    other hubs 2, and one more where a barracks stands — see 24): they stand on the plaza, and when a war band marches on their town **they answer
     the horn** and take the field with each wave. They are scaled below raid-tier (60% health, 70%
     damage) so they are sturdy help, not the answer — and they can **fall**, which is the point:
     a hub that loses guards stays **undermanned**, the next siege announcement says how few turned
@@ -290,6 +290,24 @@ loop, built entirely from vanilla blocks, items and effects.
     dropped or moved between offer and handshake, the trade calls itself off and says what was missing,
     rather than lying about what changed hands. Distance is re-checked too, and a trade dies the moment
     either hero logs off.
+23. **The trade post at the plaza** — the async half of the economy. Every hub now has a **market
+    sign** (raised on the plaza edge the first time the realm wakes) where a hero can **leave a stack
+    and a price**: `/quest post sell <gold>` posts the stack in hand — real items, named legendaries
+    included — and any hero who walks up can `buy <n>` it. Sale gold doesn't teleport to an absent
+    seller: it **sits at the post** until they next pass through (`/quest post coin`), or arrives the
+    moment they log back in, and sales are announced realm-wide so the market has a pulse. The board
+    caps at ten postings per hub and three per hero; `/quest post cancel <n>` takes a posting back.
+    The sign itself is part of the world — it lists how much is posted and the commands — and it is
+    rewritten whenever the board changes. Listings and waiting gold persist in the world folder, so
+    the market outlives restarts.
+24. **A barracks at the plaza** — the other building a hub can grow: for 150 gold a hero raises a
+    **guardhold** on the plaza's edge — floor stones, an arms-rack wall, an anvil, a lantern, and an
+    iron sword racked where the plaza can see it. A hub with a barracks keeps a **bigger watch**
+    (its charter rises by one, and its golems come out of better-kept gear: +15% health), and the
+    new guards step onto the plaza the moment it's raised. The building is the world (real blocks,
+    real item frame) and the hub's banner-of-arms persists in the town save — old town files simply
+    read as "no barracks yet". `/quest barracks` reads which hubs hold one; `/quest barracks build`
+    raises it at the hub you stand at, and the realm hears about it.
 
 ### Rules
 
@@ -326,6 +344,12 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest trade <hero>` | everyone | Invite a nearby hero to trade goods (chat-window trade) |
 | `/quest trade` | everyone | Read the open trade: both offers, confirm status, clickable actions |
 | `/quest trade yes/no/give/clear/confirm/cancel` | everyone | Answer an invitation; offer the stack in hand; clear it; confirm; call it off |
+| `/quest post` | everyone | The trade post at the hub you stand at: read the market board |
+| `/quest post sell <gold>` | everyone | Post the stack in hand at the hub market for a price |
+| `/quest post buy/cancel <n>` | everyone | Buy posting #n / take your own posting back |
+| `/quest post coin` | everyone | Collect gold your past sales have earned |
+| `/quest barracks` | everyone | Which hubs keep a barracks (and what one costs) |
+| `/quest barracks build` | everyone | Raise a barracks at the hub you stand at (150 gold) |
 | `/quest titles` | everyone | Title ladder: what you've earned and what's next, with progress |
 | `/quest title <id>` | everyone | Carry an earned title (action bar + leaderboard), `none` to set down |
 | `/quest guard` | everyone | The realm's watch: strength and shortfalls at every hub |
@@ -417,6 +441,8 @@ src/main/scala/dev/aetheronchaos/
   CharacterStore.scala   SNBT persistence of heroes in the world folder
   TownBuilder.scala      Starter town on first join, /quest town hubs, town NPCs, village adoption
   TownStore.scala        SNBT persistence of towns / quest-board registrations
+  Trading.scala          Face-to-face player trading: invite, offers, double-confirm, safe swap
+  TradePost.scala        Hub market signs: posted stacks with prices, sale gold waiting at the post
   Interactions.scala     Right-click hooks: quest board, vendor barrel, town NPCs
   Combat.scala           Kill credit from damage sources, threat feed
   Threat.scala           Per-mob threat table: damage/heal/taunt/buff aggro, hysteresis retarget, /quest threat readout

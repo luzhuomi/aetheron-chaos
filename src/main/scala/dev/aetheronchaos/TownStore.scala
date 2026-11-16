@@ -43,7 +43,8 @@ object TownStore:
                 Direction.from3DDataValue(e.getInt("dir")),
                 (e.getInt("x1"), e.getInt("y1"), e.getInt("z1"), e.getInt("x2"), e.getInt("y2"), e.getInt("z2")),
                 e.getBoolean("capital"),
-                e.getBoolean("adopted")
+                e.getBoolean("adopted"),
+                e.getBoolean("barracks")
               )
             )
           case _ => None
@@ -64,6 +65,7 @@ object TownStore:
         e.putInt("x2", x2); e.putInt("y2", y2); e.putInt("z2", z2)
         e.putBoolean("capital", t.capital)
         e.putBoolean("adopted", t.adopted)
+        e.putBoolean("barracks", t.barracks)
         list.add(e)
       }
       val root = new CompoundTag
