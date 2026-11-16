@@ -257,6 +257,8 @@ tiers in [`Loot.scala`](src/main/scala/dev/aetheronchaos/Loot.scala). Classes/ro
 
 ## Project layout
 
+Feature roadmap lives in [planned_features.md](planned_features.md).
+
 ```
 src/main/scala/dev/aetheronchaos/
   AetheronChaosMod.scala  Fabric entrypoint, event wiring
