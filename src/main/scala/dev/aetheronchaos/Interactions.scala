@@ -55,7 +55,12 @@ object Interactions:
             Game.message(p, Game.dailyRation(p), ChatFormatting.GOLD)
             InteractionResult.SUCCESS
           case (p: ServerPlayer, Some("guard")) =>
+            Game.message(p, GuardWatch.status(p), ChatFormatting.GRAY)
             Game.message(p, GuardTips(rng.nextInt(GuardTips.size)), ChatFormatting.GRAY)
+            InteractionResult.SUCCESS
+          case (p: ServerPlayer, Some("watch")) =>
+            val hubIndex = GuardWatch.hubNear(p).getOrElse(0)
+            Game.message(p, GuardWatch.statusOf(p, hubIndex), ChatFormatting.GRAY)
             InteractionResult.SUCCESS
           case _ => InteractionResult.PASS
     )

@@ -28,5 +28,6 @@ object Combat:
           source.getEntity match
             case killer: ServerPlayer => Game.awardKill(killer, mob)
             case _ => ()
+          GuardWatch.onDeath(mob) // a fallen Watch-Guard comes off the roll
         case _ => ()
     )

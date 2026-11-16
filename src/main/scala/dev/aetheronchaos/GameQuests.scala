@@ -344,6 +344,13 @@ object GameQuests:
             false
           )
       )
+    // the town's watch: how many guards stand at this hub, and what re-manning costs
+    GuardWatch.hubNear(player).foreach { i =>
+      val line = Component
+        .literal("[The watch] " + GuardWatch.statusOf(player, i).replaceFirst("^[^:]*: ", ""))
+        .withStyle(st => st.withColor(ChatFormatting.DARK_GRAY).withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, "/quest guard")))
+      player.displayClientMessage(line, false)
+    }
     // wayside portal: every board is a station on the network
     val offers = TownBuilder.warpOffers(player)
     if offers.nonEmpty then

@@ -115,9 +115,10 @@ object TownBuilder:
       }
     }
 
-  /** Role of a right-clicked entity for the interaction hook: board/vendor/guard. */
+  /** Role of a right-clicked entity for the interaction hook: board/vendor/guard/watch. */
   def npcRole(entity: Entity): Option[String] =
     entity match
+      case g: net.minecraft.world.entity.animal.IronGolem if GuardWatch.isGuard(g) => Some("watch")
       case v: Villager if v.getCustomName != null =>
         v.getCustomName.getString match
           case QuestNpcName  => Some("board")
@@ -281,6 +282,8 @@ object TownBuilder:
     spawnNpc(level, atOf(base, dir)(4, -3, 1), HearthNpcName)
     towns += Town(base, dir, regionOf(base, dir), capital, adopted)
     registerBoardAndVendor(towns.last)
+    // a hub is nothing without its watch
+    GuardWatch.foundWatch(level, towns.last, towns.size - 1)
     placed
 
   /**

@@ -127,6 +127,15 @@ object QuestCommand:
               .executes(ctx => withPlayer(ctx, p => GameRares.spawnRare(p, None)))
           )
           .`then`(
+            Commands.literal("guard")
+              .executes(ctx => withPlayer(ctx, p => GuardWatch.status(p)))
+              .`then`(Commands.literal("eman").executes(ctx => withPlayer(ctx, p => {
+                val hubIndex = GuardWatch.hubNear(p).getOrElse(-1)
+                if hubIndex < 0 then "Stand at a hub to re-man its watch (nearest first: /quest guard to see them all)."
+                else GuardWatch.reman(p, hubIndex)
+              })))
+          )
+          .`then`(
             Commands.literal("invade")
               .requires(src => src.hasPermission(2))
               .executes(ctx => invade(ctx, 0))
@@ -235,7 +244,7 @@ object QuestCommand:
             "Aetheron Chaos MMORPG: /quest join, /quest class <warrior|paladin|hunter|mage|rogue|priest> (see /quest roles), " +
               "/quest board or right-click the town loom, /quest take <id>, /quest log, /quest track <id> (quest compass), /quest turnin <id> (at the board), " +
               "/quest warp <n> (wayside portal at any board), " +
-              "/quest party <name>, /quest shop (spend gold), /quest forge (strike legends), /quest stats, /quest titles (carry one with /quest title), /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
+              "/quest party <name>, /quest shop (spend gold), /quest forge (strike legends), /quest guard (the realm's watch; 'guard eman' to re-man), /quest stats, /quest titles (carry one with /quest title), /quest top. Ops: /quest town, /quest clear, /quest rare, /quest invade. " +
               "Slay monsters for tiered XP and loot - party gear drops are need/greed locked! Named rare elites spawn on a timer."
           )
           .withStyle(ChatFormatting.YELLOW),

@@ -6,6 +6,7 @@ import scala.jdk.CollectionConverters.*
 import scala.util.Random
 
 import net.minecraft.ChatFormatting
+import net.minecraft.core.BlockPos
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
@@ -47,6 +48,7 @@ object Invasion:
   private val CaptainBonusGold = 8
   private val CaptainThinsWave = 2 // a captain that falls arrives thin afterwards
   private val RavagerCaptainWave = 6 // a ravager rides with the last wave
+  private val PressEarlyTicks = 200L // a fallen watch makes the next wave come 10s early
   private val warBandCaptains: List[String] = List(
     "Ashra of the Riven Axe",
     "Vesk the Quartermaster",
@@ -72,7 +74,7 @@ object Invasion:
   )
 
   /** One siege in progress at a time: the realm only fights one war at once. */
-  private final class Siege(val town: TownBuilder.Town, val label: String, val level: ServerLevel):
+  private final class Siege(val town: TownBuilder.Town, val label: String, val hubIndex: Int, val level: ServerLevel):
     val endTick = Game.now + SiegeTicks
     val bar = new ServerBossEvent(
       Component.literal(s"Siege of $label").withStyle(ChatFormatting.RED),
@@ -82,7 +84,9 @@ object Invasion:
     var nextWaveTick = Game.now
     var wave = 0
     var drivenOff = 0
+    var watchWork = 0 // hostiles the town's own watch accounted for
     var captainsFelled = 0
+    var watchFallen = 0
     val mobs = mutable.LinkedHashSet[Mob]()
     val captains = mutable.LinkedHashSet[Mob]()
     val captainNames = mutable.LinkedHashSet[String]()
@@ -116,6 +120,9 @@ object Invasion:
       if online.nonEmpty then startSiege(server, nearestHub(online))
 
   private def tickSiege(server: MinecraftServer, s: Siege): Unit =
+    // anything still on our roll that has died was not a hero's kill: the watch did that work
+    val lost = s.mobs.count(m => !m.isAlive || m.isRemoved)
+    s.watchWork += lost
     s.mobs.filterInPlace(m => m.isAlive && !m.isRemoved)
     heroes(server).foreach(p => s.bar.addPlayer(p)) // heroes who logged in mid-siege see it too
     if Game.now >= s.endTick then endSiege(server)
@@ -124,6 +131,16 @@ object Invasion:
         s.nextWaveTick = Game.now + WaveGapTicks
         if s.mobs.size < CrowdCap then spawnWave(server, s)
       s.refreshBar()
+
+  /** A guard fell at the walls: the war band presses while the town is short. */
+  private[aetheronchaos] def watchFell(server: MinecraftServer, hubIndex: Int): Unit =
+    siege.filter(_.hubIndex == hubIndex).foreach { s =>
+      s.watchFallen += 1
+      s.nextWaveTick = math.max(Game.now + 40L, s.nextWaveTick - PressEarlyTicks)
+      defenders(s).foreach { h =>
+        Game.message(h, s"A Watch-Guard of ${s.label} has fallen. The war band presses - its next wave comes sooner.", ChatFormatting.RED)
+      }
+    }
 
   // --- starting a siege -------------------------------------------------------
 
@@ -156,15 +173,22 @@ object Invasion:
     val level = server.overworld()
     (hub, level) match
       case (Some(t), lvl) if lvl != null =>
-        val s = new Siege(t, hubLabel(t), lvl)
+        val hubIndex = TownBuilder.allTowns.indexWhere(_ == t)
+        val s = new Siege(t, hubLabel(t), hubIndex, lvl)
         siege = Some(s)
         spawnWave(server, s)
         val (x1, _, z1, x2, _, z2) = t.region
+        val answered = GuardWatch.answerTheHorn(lvl, hubIndex)
+        val charter = GuardWatch.charterFor(t)
+        val watchNote =
+          if answered <= 0 then " No Watch-Guard answers the horn - the hub is undermanned and stands on its own."
+          else if answered < charter then s" Only $answered of $charter Watch-Guards answer the horn - this hub is undermanned."
+          else s" $answered Watch-Guards answer the horn and take the field with the first wave."
         Game.broadcast(
           server,
           Component
             .literal(
-              s"A WAR BAND marches on ${hubLabel(t)}! Hold the ground around ${x1}..${x2}, ${z1}..${z2} for $SiegeMinutes minutes - every hostile you drive off counts, and the ones who stand are paid."
+              s"A WAR BAND marches on ${hubLabel(t)}! Hold the ground around ${x1}..${x2}, ${z1}..${z2} for $SiegeMinutes minutes - every hostile you drive off counts, and the ones who stand are paid.$watchNote"
             )
             .withStyle(ChatFormatting.RED)
         )
@@ -185,11 +209,11 @@ object Invasion:
     s.wave += 1
     val nearby = defenders(s)
     val size = math.max(2, math.min(MaxWaveSize, 2 + s.wave + nearby.size / 2 - CaptainThinsWave * s.captainsFelled))
-    (1 to size).foreach(_ => spawnHostile(s, s.wave, captain = false))
+    val arrived = (1 to size).flatMap(_ => spawnHostile(s, s.wave, captain = false))
     if s.wave % CaptainEveryWaves == 0 then
-      val captain = spawnHostile(s, s.wave, captain = true)
-      s.captains.filterInPlace(m => m.isAlive && !m.isRemoved)
-      captain.foreach { m =>
+      spawnHostile(s, s.wave, captain = true).foreach { m =>
+        s.captains.filterInPlace(c => c.isAlive && !c.isRemoved)
+        s.captains += m
         Game.broadcast(
           server,
           Component
@@ -197,6 +221,8 @@ object Invasion:
             .withStyle(ChatFormatting.LIGHT_PURPLE)
         )
       }
+    // the town's own watch takes the field with them
+    GuardWatch.takeTheField(s.level, s.hubIndex, arrived)
     s.mobs.filterInPlace(m => m.isAlive && !m.isRemoved)
     if s.wave > 1 then
       nearby.foreach { h =>
@@ -309,14 +335,21 @@ object Invasion:
       s.level.playSound(null, base.getX.toDouble, base.getY.toDouble, base.getZ.toDouble, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 0.8f, 0.6f)
 
     val headline =
-      if s.drivenOff == 0 then s"The war band walked up to ${s.label} and nobody stood. The town keeps its sheep, and its grudges."
+      if s.drivenOff == 0 && s.watchWork == 0 then s"The war band walked up to ${s.label} and nobody stood. The town keeps its sheep, and its grudges."
+      else if s.drivenOff == 0 then s"The war band came to ${s.label} and found the watch waiting - ${s.watchWork} driven off by the town's own guards. No hero's hand in it, and no coin to split."
       else if s.drivenOff < 4 then s"The siege of ${s.label} ends with the fences scorched - only ${s.drivenOff} of the war band driven off."
       else
         val captainNote = if s.captainsFelled > 0 then s" ${s.captainsFelled} captain(s) down." else ""
-        s"The siege of ${s.label} is HELD. ${s.drivenOff} of the war band driven off across ${s.wave} waves.$captainNote"
+        val watchNote = if s.watchWork > 0 then s" The town's own watch accounted for ${s.watchWork} more." else ""
+        s"The siege of ${s.label} is HELD. ${s.drivenOff} of the war band driven off across ${s.wave} waves.$captainNote$watchNote"
+    val fallenNote =
+      if s.watchFallen == 0 then ""
+      else s" ${s.label} paid for it: ${s.watchFallen} of its watch fell. The hub is undermanned - re-man at the board (/quest guard eman) or wait for mason's round."
     Game.broadcast(
       server,
-      Component.literal(headline).withStyle(if s.drivenOff == 0 then ChatFormatting.GRAY else ChatFormatting.GREEN)
+      Component
+        .literal(headline + fallenNote)
+        .withStyle(if s.drivenOff == 0 && s.watchWork == 0 then ChatFormatting.GRAY else ChatFormatting.GREEN)
     )
     s.kills.toList.foreach { (uuid, scored) =>
       Option(server.getPlayerList.getPlayer(uuid)).filter(Game.isJoined).foreach { hero =>

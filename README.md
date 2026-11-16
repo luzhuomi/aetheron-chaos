@@ -241,6 +241,17 @@ loop, built entirely from vanilla blocks, items and effects.
     with live progress; `/quest title <id>` carries one — it rides on your action bar next to your
     class and beside your name in `/quest top`. No new systems, no UI: recognition layered on the
     play you already do. Earned titles and their counters persist in the character save.
+20. **The realm's watch** — every hub keeps a company of real **iron-golem guards** (the capital 3,
+    other hubs 2): they stand on the plaza, and when a war band marches on their town **they answer
+    the horn** and take the field with each wave. They are scaled below raid-tier (60% health, 70%
+    damage) so they are sturdy help, not the answer — and they can **fall**, which is the point:
+    a hub that loses guards stays **undermanned**, the next siege announcement says how few turned
+    out, a fallen guard makes the war band press early, and the end-of-siege report credits the
+    town's own watch for what it accounted for. Re-man it yourself — `/quest guard` reads the
+    strength of every hub, `/quest guard eman` pays 40 gold per missing guard and raises them now —
+    or wait for the mason's daily round, which re-forms every watch for free. The company is the
+    world, not a table: the golems are ordinary entities, so they survive restarts and are re-adopted
+    onto the roll (up to the hub's charter), and hitting one of your own guards is no kill at all.
 
 ### Rules
 
@@ -275,6 +286,8 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest stats` | everyone | Your hero's stat sheet |
 | `/quest titles` | everyone | Title ladder: what you've earned and what's next, with progress |
 | `/quest title <id>` | everyone | Carry an earned title (action bar + leaderboard), `none` to set down |
+| `/quest guard` | everyone | The realm's watch: strength and shortfalls at every hub |
+| `/quest guard eman` | everyone | Pay 40 gold per missing guard and re-man the hub you stand at |
 | `/quest top` | everyone | Server leaderboard |
 | `/quest town` | op (level 2) | Auto-build a quest hub in front of you |
 | `/quest clear [all]` | op (level 2) | Remove built hubs |

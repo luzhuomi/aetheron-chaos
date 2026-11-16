@@ -2,15 +2,14 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~4,370 lines, 23 files, 37 commits — see README.md.
+Current state: ~4,700 lines, 24 files, 38 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **Guard companies** — the town "guard" is invulnerable NPCs plus a sweep. Real guard entities
-   that answer a siege horn, can fall, and leave a hub undermanned until it is re-manned: the
-   half of siege depth that needs new machinery, and it makes hubs feel defended.
-2. **More legend patterns** — four forge recipes is a short treadmill once sigils stack up.
+1. **More legend patterns** — four forge recipes is a short treadmill once sigils stack up.
    Shields, boots and a two-sigil netherite recipe give the sigil sink somewhere to go.
+2. **Prestige tiers** — at max level, XP converts to a paragon counter with small bonuses
+   and a title prefix; the title machinery (Achievements.scala) is already there to hang it on.
 
 ## A. Make the trinity real
 
@@ -21,6 +20,9 @@ Current state: ~4,370 lines, 23 files, 37 commits — see README.md.
 
 - [ ] **Trial rewards** — class trials currently pay XP/gold only; a small class-flavored keepsake
       drop would make them feel like WoW dungeons-lite.
+- [ ] **A barracks at the plaza** — the watch is real now (companies, horn, falls, re-maning).
+      Next: a built barracks that raises a hub's charter, and gear for guards (a re-manned
+      guard with a sword the war band can see).
 
 ## C. Endgame
 

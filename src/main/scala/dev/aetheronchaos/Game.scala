@@ -236,6 +236,10 @@ object Game:
   private[aetheronchaos] def awardKill(player: ServerPlayer, victim: Mob): Unit =
     val c = ensure(player.getUUID)
     if !c.joined then return
+    if GuardWatch.isGuard(victim) then
+      // friendly fire: the watch is named, but it is no hero's kill
+      message(player, "That was one of the town's own watch. The hub is short a guard until it is re-manned - and this was not a kill worth a coin.", ChatFormatting.RED)
+      return
     val rare = victim.hasCustomName
     c.kills += 1
     if rare then
@@ -519,6 +523,7 @@ object Game:
       nextAutosaveTick = elapsedTicks + AutosaveIntervalTicks
       CharacterStore.save(server) // crash safety net between disconnect saves
     if elapsedTicks % TownGuardIntervalTicks == 0 then TownBuilder.expelHostileMobs(server)
+    GuardWatch.tick(server)
     if elapsedTicks % ThreatSweepTicks == 0 then Threat.tick(server)
     if elapsedTicks % VillageScanIntervalTicks == 0 then TownBuilder.adoptNearbyVillages(server)
     // the mason's daily round: patch creeper scars and missing town blocks
@@ -526,6 +531,7 @@ object Game:
     if today != lastTownRepairDay then
       lastTownRepairDay = today
       TownBuilder.repairTowns(server)
+      GuardWatch.reform(server) // the mason's round re-forms a hub's watch too
       GameQuests.announceDailies(server) // the board's daily rotation wakes with the realm
     GameRares.tickScheduler(server)
     Invasion.tickScheduler(server)
