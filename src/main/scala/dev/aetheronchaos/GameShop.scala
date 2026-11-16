@@ -46,18 +46,20 @@ object GameShop:
     val sigils = Game.countSigils(player)
     Game.message(
       player,
-      s"--- Legend Forge --- she needs the base gear, ${Shop.ForgeGold} gold and one Sigil of the Elite (you carry $sigils). Rare elites drop sigils:",
+      s"--- Legend Forge --- she needs the base gear, gold, and Sigils of the Elite (you carry $sigils). Rare elites, war-band captains and a siege held all leave them:",
       ChatFormatting.GOLD
     )
     Shop.forgeables.foreach { f =>
-      val ready = gold >= f.gold && sigils >= 1 && Game.hasItem(player, f.baseItem, isForgeableBase)
+      val ready = gold >= f.gold && sigils >= f.sigils && Game.hasItem(player, f.baseItem, isForgeableBase)
       val text = Component
-        .literal(s"[Forge ${f.gear.name}] ${f.gold} gold + 1 sigil + ${baseName(f.baseItem)}")
+        .literal(s"[Forge ${f.gear.name}] ${f.gold} gold + ${sigilPhrase(f.sigils)} + ${baseName(f.baseItem)}")
         .withStyle(st =>
           st.withColor(if ready then Rarity.Legendary.color else ChatFormatting.DARK_GRAY)
             .withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, s"/quest forge ${f.id}")))
       player.displayClientMessage(text, false)
     }
+
+  private def sigilPhrase(n: Int): String = if n == 1 then "1 sigil" else s"$n sigils"
 
   /** The forger won't eat a legendary to make another legendary. */
   private def isForgeableBase(stack: ItemStack): Boolean =
@@ -65,7 +67,7 @@ object GameShop:
 
   private def baseName(item: Item): String = new ItemStack(item).getDisplayName.getString
 
-  /** The forge itself: consume base gear + gold + sigil, hand back a legend. */
+  /** The forge itself: consume base gear + gold + sigils, hand back a legend. */
   def forge(player: ServerPlayer, id: String): String =
     if id.isEmpty then return forgeList(player)
     Shop.forgeById(id) match
@@ -75,24 +77,25 @@ object GameShop:
         val sigils = Game.countSigils(player)
         val missing = List(
           if gold < f.gold then Some(s"${f.gold - gold} more gold") else None,
-          if sigils < 1 then Some("a Sigil of the Elite (rare elites drop them)") else None,
+          if sigils < f.sigils then Some(s"${f.sigils - sigils} more ${if f.sigils == 1 then "sigil" else "sigils"} (rare elites, captains, sieges)") else None,
           if !Game.hasItem(player, f.baseItem, isForgeableBase) then Some(s"a ${baseName(f.baseItem)} to melt down") else None
         ).flatten
         if missing.nonEmpty then s"The ${f.gear.name} needs ${missing.mkString(" and ")}."
         else
           Game.removeItems(player, Items.GOLD_NUGGET, f.gold)
-          Game.takeSigil(player)
+          (1 to f.sigils).foreach(_ => Game.takeSigil(player))
           Game.takeItem(player, f.baseItem, isForgeableBase)
           Game.giveItem(player, Loot.stack(f.gear, player.level.registryAccess()))
           Game.creditLegendForged(player)
           forgeSparks(player)
-          s"${f.gear.name} is struck: ${baseName(f.baseItem)} + ${f.gold} gold + one sigil, ${gold - f.gold} gold left. ${f.flavor}"
+          s"${f.gear.name} is struck: ${baseName(f.baseItem)} + ${f.gold} gold + ${sigilPhrase(f.sigils)}, ${gold - f.gold} gold left. ${f.flavor}"
 
   private def forgeList(player: ServerPlayer): String =
     val sigils = Game.countSigils(player)
     (List(
-      s"The village forger strikes ${Shop.forgeables.size} legends. Payment: the base gear, ${Shop.ForgeGold} gold and one Sigil of the Elite (you carry $sigils):"
-    ) ++ Shop.forgeables.map(f => s"  /quest forge ${f.id} - ${f.gear.name} (needs a ${baseName(f.baseItem)}): ${f.flavor}"))
+      s"The village forger strikes ${Shop.forgeables.size} legends. Payment: the base gear, gold, and Sigils of the Elite (you carry $sigils). The two-sigil patterns come out netherite:"
+    ) ++ Shop.forgeables.map(f =>
+      s"  /quest forge ${f.id} - ${f.gear.name} (${f.gold} gold + ${sigilPhrase(f.sigils)} + a ${baseName(f.baseItem)}): ${f.flavor}"))
       .mkString("\n")
 
   private def forgeSparks(player: ServerPlayer): Unit =

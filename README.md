@@ -207,14 +207,21 @@ loop, built entirely from vanilla blocks, items and effects.
     arriving on the far plaza. Built hubs, the capital and adopted villages are all stations, so
     exploring new villages pays out as a travel network the very same day you find them.
 16. **Strike legends** — the loot treadmill no longer stops at epic. Each rare elite you slay leaves a
-    **Sigil of the Elite** (a named amethyst shard; the merchant will buy those back for 25 gold).
-    Bring one, plus 100 gold and the base gear it matches, to the **Legend Forge** (`/quest forge`,
-    also listed in the shop menu) and the village forger strikes a **legendary** — gold-named gear at
-    the top of what vanilla allows: *Sunforged Greatblade* (iron sword, Sharpness V + Unbreaking III),
-    *Dawnsong* (bow, Power V + Flame), *Aegis of the Dawn* (iron chestplate, Protection IV + Thorns III)
-    or *Crown of the Steady Light* (iron helmet, Protection IV + Projectile Protection IV). The base
-    gear and the sigil are consumed, legendaries can't be eaten by the forge, and the forge tells you
-    exactly what you're still short of.
+    **Sigil of the Elite** (a named amethyst shard; the merchant will buy those back for 25 gold), and
+    so does a war-band captain, while holding a siege pays one to anyone who scored 5+. Bring a sigil,
+    gold and the base gear it matches to the **Legend Forge** (`/quest forge`, also listed in the shop
+    menu) and the village forger strikes a **legendary** — gold-named gear at the top of what vanilla
+    allows. Nine patterns, in two tiers:
+    - **one sigil**: *Sunforged Greatblade* (iron sword, Sharpness V), *Dawnsong* (bow, Power V +
+      Flame), *Aegis of the Dawn* (iron chestplate, Protection IV + Thorns III), *Crown of the Steady
+      Light* (iron helmet, Protection IV + Projectile Protection IV), *Bulwark of the Quiet Dawn*
+      (shield, Unbreaking III + Mending), *Greaves of the Long Road* (iron boots, Protection IV +
+      Feather Falling IV).
+    - **two sigils, netherite** (melt diamond gear): *Dawnbreaker* (netherite sword, Sharpness V +
+      Fire Aspect II + Mending), *Widowhollow* (netherite axe, Sharpness V + Efficiency IV + Mending),
+      *Hauberk of the Last Watch* (netherite chestplate, Protection IV + Thorns III + Mending).
+    The base gear and the sigils are consumed, legendaries can't be eaten by the forge, and the forge
+    tells you exactly what you're still short of.
 17. **Invasion nights** — roughly every half hour a **war band marches on one of the hubs** (always
     the one the heroes are nearest to, so it is reachable). For **five minutes** waves of pillagers,
     skeletons, vindicators and friends arrive just outside the town's ground — one wave every half
@@ -281,7 +288,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest shop` | everyone | Vendor catalog (also right-click the town vendor barrel) |
 | `/quest sell` | everyone | Sell the item in your main hand to the merchant for gold |
 | `/quest buy <id>` | everyone | Buy gear with gold coins |
-| `/quest forge [pattern]` | everyone | Legend Forge: base gear + 100 gold + 1 sigil → legendary gear |
+| `/quest forge [pattern]` | everyone | Legend Forge: base gear + gold + 1–2 sigils → legendary gear |
 | `/quest loot need <n>` / `greed <n>` | everyone | Roll on party-locked loot |
 | `/quest stats` | everyone | Your hero's stat sheet |
 | `/quest titles` | everyone | Title ladder: what you've earned and what's next, with progress |

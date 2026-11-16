@@ -2,14 +2,14 @@
 
 A living roadmap for Aetheron Chaos — captured ideas, not promises. When a feature ships,
 delete its entry here (the README is the source of truth for what exists).
-Current state: ~4,700 lines, 24 files, 38 commits — see README.md.
+Current state: ~4,750 lines, 24 files, 39 commits — see README.md.
 
 ## Top picks (next sessions)
 
-1. **More legend patterns** — four forge recipes is a short treadmill once sigils stack up.
-   Shields, boots and a two-sigil netherite recipe give the sigil sink somewhere to go.
-2. **Prestige tiers** — at max level, XP converts to a paragon counter with small bonuses
+1. **Prestige tiers** — at max level, XP converts to a paragon counter with small bonuses
    and a title prefix; the title machinery (Achievements.scala) is already there to hang it on.
+2. **Player trading** — `/quest trade <player>` with double-confirm via chat clicks. Legends,
+   sigils and re-maning all make a tradable surplus worth having.
 
 ## A. Make the trinity real
 
@@ -28,8 +28,8 @@ Current state: ~4,700 lines, 24 files, 38 commits — see README.md.
 
 - [ ] **Prestige tiers** — at max level, XP converts to a paragon counter with small bonuses
       and a title prefix in chat.
-- [ ] **More legend patterns** — the forge has four. Shields, axes, boots and a netherite-tier
-      recipe (2 sigils) would give the sigil sink more destinations.
+- [ ] **A forge that improves** — nine patterns is enough for now. If it grows: seasonal patterns,
+      or one that takes a legendary back and re-rolls its enchantment line (a familiar MMO sink).
 
 ## D. Social & economy
 
@@ -49,8 +49,10 @@ Current state: ~4,700 lines, 24 files, 38 commits — see README.md.
 
 - Balance is untested in live play: watch **Pickpocket income**, **Quick Shot cadence**,
   **Avatar uptime**, the **healer XP rate** (`Game.HealerXpPerHp = 2.0`) and the **sigil economy**
-  (one sigil per rare kill, ~12 min realm-wide — a legend costs 100g + 1 sigil + base gear)
-  first when tuning.
+  (a sigil now comes from three places - a rare kill, a war-band captain, 5+ kills in a siege -
+  and the two-sigil netherite patterns are the big sink) first when tuning.
+- The watch is a combat surface too: golem companies at 60% health / 70% damage were chosen so they
+  help without taking the fight over. If they clear war bands unaided, drop `GuardWatch.GuardHealthScale`.
 - Mojmap 1.21 gotchas live in the project's history: `UseItemCallback` returns
   `InteractionResultHolder` (consume/pass), no `setSecondsOnFire` (use `setRemainingFireTicks`),
   mining fatigue = `DIG_SLOWDOWN`, nausea = `CONFUSION`, no `BOWS`/`SHIELDS` item tags

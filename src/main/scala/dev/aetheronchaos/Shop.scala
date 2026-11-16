@@ -34,9 +34,10 @@ object Shop:
   // --- the legend forge ---------------------------------------------------------
 
   /** A pattern the forger will strike: the base gear she must see (any copy of that
-   *  item, even a named one), the gold, and one Sigil of the Elite proof that a rare
-   *  elite fell by this hero's hand. The base gear is consumed. */
-  final case class Forgeable(id: String, gear: Loot.Gear, baseItem: Item, gold: Int, flavor: String)
+   *  item, even a named one), the gold, and the Sigils of the Elite proof that rare elites
+   *  fell by this hero's hand. The base gear is consumed. The two-sigil patterns come out
+   *  netherite: another tier to work toward, not a bigger version of the same one. */
+  final case class Forgeable(id: String, gear: Loot.Gear, baseItem: Item, gold: Int, sigils: Int, flavor: String)
 
   val ForgeGold = 100
 
@@ -44,19 +45,39 @@ object Shop:
     Forgeable("sunforged-greatblade",
       Loot.Gear(Items.IRON_SWORD, "Sunforged Greatblade", Rarity.Legendary,
         List(Enchantments.SHARPNESS -> 5, Enchantments.UNBREAKING -> 3)),
-      Items.IRON_SWORD, ForgeGold, "Struck from a blade that survived an elite. It remembers."),
+      Items.IRON_SWORD, ForgeGold, 1, "Struck from a blade that survived an elite. It remembers."),
     Forgeable("dawnsong",
       Loot.Gear(Items.BOW, "Dawnsong", Rarity.Legendary,
         List(Enchantments.POWER -> 5, Enchantments.FLAME -> 1, Enchantments.UNBREAKING -> 3)),
-      Items.BOW, ForgeGold, "Every arrow it looses arrives already burning."),
+      Items.BOW, ForgeGold, 1, "Every arrow it looses arrives already burning."),
     Forgeable("aegis-of-the-dawn",
       Loot.Gear(Items.IRON_CHESTPLATE, "Aegis of the Dawn", Rarity.Legendary,
         List(Enchantments.PROTECTION -> 4, Enchantments.THORNS -> 3, Enchantments.UNBREAKING -> 3)),
-      Items.IRON_CHESTPLATE, ForgeGold, "Warm to wear. The blows come back to the striker."),
+      Items.IRON_CHESTPLATE, ForgeGold, 1, "Warm to wear. The blows come back to the striker."),
     Forgeable("crown-of-the-steady-light",
       Loot.Gear(Items.IRON_HELMET, "Crown of the Steady Light", Rarity.Legendary,
         List(Enchantments.PROTECTION -> 4, Enchantments.PROJECTILE_PROTECTION -> 4, Enchantments.UNBREAKING -> 3)),
-      Items.IRON_HELMET, ForgeGold, "Steady in the eye of any storm of arrows.")
+      Items.IRON_HELMET, ForgeGold, 1, "Steady in the eye of any storm of arrows."),
+    Forgeable("bulwark-of-the-quiet-dawn",
+      Loot.Gear(Items.SHIELD, "Bulwark of the Quiet Dawn", Rarity.Legendary,
+        List(Enchantments.UNBREAKING -> 3, Enchantments.MENDING -> 1)),
+      Items.SHIELD, 90, 1, "It does not ring. It just stops things, and mends itself after."),
+    Forgeable("greaves-of-the-long-road",
+      Loot.Gear(Items.IRON_BOOTS, "Greaves of the Long Road", Rarity.Legendary,
+        List(Enchantments.PROTECTION -> 4, Enchantments.FEATHER_FALLING -> 4, Enchantments.UNBREAKING -> 3)),
+      Items.IRON_BOOTS, 110, 1, "Built for the road between towns, and for the fall off it."),
+    Forgeable("dawnbreaker",
+      Loot.Gear(Items.NETHERITE_SWORD, "Dawnbreaker", Rarity.Legendary,
+        List(Enchantments.SHARPNESS -> 5, Enchantments.FIRE_ASPECT -> 2, Enchantments.MENDING -> 1, Enchantments.UNBREAKING -> 3)),
+      Items.DIAMOND_SWORD, 240, 2, "Two proofs, one blade. What it cuts, it also lights."),
+    Forgeable("widowhollow",
+      Loot.Gear(Items.NETHERITE_AXE, "Widowhollow", Rarity.Legendary,
+        List(Enchantments.SHARPNESS -> 5, Enchantments.EFFICIENCY -> 4, Enchantments.MENDING -> 1, Enchantments.UNBREAKING -> 3)),
+      Items.DIAMOND_AXE, 220, 2, "It opens doors, shields and war bands with the same swing."),
+    Forgeable("hauberk-of-the-last-watch",
+      Loot.Gear(Items.NETHERITE_CHESTPLATE, "Hauberk of the Last Watch", Rarity.Legendary,
+        List(Enchantments.PROTECTION -> 4, Enchantments.THORNS -> 3, Enchantments.MENDING -> 1, Enchantments.UNBREAKING -> 3)),
+      Items.DIAMOND_CHESTPLATE, 260, 2, "Struck for whoever was left standing at the wall. That is you.")
   )
 
   def forgeById(id: String): Option[Forgeable] = forgeables.find(_.id == id)
