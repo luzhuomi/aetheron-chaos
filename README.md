@@ -411,6 +411,7 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest threat` | everyone | Every threat table within thirty blocks: who the mobs are angry at, where you stand |
 | `/quest town` | op (level 2) | Auto-build a quest hub in front of you |
 | `/quest clear [all]` | op (level 2) | Remove built hubs |
+| `/quest tuning` | op (level 2) | Live tuning values: every knob consulted, file vs default |
 | `/quest rare` | op (level 2) | Force-spawn a rare elite near you |
 | `/quest invade [hub]` | op (level 2) | Call a war band down on a hub (nearest by default) |
 | `/quest reset [player]` | everyone / op | Reset a hero to level 1 |
@@ -447,7 +448,9 @@ Copy `aetheron-chaos-tuning.example.conf` into the world folder (next to `level.
 `#` comments, unknown keys ignored with a log line. It covers the knobs the balance notes
 watch — level cap, paragon pacing, healer XP, spell cooldowns (per spell id), the guard
 scales, barracks/trade/guild/forge prices — and every value keeps its default in the code,
-so the file only ever overrides.
+so the file only ever overrides. `/quest tuning` (op-level) prints what the realm is
+actually running: every knob consulted this session, its live value, and whether it came
+from the file or the built-in default.
 
 ### Run a test server
 

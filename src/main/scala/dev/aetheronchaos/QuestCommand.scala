@@ -201,6 +201,11 @@ object QuestCommand:
               )
           )
           .`then`(
+            Commands.literal("tuning")
+              .requires(src => src.hasPermission(2))
+              .executes(ctx => withPlayer(ctx, _ => Tuning.report))
+          )
+          .`then`(
             Commands.literal("reset")
               .executes(ctx => withPlayer(ctx, Game.reset))
               .`then`(

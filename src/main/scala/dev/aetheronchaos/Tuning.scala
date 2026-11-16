@@ -21,6 +21,7 @@ import net.minecraft.world.level.storage.LevelResource
 object Tuning:
   private val FileName = "aetheron-chaos-tuning.conf"
   private val overrides = mutable.Map[String, Double]()
+  private val consulted = mutable.LinkedHashMap[String, (Double, Boolean)]() // key -> (default, from file)
   private var loaded = false
 
   /** Read the world folder's tuning file, if there is one. Called on world load. */
@@ -47,11 +48,34 @@ object Tuning:
       System.out.println(s"[aetheron-chaos] applied ${overrides.size} tuning overrides from $FileName")
     }
 
+  private def get(key: String, default: Double): Option[Double] =
+    val fromFile = overrides.contains(key)
+    consulted(key) = (default, fromFile) // so /quest tuning can show what the realm actually uses
+    if fromFile then Some(overrides(key)) else None
+
+  /** Every key consulted this session, with its live value and where it came from. */
+  private[aetheronchaos] def report: String =
+    if consulted.isEmpty then
+      "Nothing has consulted the tuning tables yet - the realm runs on defaults until systems wake up. Play a little, then ask again."
+    else
+      val rows = consulted.toList.sortBy(_._1).map { (key, info) =>
+        val (default, fromFile) = info
+        val effective = overrides.getOrElse(key, default)
+        val src = if fromFile then "from file" else "default"
+        s"  $key = ${fmtNum(effective)} ($src, built-in default ${fmtNum(default)})"
+      }
+      (List(s"Tuning in effect this session - ${overrides.size} override(s) on file, ${consulted.size} knob(s) consulted:") ::: rows :::
+        List("Edit aetheron-chaos-tuning.conf in the world folder; values apply at next world load."))
+        .mkString("\n")
+
+  private def fmtNum(v: Double): String =
+    if v == v.round.toDouble then v.round.toString else f"$v%.3f"
+
   private[aetheronchaos] def getDouble(key: String, default: Double): Double =
-    overrides.getOrElse(key, default)
+    get(key, default).getOrElse(default)
 
   private[aetheronchaos] def getInt(key: String, default: Int): Int =
-    overrides.get(key).map(v => math.round(v).toInt).getOrElse(default)
+    get(key, default.toDouble).map(v => math.round(v).toInt).getOrElse(default)
 
   private[aetheronchaos] def getLong(key: String, default: Long): Long =
-    overrides.get(key).map(v => math.round(v)).getOrElse(default)
+    get(key, default.toDouble).map(v => math.round(v)).getOrElse(default)
