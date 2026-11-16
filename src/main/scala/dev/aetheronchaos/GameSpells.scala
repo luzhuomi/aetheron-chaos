@@ -86,12 +86,13 @@ object GameSpells:
     // live in Spells.scala - the warrior's taunt comes back faster than the paladin's challenge)
     val tauntTrack = spell.kind == "taunt"
     val track = if tauntTrack then tauntCooldowns else spellCooldowns
+    val cdTicks = Tuning.getInt(s"spell.cooldown.${spell.id}", spell.cooldownTicks)
     val readyAt = track.getOrElse(c.uuid, 0L)
     if Game.now < readyAt then
       Game.message(player, s"${spell.name} is still recharging... ${(readyAt - Game.now + 19) / 20}s", ChatFormatting.GRAY)
       return true
-    track(c.uuid) = Game.now + spell.cooldownTicks
-    if !tauntTrack then player.getCooldowns.addCooldown(used.getItem, spell.cooldownTicks) // the focus visibly greys out
+    track(c.uuid) = Game.now + cdTicks
+    if !tauntTrack then player.getCooldowns.addCooldown(used.getItem, cdTicks) // the focus visibly greys out
     Spells.cast(player, spell)
     true
 

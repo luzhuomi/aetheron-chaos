@@ -66,13 +66,18 @@ needs a joined hero (titles unlocking, trading, the HUD) can only be checked in-
 - `planned_features.md` is the roadmap: when a feature ships, delete its entry (README is
   the source of truth for what exists) and keep the "Current state" line honest
   (line/file/commit counts).
-- Tuning lives in named `private val` knobs inside each system (`GuardWatch.GuardHealthScale`,
-  `Threat.Hysteresis`, `Game.paragonToNext`) — not magic numbers in logic, not a config file.
+- Tuning lives in named `private val`/`def` knobs inside each system (`GuardWatch.GuardHealthScale`,
+  `Threat.DefenderBonus`, `Game.paragonToNext`) — not magic numbers in logic. The watched ones read
+  through `Tuning.getDouble/getInt(key, default)` so a server host can override them in
+  `aetheron-chaos-tuning.conf` (keys documented in `aetheron-chaos-tuning.example.conf`); the
+  default in code stays the source of truth. Pure arithmetic shared by systems goes in
+  `Formulas.scala`, which is unit-tested (`./gradlew test`).
 - Keep balance notes for the next session in `planned_features.md` ("Notes for future sessions").
 
 ## Where things are
 
 See the file map at the end of README.md. The load-bearing ones: `Game.scala` (character
-state, XP/paragon, schedulers), `QuestCommand.scala` (the whole `/quest` tree),
+state, XP/paragon, schedulers), `Formulas.scala` + `Tuning.scala` (the realm's numbers:
+pure curves + the host's overrides), `QuestCommand.scala` (the whole `/quest` tree),
 `TownBuilder`/`TownStore` (hubs), `Combat.scala` (damage/death hooks), `Threat.scala`,
-`Invasion.scala`, `GuardWatch.scala`, `Trading.scala`, `TradePost.scala`.
+`Invasion.scala`, `GuardWatch.scala`, `Trading.scala`, `TradePost.scala`, `Guilds.scala`.

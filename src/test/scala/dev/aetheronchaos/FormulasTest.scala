@@ -20,6 +20,12 @@ class FormulasTest extends munit.FunSuite:
     for tier <- 0 to 20 do
       assert(Formulas.paragonToNext(tier + 1) > Formulas.paragonToNext(tier))
 
+  test("a tuned base and step flow through the same curve"):
+    // what Tuning does with paragon.base_xp / paragon.step_xp
+    assertEquals(Formulas.paragonToNext(0, baseXp = 5000L, stepXp = 2500L), 5000L)
+    assertEquals(Formulas.paragonToNext(2, baseXp = 5000L, stepXp = 2500L), 10000L)
+    assertEqualsDouble(Formulas.paragonXpRate(4, perTierPercent = 5.0, capPercent = 10.0), 1.10, 1e-9)
+
   test("the paragon xp bonus is +3% per tier and stops at +50%"):
     assertEqualsDouble(Formulas.paragonXpRate(0), 1.0, 1e-9)
     assertEqualsDouble(Formulas.paragonXpRate(5), 1.15, 1e-9)

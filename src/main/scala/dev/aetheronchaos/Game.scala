@@ -40,8 +40,8 @@ import net.minecraft.server.level.ServerLevel
  *  - Form parties for XP sharing; rare named elites spawn on a timer for big rewards.
  */
 object Game:
-  // Tuning knobs
-  val MaxLevel = 40
+  // Tuning knobs (a server host can move any of these in aetheron-chaos-tuning.conf; see Tuning.scala)
+  def MaxLevel: Int = Tuning.getInt("game.max_level", 40)
   val PartyMaxSize = 5
   val PartyShareRangeBlocks = 40.0
   val PartySharePercent = 0.5
@@ -50,7 +50,7 @@ object Game:
   val RareXpMultiplier = 10
   val PartyQuestXpBonusPercent = 0.5
   // support earns its keep: XP per HP actually restored to another hero by healing
-  val HealerXpPerHp = 2.0
+  def HealerXpPerHp: Double = Tuning.getDouble("healer.xp_per_hp", 2.0)
 
   // characters autosave to disk while online (crash safety net; normal saves happen on disconnect)
   val AutosaveIntervalTicks = 5L * 60L * 20L
@@ -110,13 +110,15 @@ object Game:
   def xpToNext(level: Int): Long = Formulas.xpToNext(level)
 
   /** Past the cap, experience feeds paragon tiers, and each tier costs a little more. */
-  def paragonToNext(tier: Int): Long = Formulas.paragonToNext(tier)
+  def paragonToNext(tier: Int): Long =
+    Formulas.paragonToNext(tier, Tuning.getLong("paragon.base_xp", 2000L), Tuning.getLong("paragon.step_xp", 1500L))
 
   /** What the hero's current xp pool is actually filling: a level, or a paragon tier at the cap. */
   def xpNeed(c: Character): Long = if c.level >= MaxLevel then paragonToNext(c.paragon) else xpToNext(c.level)
 
   /** Paragon tiers sharpen the hero's craft: +3% XP earned per tier, to a ceiling. */
-  private def paragonXpRate(c: Character): Double = Formulas.paragonXpRate(c.paragon)
+  private def paragonXpRate(c: Character): Double =
+    Formulas.paragonXpRate(c.paragon, Tuning.getDouble("paragon.xp_bonus_percent", 3.0), Tuning.getDouble("paragon.xp_bonus_cap_percent", 50.0))
 
   /** The visible rank of ascension: a hero's star and carried title burn a different
    *  color past each milestone. Pure chat formatting - every client sees it. */

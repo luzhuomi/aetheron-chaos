@@ -10,11 +10,14 @@ object Formulas:
   /** XP needed to reach the next level. Quadratic on purpose: early levels are quick. */
   def xpToNext(level: Int): Long = 100L + 60L * level + 35L * level * level
 
-  /** Past the cap, experience feeds paragon tiers, and each tier costs a little more. */
-  def paragonToNext(tier: Int): Long = 2000L + 1500L * tier
+  /** Past the cap, experience feeds paragon tiers, and each tier costs a little more.
+   *  The base/step are the defaults; Tuning can move them (`paragon.base_xp`, `paragon.step_xp`). */
+  def paragonToNext(tier: Int, baseXp: Long = 2000L, stepXp: Long = 1500L): Long = baseXp + stepXp * tier
 
-  /** Paragon tiers sharpen the hero's craft: +3% XP earned per tier, to a +50% ceiling. */
-  def paragonXpRate(paragon: Int): Double = math.min(1.5, 1.0 + 0.03 * paragon)
+  /** Paragon tiers sharpen the hero's craft: +3% XP earned per tier, to a +50% ceiling
+   *  (both percentages are the defaults; Tuning can move them). */
+  def paragonXpRate(paragon: Int, perTierPercent: Double = 3.0, capPercent: Double = 50.0): Double =
+    math.min(1.0 + capPercent / 100.0, 1.0 + (perTierPercent / 100.0) * paragon)
 
   /** Wayside portal toll: 1 gold per 20 blocks travelled, 5 minimum - a real sink. */
   def warpToll(distanceBlocks: Double): Int = math.max(5, (distanceBlocks / 20.0).floor.toInt)

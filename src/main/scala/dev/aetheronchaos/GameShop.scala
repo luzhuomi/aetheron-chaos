@@ -92,32 +92,33 @@ object GameShop:
     Shop.forgeById(id) match
       case None => s"The forge has no pattern '$id'. /quest forge lists what she can strike."
       case Some(f) =>
+        val goldCost = Tuning.getInt(s"forge.gold.${f.id}", f.gold)
         val gold = Game.countItem(player, Items.GOLD_NUGGET)
         val sigils = Game.countSigils(player)
         val ascended = Game.characterFor(player).paragon
         val missing = List(
           if ascended < f.paragon then Some(s"Paragon ${f.paragon} - you are Paragon $ascended (/quest prestige)") else None,
-          if gold < f.gold then Some(s"${f.gold - gold} more gold") else None,
+          if gold < goldCost then Some(s"${goldCost - gold} more gold") else None,
           if sigils < f.sigils then Some(s"${f.sigils - sigils} more ${if f.sigils == 1 then "sigil" else "sigils"} (rare elites, captains, sieges)") else None,
           if !Game.hasItem(player, f.baseItem, isForgeableBase) then Some(s"a ${baseName(f.baseItem)} to melt down") else None
         ).flatten
         if missing.nonEmpty then s"The ${f.gear.name} needs ${missing.mkString(" and ")}."
         else
-          Game.removeItems(player, Items.GOLD_NUGGET, f.gold)
+          Game.removeItems(player, Items.GOLD_NUGGET, goldCost)
           (1 to f.sigils).foreach(_ => Game.takeSigil(player))
           Game.takeItem(player, f.baseItem, isForgeableBase)
           Game.giveItem(player, Loot.stack(f.gear, player.level.registryAccess()))
           Game.creditLegendForged(player)
           forgeSparks(player)
-          s"${f.gear.name} is struck: ${baseName(f.baseItem)} + ${f.gold} gold + ${sigilPhrase(f.sigils)}, ${gold - f.gold} gold left. ${f.flavor}"
+          s"${f.gear.name} is struck: ${baseName(f.baseItem)} + $goldCost gold + ${sigilPhrase(f.sigils)}, ${gold - goldCost} gold left. ${f.flavor}"
 
   // --- the re-forge: a sink for spent legends ------------------------------------
   // The forger also improves: hand her a legendary and she rolls its line anew.
   // Same name, same metal, new heart. The roll is always legal for the item
   // (vanilla's own canEnchant decides) and never mixes families vanilla keeps apart.
 
-  private val RerollGold = 120
-  private val RerollSigils = 1
+  private def RerollGold: Int = Tuning.getInt("forge.reroll_gold", 120)
+  private def RerollSigils: Int = Tuning.getInt("forge.reroll_sigils", 1)
   private val rerollRng = Random()
 
   /** Families of enchantments that never share one roll - vanilla's own conflict lines. */
@@ -203,12 +204,13 @@ object GameShop:
     Shop.byId(id) match
       case None => s"Unknown item '$id'. Browse with /quest shop."
       case Some(s) =>
+        val price = Tuning.getInt(s"shop.price.${s.id}", s.price)
         val gold = Game.countItem(player, Items.GOLD_NUGGET)
-        if gold < s.price then s"The ${s.gear.name} costs ${s.price} gold - you carry only $gold."
+        if gold < price then s"The ${s.gear.name} costs $price gold - you carry only $gold."
         else
-          Game.removeItems(player, Items.GOLD_NUGGET, s.price)
+          Game.removeItems(player, Items.GOLD_NUGGET, price)
           Game.giveItem(player, Loot.stack(s.gear, player.level.registryAccess()))
-          s"Bought ${s.gear.name} for ${s.price} gold (${gold - s.price} left)."
+          s"Bought ${s.gear.name} for $price gold (${gold - price} left)."
 
   /** Sells the whole stack in the player's main hand at the merchant's buy price. */
   def sellHeld(player: ServerPlayer): String =

@@ -31,8 +31,8 @@ object Threat:
   private val AssistThreatFactor = 0.3 // a party buff shares the target's notice, not the fight
   private val RetargetRangeSqr = 40.0 * 40.0 // heroes further out don't get the mob's attention
   private val ReadoutRangeSqr = 30.0 * 30.0 // /quest threat: what the hero can actually see
-  private val DefenderWindowTicks = 100L // the one a mob just turned away from gets 5s to take it back
-  private val DefenderBonus = 1.5 // ...and their strikes count half again as loud on the table
+  private def DefenderWindowTicks: Long = (Tuning.getDouble("threat.defender_window_seconds", 5.0) * 20).toLong
+  private def DefenderBonus: Double = Tuning.getDouble("threat.defender_bonus", 1.5) // ...and their strikes count half again as loud on the table
 
   // mob -> (hero it just turned away from, tick the window closes)
   private val justLost = mutable.Map[Mob, (UUID, Long)]()

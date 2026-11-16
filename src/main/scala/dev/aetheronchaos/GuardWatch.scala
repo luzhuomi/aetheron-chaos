@@ -36,8 +36,8 @@ object GuardWatch:
   val GuardName = "Watch-Guard"
   val RemanGold = 40
 
-  private val GuardHealthScale = 0.6 // the town's watch is sturdy, not a raid boss
-  private val GuardAttackScale = 0.7
+  private def GuardHealthScale = Tuning.getDouble("guard.health_scale", 0.6) // the town's watch is sturdy, not a raid boss
+  private def GuardAttackScale = Tuning.getDouble("guard.attack_scale", 0.7)
   // charter sizes live in Formulas.guardCharter (capital 3 / hub 2 / +1 with a barracks)
   private val LeashBlocks = 55.0 // a guard who wanders this far is walked home
   private val MusterIntervalTicks = 200L
@@ -218,7 +218,7 @@ object GuardWatch:
         g.setCustomName(Component.literal(s"$GuardName of ${shortName(hub)}"))
         g.setPersistenceRequired()
         // a hub with a barracks fields better-kept guards
-        val healthScale = GuardHealthScale * (if hub.barracks then 1.15 else 1.0)
+        val healthScale = GuardHealthScale * (if hub.barracks then Tuning.getDouble("barracks.guard_health_bonus", 1.15) else 1.0)
         Option(g.getAttribute(Attributes.MAX_HEALTH)).foreach { a =>
           a.setBaseValue(a.getBaseValue * healthScale)
           g.setHealth(a.getValue.toFloat)

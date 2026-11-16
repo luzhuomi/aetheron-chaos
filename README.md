@@ -428,6 +428,15 @@ The XP/paragon curves, warp tolls, guard charters and typo distance live in one
 Minecraft-free object (`Formulas.scala`) and are covered by munit tests under `src/test` —
 they run without a world, and `./gradlew build` runs them too.
 
+### Tune the realm without recompiling
+
+Copy `aetheron-chaos-tuning.example.conf` into the world folder (next to `level.dat`) as
+`aetheron-chaos-tuning.conf` and the server reads it at world load: `key = number` lines,
+`#` comments, unknown keys ignored with a log line. It covers the knobs the balance notes
+watch — level cap, paragon pacing, healer XP, spell cooldowns (per spell id), the guard
+scales, barracks/trade/guild/forge prices — and every value keeps its default in the code,
+so the file only ever overrides.
+
 ### Run a test server
 
 ```bash
@@ -480,6 +489,7 @@ src/main/scala/dev/aetheronchaos/
   AetheronChaosMod.scala  Fabric entrypoint, event wiring
   Game.scala             Realm state core: characters, XP/levels, parties, kill credit, tick
   Formulas.scala         Pure arithmetic (XP/paragon curves, tolls, charters, edit distance) - unit-tested
+  Tuning.scala           Optional aetheron-chaos-tuning.conf: the host's overrides of the watched knobs
   GameSpells.scala       Spellbook state: equip, cast, cooldowns, spell menu
   GameShop.scala         Vendor flows: shop menu, buy, sell
   GameRares.scala        Rare-elite scheduler, live registry, spawn

@@ -34,7 +34,7 @@ import net.minecraft.world.level.storage.LevelResource
 object TradePost:
   private val MaxPerHub = 10
   private val MaxPerHero = 3
-  private val MaxPrice = 5000
+  private def MaxPrice: Int = Tuning.getInt("trade.max_price", 5000)
   private val MaxWatches = 3
   private val SoldHistoryPerItem = 5
   private val FileName = "aetheron-chaos-postings.snbt"

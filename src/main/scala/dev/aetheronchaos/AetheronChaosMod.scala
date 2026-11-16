@@ -13,7 +13,9 @@ class AetheronChaosMod extends ModInitializer:
     Interactions.register()
     Combat.register()
     ServerWorldEvents.LOAD.register((server, level) =>
-      if level == server.overworld() then TownBuilder.registerSavedTowns(server)
+      if level == server.overworld() then
+        Tuning.load(server) // the host's numbers, if they keep any
+        TownBuilder.registerSavedTowns(server)
     )
     ServerLifecycleEvents.SERVER_STOPPING.register(server => Game.onServerStopping(server))
     ServerTickEvents.END_SERVER_TICK.register(server => Game.tick(server))

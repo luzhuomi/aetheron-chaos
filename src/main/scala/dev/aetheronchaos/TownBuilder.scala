@@ -171,7 +171,7 @@ object TownBuilder:
   def barracksStand(t: Town): BlockPos = atOf(t.base, t.dir)(12, -6, 0)
 
   /** Heroes can tell a barracks when they see one; the watch knows too. */
-  val BarracksGold = 150
+  def BarracksGold: Int = Tuning.getInt("town.barracks_gold", 150)
 
   /** Status of barracks across the realm, read at a hub. */
   def barracksStatus(player: ServerPlayer): String =

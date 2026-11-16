@@ -27,11 +27,11 @@ import net.minecraft.world.level.storage.LevelResource
  */
 object Guilds:
   private val MaxMembers = 8
-  private val CreateGold = 100
+  private def CreateGold: Int = Tuning.getInt("guild.create_gold", 100)
   private val MinNameLen = 2
   private val MaxNameLen = 16
-  private val DailyGoal = 20
-  private val DailyRewardGold = 20
+  private def DailyGoal: Int = Tuning.getInt("guild.daily_goal", 20)
+  private def DailyRewardGold: Int = Tuning.getInt("guild.daily_reward_gold", 20)
   private val FileName = "aetheron-chaos-guilds.snbt"
 
   final class Guild(val name: String):
