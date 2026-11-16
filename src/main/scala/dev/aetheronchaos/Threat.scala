@@ -31,6 +31,11 @@ object Threat:
   private val AssistThreatFactor = 0.3 // a party buff shares the target's notice, not the fight
   private val RetargetRangeSqr = 40.0 * 40.0 // heroes further out don't get the mob's attention
   private val ReadoutRangeSqr = 30.0 * 30.0 // /quest threat: what the hero can actually see
+  private val DefenderWindowTicks = 100L // the one a mob just turned away from gets 5s to take it back
+  private val DefenderBonus = 1.5 // ...and their strikes count half again as loud on the table
+
+  // mob -> (hero it just turned away from, tick the window closes)
+  private val justLost = mutable.Map[Mob, (UUID, Long)]()
 
   // Some mobs keep score differently. A scale of 0 means the mob never does - pure vanilla.
   private val MobThreatScale: Map[net.minecraft.world.entity.EntityType[?], Double] = Map(
@@ -46,7 +51,12 @@ object Threat:
   def onDamage(mob: Mob, hero: ServerPlayer, amount: Float): Unit =
     if amount > 0.0f then
       val s = scaleFor(mob)
-      if s > 0.0 then tables.getOrElseUpdate(mob, mutable.Map())(hero.getUUID) += amount.toDouble * s
+      if s > 0.0 then
+        // the defender's benefit: a mob that just turned away from you hears you louder, briefly
+        val defender = justLost.get(mob) match
+          case Some((lost, until)) if lost == hero.getUUID && Game.now < until => DefenderBonus
+          case _ => 1.0
+        tables.getOrElseUpdate(mob, mutable.Map())(hero.getUUID) += amount.toDouble * s * defender
 
   /** A hero healed the mob's current target: the mender earns the mob's notice. */
   def onHeal(healed: ServerPlayer, healer: ServerPlayer, amount: Double): Unit =
@@ -73,7 +83,9 @@ object Threat:
     mob.setTarget(hero)
 
   /** Fear: the mob stops keeping score entirely. */
-  def forget(mob: Mob): Unit = tables -= mob
+  def forget(mob: Mob): Unit =
+    tables -= mob
+    justLost -= mob
 
   /** `/quest threat` - every table within a hero's sight, read the way the mob sees it. */
   def readout(player: ServerPlayer): String =
@@ -100,10 +112,12 @@ object Threat:
             else if pct >= (100.0 / Hysteresis).toInt then s"you: #$rank at ${fmt(v)} - close enough to take it with a taunt"
             else s"you: #$rank at ${fmt(v)} (${pct}% of the leader)"
         val leader = s"${nameOf(player, top._1)} ${fmt(top._2)}"
-        s"  ${mob.getName.getString} @ ${mob.distanceToSqr(player).toInt}m - watching: $watching; leader: $leader; $stance"
+        val window = justLost.get(mob).exists { (lost, until) => lost == player.getUUID && Game.now < until }
+        val windowNote = if window then " - the defender's window is open: your strikes count half again" else ""
+        s"  ${mob.getName.getString} @ ${mob.distanceToSqr(player).toInt}m - watching: $watching; leader: $leader; $stance$windowNote"
       }
       val header = "The realm's grudges, near to far:"
-      val footer = "Taunts slam you to the top; healing a hero who holds aggro pulls notice too; ravagers dig in and creepers never keep score."
+      val footer = "Taunts slam you to the top (and recharge on their own track); healing a hero who holds aggro pulls notice too; a mob that just turned away from you hears you louder for a moment; ravagers dig in and creepers never keep score."
       (List(header) ::: rows ::: List(footer)).mkString("\n")
 
   /** The on-HUD tell: a mob near this hero that they were holding has turned away.
@@ -132,18 +146,26 @@ object Threat:
   def tick(server: MinecraftServer): Unit =
     if tables.isEmpty then return
     tables.toList.foreach { (mob, table) =>
-      if !mob.isAlive || mob.isRemoved then tables -= mob
+      if !mob.isAlive || mob.isRemoved then
+        tables -= mob
+        justLost -= mob
       else
+        justLost.get(mob).foreach { (_, until) => if Game.now >= until then justLost -= mob }
         table.transform((_, v) => v * DecayPerSweep)
         table.filterInPlace((_, v) => v >= MinThreat)
         if table.isEmpty then tables -= mob
         else
           val current = heroIdentity(mob.getTarget)
+          current.foreach { held => // whoever took it back closes their own window
+            justLost.get(mob).foreach { (lost, _) => if lost == held then justLost -= mob }
+          }
           val (topUuid, topScore) = table.maxBy((_, v) => v)
           val currentScore = current.flatMap(table.get).getOrElse(0.0)
           if topScore > currentScore * Hysteresis && !current.contains(topUuid) then
             Option(server.getPlayerList.getPlayer(topUuid)).foreach { hero =>
-              if hero.isAlive && hero.distanceToSqr(mob) <= RetargetRangeSqr then mob.setTarget(hero)
+              if hero.isAlive && hero.distanceToSqr(mob) <= RetargetRangeSqr then
+                mob.setTarget(hero)
+                current.foreach { lost => justLost(mob) = (lost, Game.now + DefenderWindowTicks) }
             }
     }
 

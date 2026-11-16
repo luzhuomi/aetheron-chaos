@@ -214,6 +214,12 @@ loop, built entirely from vanilla blocks, items and effects.
      and they fight purely on vanilla instinct. And the HUD speaks it: when a mob near you that
      *you* were holding turns to another hero, the action bar says so — `⚠ aggro: Zombie->Kenny` —
      and stays silent otherwise, because a warning that never stops is not a warning.
+     Two more trinity tools: **the defender's window** — when a mob turns away from you, for five
+     seconds your strikes count half again as loud on its table, a real chance to take it back
+     before someone else settles in (the readout says when the window is open); and **taunts keep
+     a tank's own rhythm** — Taunt and Challenge recharge on their own track, never locking the
+     rest of the spellbook, tuned per class: the warrior's aimed Taunt returns in 4s, the
+     paladin's Challenge takes 10s but every foe in five blocks hears it.
 15. **Wayside portals** — every quest board is a station on the realm's travel network. Standing at
     a board, the menu lists every other hub with a gold toll (1 gold per 20 blocks folded, 5
     minimum — a real sink), and `/quest warp <n>` takes you there in a swirl of portal particles,

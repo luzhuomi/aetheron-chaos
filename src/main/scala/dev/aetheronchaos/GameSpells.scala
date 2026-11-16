@@ -15,6 +15,8 @@ import net.minecraft.server.level.ServerPlayer
 object GameSpells:
   // spell cooldowns: uuid -> tick the focus is ready again
   private val spellCooldowns = mutable.Map[UUID, Long]()
+  // taunts recharge on their own track (see tryCast): a tank's rhythm, not the spellbook's
+  private val tauntCooldowns = mutable.Map[UUID, Long]()
   // throttle for "hold your focus" hints: uuid -> tick of the last hint
   private val spellNags = mutable.Map[UUID, Long]()
 
@@ -79,12 +81,17 @@ object GameSpells:
       Game.message(player, s"Equipped: ${next.name} - right-click to cast.", ChatFormatting.LIGHT_PURPLE)
       return true
     val spell = equippedSpell(c)
-    val readyAt = spellCooldowns.getOrElse(c.uuid, 0L)
+    // taunts keep a tank's own rhythm: they recharge on their own track, never locking
+    // the rest of the spellbook, and the spellbook never locks them (per-class values
+    // live in Spells.scala - the warrior's taunt comes back faster than the paladin's challenge)
+    val tauntTrack = spell.kind == "taunt"
+    val track = if tauntTrack then tauntCooldowns else spellCooldowns
+    val readyAt = track.getOrElse(c.uuid, 0L)
     if Game.now < readyAt then
       Game.message(player, s"${spell.name} is still recharging... ${(readyAt - Game.now + 19) / 20}s", ChatFormatting.GRAY)
       return true
-    spellCooldowns(c.uuid) = Game.now + spell.cooldownTicks
-    player.getCooldowns.addCooldown(used.getItem, spell.cooldownTicks) // the focus visibly greys out
+    track(c.uuid) = Game.now + spell.cooldownTicks
+    if !tauntTrack then player.getCooldowns.addCooldown(used.getItem, spell.cooldownTicks) // the focus visibly greys out
     Spells.cast(player, spell)
     true
 
