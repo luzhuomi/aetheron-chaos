@@ -264,6 +264,8 @@ loop, built entirely from vanilla blocks, items and effects.
     defending is its own ending (the town keeps its sheep, and its grudges), and heroes who loitered
     away from the walls are named. The town guard still escorts off any hostile nobody is fighting, so
     the fight happens at the walls where a siege belongs. Ops can call one with `/quest invade [hub]`.
+    If a **guild's banner flies** at a hub under siege, its members hold it for their own name — see
+    the guild note on pride below.
 18. **War-band captains and siege duty** — a **named captain leads every third wave** (a vindicator,
     witch or pillager captain; from the sixth wave onward, a **ravager**). Captains are named and
     visible above their head, carry **2.6x health and 1.5x damage**, and the siege bar says who leads
@@ -353,6 +355,10 @@ loop, built entirely from vanilla blocks, items and effects.
     always the same. One banner per guild; raising it at another hub moves it. The mason's daily
     round re-raises it if it's knocked down, and it comes down for good when the charter folds.
     Guilded heroes also carry their `[Guild]` tag on `/quest top`.
+    And the banner **buys its keep**: when a war band marches on a hub where a guild's banner flies,
+    that siege is fought **for the name** — the guild's members hear it at the war-horn, every siege
+    kill counts **twice** toward the shared hunt, and their siege pay carries a **pride bonus**
+    (+2 gold per kill, `invasion.pride_gold_per_kill`). The payout message says so in the guild's name.
 
 ### Rules
 

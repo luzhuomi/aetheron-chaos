@@ -63,6 +63,9 @@ object Invasion:
   private val RewardXpPerKill = 30
   private val SigilKills = 5 // held the line this well and the forger wants you
 
+  // a guild whose banner flies at the besieged hub: its members are paid extra per kill
+  private def PrideGoldPerKill: Int = Tuning.getInt("invasion.pride_gold_per_kill", 2)
+
   /** War-band roster. Nothing named: a siege captain would read as a rare elite. */
   private val warBand: List[net.minecraft.world.entity.EntityType[?]] = List(
     net.minecraft.world.entity.EntityType.PILLAGER,
@@ -91,6 +94,7 @@ object Invasion:
     val captains = mutable.LinkedHashSet[Mob]()
     val captainNames = mutable.LinkedHashSet[String]()
     val kills = mutable.LinkedHashMap[UUID, Int]()
+    val proudGuilds = mutable.LinkedHashSet[String]() // guilds flying a banner at this hub
     refreshBar()
 
     def liveCaptain: Option[Mob] = captains.find(m => m.isAlive && !m.isRemoved)
@@ -195,6 +199,19 @@ object Invasion:
         lvl.players().asScala.foreach { p =>
           p.playNotifySound(SoundEvents.GOAT_HORN_PLAY, SoundSource.HOSTILE, 1.0f, 0.6f)
         }
+        // guilds with a banner on this ground hold it for their own name
+        val pride = Guilds.bannerPride(server, t)
+        if pride.nonEmpty then
+          s.proudGuilds ++= pride
+          Guilds.noticePride(server, t)
+          Game.broadcast(
+            server,
+            Component
+              .literal(
+                s"Banners fly above ${hubLabel(t)}'s plaza: ${pride.mkString(", ")}. Their members hold this ground for their own name - a siege kill counts twice toward their guild's hunt, and their pay carries a pride bonus."
+              )
+              .withStyle(ChatFormatting.LIGHT_PURPLE)
+          )
       case _ => ()
 
   /** Which registered hub the online heroes are closest to - a siege nobody can reach is noise. */
@@ -301,6 +318,11 @@ object Invasion:
         s.kills(player.getUUID) = scored
         Game.giveCoins(player, KillBonusGold)
         Game.creditWarBandKill(player)
+        if s.proudGuilds.nonEmpty then
+          Guilds.prideCredit(player, s.town).foreach { gname =>
+            if scored == 1 then
+              Game.message(player, s"Pride of the banner: '$gname' flies here - every siege kill counts twice toward the guild's hunt.", ChatFormatting.LIGHT_PURPLE)
+          }
         if s.captains.remove(victim) then
           s.captainsFelled += 1
           Game.creditCaptainFell(player)
@@ -353,7 +375,9 @@ object Invasion:
     )
     s.kills.toList.foreach { (uuid, scored) =>
       Option(server.getPlayerList.getPlayer(uuid)).filter(Game.isJoined).foreach { hero =>
-        val gold = RewardBaseGold + RewardGoldPerKill * scored
+        val proud = s.proudGuilds.contains(Guilds.tagName(server, uuid).getOrElse(""))
+        val prideGold = if proud then PrideGoldPerKill * scored else 0
+        val gold = RewardBaseGold + RewardGoldPerKill * scored + prideGold
         val xp = RewardBaseXp + RewardXpPerKill * scored
         Game.creditSiegeHeld(hero)
         Game.giveCoins(hero, gold)
@@ -363,7 +387,8 @@ object Invasion:
             Game.giveItem(hero, Loot.sigilStack())
             " A Sigil of the Elite is yours - the forger notices a siege held."
           else ""
-        Game.message(hero, s"Held the line at ${s.label}: $scored driven off - $gold gold and $xp XP for it.$proof", ChatFormatting.GOLD)
+        val prideNote = if proud then s" Your banner flew at these walls: +$prideGold gold in pride." else ""
+        Game.message(hero, s"Held the line at ${s.label}: $scored driven off - $gold gold and $xp XP for it.$prideNote$proof", ChatFormatting.GOLD)
       }
     }
     if s.drivenOff > 0 then

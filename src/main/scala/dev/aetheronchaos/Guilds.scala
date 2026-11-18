@@ -313,24 +313,53 @@ object Guilds:
     if math.abs(dx) >= math.abs(dz) then (if dx >= 0 then Direction.EAST else Direction.WEST)
     else if dz >= 0 then Direction.SOUTH else Direction.NORTH
 
+  /** The guilds whose banners fly above this hub - their members hold it for their own name. */
+  private[aetheronchaos] def bannerPride(server: MinecraftServer, hub: TownBuilder.Town): List[String] =
+    ensureLoaded(server)
+    banneredAt(hub).map(_.name).sorted
+
+  /** Tell a besieged hub's bannered guilds, member by member, what holding it means. */
+  private[aetheronchaos] def noticePride(server: MinecraftServer, hub: TownBuilder.Town): Unit =
+    banneredAt(hub).foreach { g =>
+      g.members.toList.flatMap(u => Option(server.getPlayerList.getPlayer(u))).foreach { m =>
+        Game.message(
+          m,
+          s"Your guild's banner flies at ${hubLabel(hub)}. Hold this ground: every siege kill counts twice toward the guild's hunt, and your pay will carry a pride bonus.",
+          ChatFormatting.LIGHT_PURPLE
+        )
+      }
+    }
+
+  /** One more hunt credit for a kill fought under the guild's own banner. */
+  private[aetheronchaos] def prideCredit(player: ServerPlayer, hub: TownBuilder.Town): Option[String] =
+    guildOf(player.getUUID) match
+      case Some(g) if g.bannerAt.exists { (key, _) => key == hubKey(hub) } =>
+        creditHunt(g, 1, player.server)
+        Some(g.name)
+      case None => None
+
+  private def banneredAt(hub: TownBuilder.Town): List[Guild] =
+    guilds.values.toList.filter(g => g.bannerAt.exists { (key, _) => key == hubKey(hub) }).sortBy(_.name)
+
   // --- the shared daily ------------------------------------------------------------
 
   /** Every kill by a member feeds the guild's hunt. Called from Game.awardKill. */
   private[aetheronchaos] def onKill(player: ServerPlayer): Unit =
-    guildOf(player.getUUID).foreach { g =>
-      rollover(g)
-      if !g.isComplete then
-        g.dailyProgress += 1
-        if g.isComplete then
-          val guildLine = Component
-            .literal(s"The guild '${g.name}' has completed today's hunt (${DailyGoal} felled). Members: /quest guild claim for your $DailyRewardGold gold.")
-            .withStyle(ChatFormatting.GOLD)
-          g.members.toList.flatMap(u => Option(player.server.getPlayerList.getPlayer(u))).foreach { m =>
-            Game.message(m, s"'${g.name}': the hunt is done - ${DailyGoal} felled. Your share: /quest guild claim.", ChatFormatting.GOLD)
-          }
-          Game.broadcast(player.server, guildLine)
-          save(player.server)
-    }
+    guildOf(player.getUUID).foreach(g => creditHunt(g, 1, player.server))
+
+  private def creditHunt(g: Guild, amount: Int, server: MinecraftServer): Unit =
+    rollover(g)
+    if !g.isComplete then
+      g.dailyProgress += amount
+      if g.isComplete then
+        val guildLine = Component
+          .literal(s"The guild '${g.name}' has completed today's hunt (${DailyGoal} felled). Members: /quest guild claim for your $DailyRewardGold gold.")
+          .withStyle(ChatFormatting.GOLD)
+        g.members.toList.flatMap(u => Option(server.getPlayerList.getPlayer(u))).foreach { m =>
+          Game.message(m, s"'${g.name}': the hunt is done - ${DailyGoal} felled. Your share: /quest guild claim.", ChatFormatting.GOLD)
+        }
+        Game.broadcast(server, guildLine)
+        save(server)
 
   /** A member joining mid-hunt should know where it stands. */
   private def announceDaily(player: ServerPlayer, g: Guild): Unit =
