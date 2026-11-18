@@ -201,6 +201,22 @@ object QuestCommand:
               )
           )
           .`then`(
+            Commands.literal("stash")
+              .executes(ctx => withPlayer(ctx, p => Stash.list(p)))
+              .`then`(
+                Commands.literal("deposit")
+                  .executes(ctx => withPlayer(ctx, p => Stash.deposit(p, all = false)))
+                  .`then`(Commands.literal("all").executes(ctx => withPlayer(ctx, p => Stash.deposit(p, all = true))))
+              )
+              .`then`(
+                Commands.literal("withdraw")
+                  .`then`(
+                    Commands.argument("n", IntegerArgumentType.integer(1, 99))
+                      .executes(ctx => withPlayer(ctx, p => Stash.withdraw(p, IntegerArgumentType.getInteger(ctx, "n"))))
+                  )
+              )
+          )
+          .`then`(
             Commands.literal("tuning")
               .requires(src => src.hasPermission(2))
               .executes(ctx => withPlayer(ctx, _ => Tuning.report))

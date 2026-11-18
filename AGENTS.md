@@ -23,7 +23,7 @@ needs a joined hero (titles unlocking, trading, the HUD) can only be checked in-
   chat, the action bar (`Hud.scala`), sign text, and the `/quest` Brigadier tree. Clickable
   chat text only fires on LEFT-click with the chat window open (T).
 - **Server-authoritative.** All state lives server-side; character/town/market state persists
-  as SNBT files in the world folder (`aetheron-chaos-{characters,towns,postings}.snbt`).
+  as SNBT files in the world folder (`aetheron-chaos-{characters,towns,postings,guilds,stash}.snbt`).
   Missing keys in old saves must read as empty/false — every feature extends saves backwards-compatibly.
 - Every system exposes an entry point used by `Game.tick` (schedulers) or a Fabric event hook
   (`Combat`, `Interactions`, `AetheronChaosMod`). New features follow the existing pattern:

@@ -359,6 +359,13 @@ loop, built entirely from vanilla blocks, items and effects.
     that siege is fought **for the name** — the guild's members hear it at the war-horn, every siege
     kill counts **twice** toward the shared hunt, and their siege pay carries a **pride bonus**
     (+2 gold per kill, `invasion.pride_gold_per_kill`). The payout message says so in the guild's name.
+26. **A shelf that outlives the session** — `/quest stash` is the realm's bank: a personal,
+    per-hero **item shelf** kept in the world save. Hold a stack and `deposit` it (a **2-gold fee**
+    per stack, `stash.deposit_gold`; `deposit all` takes every identical stack you carry);
+    `withdraw <n>` puts it back in your pack, free, as long as there's room. Up to 27 stacks
+    (`stash.max_slots`). What's on the shelf is **safe from everything**: death, logouts, restarts,
+    the dawn merchant — it waits by name until you ask for it, at any hub or none. The ledger is
+    `aetheron-chaos-stash.snbt` in the world folder, in the same plain-SNBT style as the posts.
 
 ### Rules
 
@@ -409,6 +416,9 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest guild invite <hero>` / `accept` / `decline` | everyone | Invite a hero; answer an invitation |
 | `/quest guild leave` / `claim` | everyone | Leave the guild; take your share of a finished hunt |
 | `/quest guild banner` | everyone | Raise the guild's banner at the hub you stand at (200 gold) |
+| `/quest stash` | everyone | Read your personal shelf: item storage that survives death and logout |
+| `/quest stash deposit [all]` | everyone | Store the stack in hand (2 gold a stack; `all` takes every identical one) |
+| `/quest stash withdraw <n>` | everyone | Take a stashed stack back to your pack (free; needs pack room) |
 | `/quest titles` | everyone | Title ladder: what you've earned and what's next, with progress |
 | `/quest title <id>` | everyone | Carry an earned title (action bar + leaderboard), `none` to set down |
 | `/quest guard` | everyone | The realm's watch: strength and shortfalls at every hub |
@@ -528,6 +538,7 @@ src/main/scala/dev/aetheronchaos/
   Trading.scala          Face-to-face player trading: invite, offers, double-confirm, safe swap
   TradePost.scala        Hub market signs: posted stacks with prices, sale gold waiting at the post
   Guilds.scala           Named guilds: charters, chat rosters, one shared daily hunt per day
+  Stash.scala            Per-hero item shelves: deposit/withdraw, safe across death and logout
   Interactions.scala     Right-click hooks: quest board, vendor barrel, town NPCs
   Combat.scala           Kill credit from damage sources, threat feed
   Threat.scala           Per-mob threat table: damage/heal/taunt/buff aggro, hysteresis retarget, /quest threat readout
