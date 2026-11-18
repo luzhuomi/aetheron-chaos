@@ -36,6 +36,7 @@ object TradePost:
   private val MaxPerHero = 3
   private def MaxPrice: Int = Tuning.getInt("trade.max_price", 5000)
   private val MaxWatches = 3
+  private val MaxOrders = 3
   private val SoldHistoryPerItem = 5
   private val FileName = "aetheron-chaos-postings.snbt"
 
@@ -44,8 +45,13 @@ object TradePost:
       val name = stack.getDisplayName.getString
       if stack.getCount > 1 then s"$name x${stack.getCount}" else name
 
+  /** The market's other half: a hero names a price and a kind of item, holds the gold up
+   *  front, and the order fills when any board comes under it. Unfilled, dawn calls it back. */
+  final class BuyOrder(val buyer: UUID, val buyerName: String, val phrase: String, val gold: Int, val madeDay: String)
+
   // hub key ("x,z") -> the postings on that board, plus sale proceeds waiting for sellers
   private val boards = mutable.Map[String, mutable.ListBuffer[Posting]]()
+  private val orders = mutable.ListBuffer[BuyOrder]() // standing buy orders, realm-wide
   private val owed = mutable.Map[UUID, (String, Int)]() // seller uuid -> (name, gold waiting at the post)
   // what heroes are watching for: uuid -> phrases matched against posted item names
   private val watches = mutable.Map[UUID, mutable.LinkedHashSet[String]]()
@@ -75,9 +81,15 @@ object TradePost:
           case Some(g) if g > 0 => s"\n  The post owes you $g gold: /quest post coin takes it."
           case _ => ""
         val mineWatch = watches.get(player.getUUID).filter(_.nonEmpty).map(w => s"\n  You watch for: ${w.mkString(", ")} (/quest post unwatch <phrase>)").getOrElse("")
+        val myOrders = orders.filter(_.buyer == player.getUUID).zipWithIndex.toList match
+          case Nil => ""
+          case mine =>
+            ("\nYour standing orders ($MaxOrders a hero):" :: mine.map { (o, i) =>
+              s"  #${i + 1}: '${o.phrase}' - holding ${o.gold} gold since ${o.madeDay} (/quest post unwant ${i + 1} to call it back)"
+            }).mkString("\n")
         (List(
-          s"--- Trade Post at ${hubLabel(hub)} --- ${board.size}/$MaxPerHub posted. To sell: hold a stack, /quest post sell <gold> (no price asks the market what it paid). To buy: /quest post buy <n>. To be told when something lands: /quest post watch <phrase>."
-        ) ::: rows ::: List(waiting, mineWatch, "Anything still posted come dawn, the village merchant buys it at half asking - the gold waits at the post.")).filter(_.nonEmpty).mkString("\n")
+          s"--- Trade Post at ${hubLabel(hub)} --- ${board.size}/$MaxPerHub posted. To sell: hold a stack, /quest post sell <gold> (no price asks the market what it paid). To buy: /quest post buy <n>. To be told when something lands: /quest post watch <phrase>. To ask the market to come to you: /quest post want <gold> <phrase>."
+        ) ::: rows ::: List(waiting, mineWatch, myOrders, "Anything still posted come dawn, the village merchant buys it at half asking - the gold waits at the post. Unfilled orders come back the same way.")).filter(_.nonEmpty).mkString("\n")
 
   /** `/quest post sell <gold>` - leave the stack in hand on the board for a price.
    *  No price (`gold` 0) is the market's turn to speak: what the board recently paid. */
@@ -97,15 +109,29 @@ object TradePost:
             s"A hero may keep $MaxPerHero postings out at a time. Sell one first (/quest post cancel)."
           else
             val snapshot = held.copy()
-            held.shrink(snapshot.getCount)
-            player.inventoryMenu.broadcastChanges()
-            board += new Posting(player.getUUID, player.getName.getString, snapshot, gold, today)
-            notifyWatchers(player.server, snapshot, gold, hub)
-            save(player.server)
-            rewriteSigns(player.server)
-            val guidance = sold.get(itemKey(snapshot)).flatMap(recentGuidance)
-            val guidanceNote = guidance.map(g => s" (the board has paid $g for these recently)").getOrElse("")
-            s"${describe(snapshot)} is posted at ${hubLabel(hub)} for $gold gold$guidanceNote. The board sees you now; other heroes will."
+            val posting = new Posting(player.getUUID, player.getName.getString, snapshot, gold, today)
+            bestOrderFor(player.server, posting) match
+              case Some(order) if completeOrder(player.server, order, hubKey, posting) =>
+                held.shrink(snapshot.getCount)
+                player.inventoryMenu.broadcastChanges()
+                s"${describe(snapshot)} sold the moment you posted it: ${order.buyerName}'s standing order pays $gold gold - it waits at the post (/quest post coin)."
+              case _ =>
+                held.shrink(snapshot.getCount)
+                player.inventoryMenu.broadcastChanges()
+                board += posting
+                notifyWatchers(player.server, snapshot, gold, hub)
+                save(player.server)
+                rewriteSigns(player.server)
+                val guidance = sold.get(itemKey(snapshot)).flatMap(recentGuidance)
+                val guidanceNote = guidance.map(g => s" (the board has paid $g for these recently)").getOrElse("")
+                val orderHint = openOrderHint(snapshot)
+                s"${describe(snapshot)} is posted at ${hubLabel(hub)} for $gold gold$guidanceNote. The board sees you now; other heroes will.$orderHint"
+
+  /** Someone out there is already offering more than this asking - worth saying once. */
+  private def openOrderHint(stack: ItemStack): String =
+    orders.filter(o => matchesPhrase(stack, o.phrase) && o.gold >= 1).map(_.gold).maxOption
+      .map(mo => s" Someone holds a standing order paying up to $mo gold for that kind of item - /quest post want to see the market's own asks.")
+      .getOrElse("")
 
   /** What the board has actually paid for this item - the only price guide there is. */
   private def priceGuidance(held: ItemStack): String =
@@ -162,7 +188,80 @@ object TradePost:
       }
     }
 
-  /** `/quest post buy <n>` - take posting n down off the board. */
+  /** `/quest post want <gold> <phrase>` - hold gold up front against a kind of item. If a
+   *  board already has one under the price, the order fills on the spot; the goods land on
+   *  the buyer's shelf and the seller is paid at the post. Unfilled, dawn calls it back. */
+  def want(player: ServerPlayer, gold: Int, phrase: String): String =
+    ensureLoaded(player.server)
+    val p = phrase.trim.toLowerCase
+    if p.length < 3 || p.length > 30 then "Order phrases run 3 to 30 characters - 'sigil', 'iron boots'."
+    else if gold < 1 || gold > MaxPrice then s"Orders pay from 1 to $MaxPrice gold."
+    else if orders.count(_.buyer == player.getUUID) >= MaxOrders then s"A hero may hold $MaxOrders open orders at a time (/quest post unwant to free one)."
+    else
+      val purse = Game.countItem(player, Items.GOLD_NUGGET)
+      if purse < gold then s"An order holds its gold up front - you would pledge $gold and carry $purse."
+      else
+        val order = new BuyOrder(player.getUUID, player.getName.getString, p, gold, today)
+        Game.removeItems(player, Items.GOLD_NUGGET, gold)
+        val filled = bestMatchFor(p, gold).exists((hubKey, posting) => completeOrder(player.server, order, hubKey, posting))
+        if !filled then orders += order
+        save(player.server)
+        rewriteSigns(player.server)
+        if filled then s"Your order filled on the spot - ${gold} gold pledged, whatever the board asked is paid, and it is on your shelf (/quest stash)."
+        else s"Order open: $gold gold held against '$p'. It fills the moment a posting comes under it; if dawn finds it unfilled, the gold comes back to you at the post."
+
+  /** `/quest post unwant <n>` - call your order back; the pledge comes straight back. */
+  def unwant(player: ServerPlayer, n: Int): String =
+    ensureLoaded(player.server)
+    val mine = orders.filter(_.buyer == player.getUUID).toList
+    if n < 1 || n > mine.size then s"You hold ${mine.size} open order(s) - unwant takes #1..#${mine.size}."
+    else
+      val o = mine(n - 1)
+      orders -= o
+      Game.giveCoins(player, o.gold)
+      save(player.server)
+      s"Order called back: '${o.phrase}' - your ${o.gold} gold is back in your purse."
+
+  /** The best open order for a posting: pays the most, oldest first among equals, buyer has shelf room. */
+  private def bestOrderFor(server: MinecraftServer, posting: Posting): Option[BuyOrder] =
+    orders
+      .filter(o => o.gold >= posting.gold && matchesPhrase(posting.stack, o.phrase) && Stash.spaceFor(server, o.buyer) > 0)
+      .sortBy(o => (-o.gold, o.madeDay))
+      .headOption
+
+  /** The cheapest posting on any board that would fill this pledge. */
+  private def bestMatchFor(phrase: String, maxGold: Int): Option[(String, Posting)] =
+    boards.toList
+      .flatMap { (hubKey, board) => board.filter(p => matchesPhrase(p.stack, phrase) && p.gold <= maxGold).map(p => (hubKey, p)).toList }
+      .sortBy(_._2.gold)
+      .headOption
+
+  private def matchesPhrase(stack: ItemStack, phrase: String): Boolean =
+    stack.getDisplayName.getString.toLowerCase.contains(phrase)
+
+  /** The order takes the posting: seller paid at the post, goods to the buyer's shelf,
+   *  the buyer's surplus pledge back as owed. Atomic: if the shelf has no room, nothing moves. */
+  private def completeOrder(server: MinecraftServer, order: BuyOrder, hubKey: String, posting: Posting): Boolean =
+    if !Stash.receive(server, order.buyer, posting.stack.copy()) then false
+    else
+      boards.get(hubKey).foreach(_ -= posting)
+      orders -= order
+      owe(posting.seller, posting.sellerName, posting.gold)
+      recordSale(itemKey(posting.stack), posting.gold)
+      if order.gold > posting.gold then owe(order.buyer, order.buyerName, order.gold - posting.gold)
+      Option(server.getPlayerList.getPlayer(order.buyer)).foreach { hero =>
+        Game.message(hero, s"Your order for '${order.phrase}' fills: ${describe(posting.stack)} from ${posting.sellerName} - it is on your shelf (/quest stash).", ChatFormatting.GOLD)
+      }
+      Option(server.getPlayerList.getPlayer(posting.seller)).foreach { hero =>
+        Game.message(hero, s"${describe(posting.stack)} sold to ${order.buyerName}'s standing order. Your ${posting.gold} gold waits at the post (/quest post coin).", ChatFormatting.GOLD)
+      }
+      Game.broadcast(
+        server,
+        Component
+          .literal(s"${order.buyerName}'s standing order took ${posting.sellerName}'s ${describe(posting.stack)} for ${posting.gold} gold.")
+          .withStyle(ChatFormatting.GOLD)
+      )
+      true
   def buy(player: ServerPlayer, n: Int): String =
     ensureLoaded(player.server)
     hubFor(player) match
@@ -254,7 +353,8 @@ object TradePost:
       merchantSweep(server, day)
 
   /** The NPC floor: anything the heroes left posted overnight, the merchant buys at half
-   *  asking. A quiet server still has a market, and a cornered hub still clears. */
+   *  asking. A quiet server still has a market, and a cornered hub still clears. Standing
+   *  orders the dawn finds unfilled are called back - the pledge waits at the post. */
   private def merchantSweep(server: MinecraftServer, today: String): Unit =
     var taken = 0
     boards.values.foreach { board =>
@@ -268,13 +368,23 @@ object TradePost:
         taken += 1
       }
     }
-    if taken > 0 then
+    var calledBack = 0
+    orders.filter(_.madeDay < today).toList.foreach { o =>
+      orders -= o
+      owe(o.buyer, o.buyerName, o.gold)
+      Option(server.getPlayerList.getPlayer(o.buyer)).foreach { hero =>
+        Game.message(hero, s"Your standing order for '${o.phrase}' stood unfilled past dawn - your ${o.gold} gold waits at the post (/quest post coin).", ChatFormatting.GOLD)
+      }
+      calledBack += 1
+    }
+    if taken > 0 || calledBack > 0 then
       save(server)
       rewriteSigns(server)
+      val orderNote = if calledBack > 0 then s" and called back $calledBack unfilled order(s)" else ""
       Game.broadcast(
         server,
         Component
-          .literal(s"The village merchant swept the trade posts at dawn, buying what was left posted overnight at half asking ($taken item(s)). The market wakes fresh.")
+          .literal(s"The village merchant swept the trade posts at dawn, buying what was left posted overnight at half asking ($taken item(s))$orderNote. The market wakes fresh.")
           .withStyle(ChatFormatting.GOLD)
       )
 
@@ -352,7 +462,7 @@ object TradePost:
     Try {
       val root = TagParser.parseTag(Files.readString(p))
       val provider = server.registryAccess()
-      root.getAllKeys.asScala.filter(k => k != "owed" && k != "watches" && k != "sold").foreach { hubKey =>
+      root.getAllKeys.asScala.filter(k => k != "owed" && k != "watches" && k != "sold" && k != "orders").foreach { hubKey =>
         val board = mutable.ListBuffer[Posting]()
         root.getList(hubKey, Tag.TAG_COMPOUND).asScala.foreach {
           case e: CompoundTag =>
@@ -387,6 +497,17 @@ object TradePost:
           val prices = soldTag.getString(k).split(",").toSeq.flatMap(s => Try(s.trim.toInt).toOption).toList
           if prices.nonEmpty then sold += k -> prices
         }
+      root.getList("orders", Tag.TAG_COMPOUND).asScala.foreach {
+        case e: CompoundTag =>
+          Try(orders += new BuyOrder(
+            UUID.fromString(e.getString("buyer")),
+            e.getString("buyerName"),
+            e.getString("phrase"),
+            e.getInt("gold"),
+            e.getString("madeDay")
+          ))
+        case _ => ()
+      }
     }
 
   private def save(server: MinecraftServer): Unit =
@@ -423,6 +544,17 @@ object TradePost:
       val soldTag = new CompoundTag
       sold.foreach { (key, prices) => soldTag.putString(key, prices.mkString(",")) }
       root.put("sold", soldTag)
+      val orderList = new ListTag
+      orders.foreach { o =>
+        val e = new CompoundTag
+        e.putString("buyer", o.buyer.toString)
+        e.putString("buyerName", o.buyerName)
+        e.putString("phrase", o.phrase)
+        e.putInt("gold", o.gold)
+        e.putString("madeDay", o.madeDay)
+        orderList.add(e)
+      }
+      root.put("orders", orderList)
       val p = path(server)
       Files.createDirectories(p.getParent)
       Files.writeString(p, root.getAsString)

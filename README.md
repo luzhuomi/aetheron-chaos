@@ -333,6 +333,14 @@ loop, built entirely from vanilla blocks, items and effects.
     sentence when it's posted, no more. And the market has an **NPC floor**: anything left posted
     overnight, the village merchant buys at **half asking** at dawn (the gold waits at the post like
     any sale). A quiet server still has a market, and one hero can't corner a hub forever.
+    The market now has **both sides**: `/quest post want <gold> <phrase>` puts a **standing buy
+    order** up — your gold held up front against a kind of item (3 at a time, up to the price
+    ceiling). If a board already has one under your price, it fills **on the spot**: the goods land
+    on your stash shelf, the seller is paid at the post, and your surplus pledge waits there too.
+    Otherwise the order sits: the moment anyone posts something matching under your price, it fills
+    the same way — you never walk to a board, the board comes to you. `/quest post` lists your open
+    orders; `unwant <n>` calls one back. And the same dawn sweep that buys stale postings **calls
+    back unfilled orders** — the market clears both ways, and no gold is ever trapped.
 24. **A barracks at the plaza** — the other building a hub can grow: for 150 gold a hero raises a
     **guardhold** on the plaza's edge — floor stones, an arms-rack wall, an anvil, a lantern, and an
     iron sword racked where the plaza can see it. A hub with a barracks keeps a **bigger watch**
@@ -408,6 +416,8 @@ loop, built entirely from vanilla blocks, items and effects.
 | `/quest post sell <gold>` | everyone | Post the stack in hand at the hub market for a price |
 | `/quest post buy/cancel <n>` | everyone | Buy posting #n / take your own posting back |
 | `/quest post coin` | everyone | Collect gold your past sales have earned |
+| `/quest post want <gold> <phrase>` | everyone | A standing buy order: gold held up front, filled when any board comes under it |
+| `/quest post unwant <n>` | everyone | Call one of your orders back; the pledge returns |
 | `/quest post watch/unwatch <phrase>` | everyone | Be told when something matching is posted / stop watching |
 | `/quest barracks` | everyone | Which hubs keep a barracks (and what one costs) |
 | `/quest barracks build` | everyone | Raise a barracks at the hub you stand at (150 gold) |

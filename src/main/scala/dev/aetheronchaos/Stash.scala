@@ -92,6 +92,23 @@ object Stash:
         save(player.server)
         s"${describe(e.stack)} comes off the shelf, free as taking your own coat off its peg. ${shelf.size}/$MaxSlots spaces still in use."
 
+  // --- used by the trade post when an order fills -----------------------------------
+
+  /** Free shelf room a hero has (a caller must pass a live server so the shelf is loaded). */
+  private[aetheronchaos] def spaceFor(server: MinecraftServer, uuid: UUID): Int =
+    ensureLoaded(server)
+    MaxSlots - shelves.get(uuid).map(_.size).getOrElse(0)
+
+  /** Put a stack straight on a hero's shelf - a filled order, a gift. No fee, no pack needed. */
+  private[aetheronchaos] def receive(server: MinecraftServer, uuid: UUID, stack: ItemStack): Boolean =
+    ensureLoaded(server)
+    val shelf = shelves.getOrElseUpdate(uuid, mutable.ListBuffer())
+    if shelf.size >= MaxSlots then false
+    else
+      shelf += new Entry(stack, java.time.LocalDate.now().toString)
+      save(server)
+      true
+
   // --- persistence ---------------------------------------------------------------
 
   private def path(server: MinecraftServer): Path =
