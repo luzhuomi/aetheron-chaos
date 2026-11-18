@@ -455,7 +455,12 @@ names, with the Scala stdlib bundled as a jar-in-jar — no Scala plugin needed 
 The XP/paragon curves, warp tolls, guard charters, loot rarity bands, the merchant's
 price tables and the typo distance live in one Minecraft-free object (`Formulas.scala`)
 and are covered by munit tests under `src/test` — they run without a world, and
-`./gradlew build` runs them too.
+`./gradlew build` runs them too. The real quest and spell tables are tested as well:
+`TestRealm.boot()` runs the server's own vanilla bootstrap inside the test JVM, so the
+invariants that keep the board sane — chains only reference real quests and never go
+down in level, every class trial teaches exactly one spell, every spell gate names a
+real quest, the daily rotation always posts a legal board, no quest reward is Legendary
+— fail the build if a table edit ever breaks them.
 
 ### Tune the realm without recompiling
 
